@@ -1,7 +1,8 @@
 {
-  "name": "Universal ITI Instructor Automation V14",
-  "short_name": "ITI AI V14",
-  "start_url": "./index.html",
+  "name": "Universal ITI Instructor Automation V14.1",
+  "short_name": "ITI AI",
+  "start_url": "./start.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f5f7fb",
   "theme_color": "#0b2740",
