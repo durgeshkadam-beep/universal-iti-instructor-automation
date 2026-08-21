@@ -1,5 +1,5 @@
-const CACHE = "iti-v14-cloud-drive";
-const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
+const CACHE = "iti-v14-1-built-in-firebase";
+const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
