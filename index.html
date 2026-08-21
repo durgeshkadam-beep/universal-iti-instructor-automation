@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Universal ITI Instructor Automation V14</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#0b2740">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Universal ITI">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="loginScreen" class="login-wrap">
+  <div class="login-showcase" aria-hidden="true">
+    <div class="showcase-brand"><img src="logo.png" alt=""><span>Universal ITI</span></div>
+    <div class="showcase-copy">
+      <span class="showcase-kicker">INSTRUCTOR WORKSPACE</span>
+      <h2>Plan teaching. Keep records. Stay inspection-ready.</h2>
+      <p>A modern workspace for syllabus planning, attendance, AI-assisted Lesson &amp; Demonstration Plans, evaluation and institute records.</p>
+      <div class="showcase-points">
+        <span><b>✨</b> AI-assisted teaching plans</span>
+        <span><b>🗓️</b> Calendar-aware yearly planning</span>
+        <span><b>🛡️</b> Inspection-ready records</span>
+      </div>
+    </div>
+    <div class="showcase-footer">Government ITI workflow • Local-first • Free AI option</div>
+  </div>
+  <div class="login-card">
+    <img src="logo.png" alt="Institute logo" style="width:64px;height:auto;display:block;margin:0 auto 12px">
+    <h1 class="login-title">Universal ITI Training Register</h1>
+    <p class="login-sub">Bharat Ratna Dr. Babasaheb Ambedkar<br>Government ITI, Mumbai-01</p>
+    <div class="field">
+      <label>I am logging in as</label>
+      <select id="loginRole">
+        <option value="instructor">Instructor</option>
+        <option value="principal">Vice-Principal / Principal</option>
+        <option value="student">Student / Trainee</option>
+      </select>
+    </div>
+    <div class="field" id="staffNameField">
+      <label>User ID</label>
+      <input id="loginName" type="text" placeholder="e.g. durgesh" value="durgesh">
+    </div>
+    <div class="field" id="staffPinField">
+      <label>PIN</label>
+      <input id="loginPin" type="password" inputmode="numeric" placeholder="4-digit PIN" maxlength="8">
+    </div>
+    <div class="field" id="studentRollField" style="display:none">
+      <label>Your Roll No.</label>
+      <input id="loginRoll" type="text" placeholder="e.g. 07">
+    </div>
+    <div class="field" id="studentPinField" style="display:none">
+      <label>Your PIN</label>
+      <input id="loginStudentPin" type="password" inputmode="numeric" placeholder="4-digit PIN given by instructor" maxlength="8">
+    </div>
+    <button class="btn primary full" onclick="App.login()">Enter</button>
+    <p class="login-note">Universal Instructor Automation V14 — Modern UI + Free AI + Cloud-ready data safety.</p>
+    <div class="developer-credit-login"><span>CONCEPT &amp; DEVELOPED BY</span><strong>DURGESH KADAM</strong><small>Craft Instructor • DTP / DTPO</small></div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="appShell" style="display:none">
+
+  <header class="topbar">
+    <div class="brand">
+      <img src="logo.png" alt="logo" style="width:34px;height:auto">
+      <div class="brand-text">
+        <strong id="brandTitle">Universal ITI Training Register</strong>
+        <small id="brandSub">Bharat Ratna Dr. Babasaheb Ambedkar Govt. ITI, Mumbai-01</small>
+      </div>
+    </div>
+    <div class="who">
+      <span id="whoName">—</span>
+      <button class="btn ghost small" id="changePinBtn" onclick="App.openPinChange()" style="display:none">Change PIN</button>
+      <button class="btn ghost small" onclick="App.logout()">Logout</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <div class="sidebar-caption"><span>Workspace</span><small>Instructor tools</small></div>
+    <button class="tab active" data-tab="dashboard" data-roles="instructor,principal,student">📊 Dashboard</button>
+    <button class="tab" data-tab="ai-assistant" data-roles="instructor">✨ AI Assistant</button>
+    <button class="tab" data-tab="syllabus-ai" data-roles="instructor">🤖 Syllabus AI</button>
+    <button class="tab" data-tab="modules" data-roles="instructor">🧩 Module Manager</button>
+    <button class="tab" data-tab="users" data-roles="principal">👤 Instructor Accounts</button>
+    <button class="tab" data-tab="trainees" data-roles="instructor,student">👥 Trainees</button>
+    <button class="tab" data-tab="attendance" data-roles="instructor,student">✅ Attendance</button>
+    <button class="tab" data-tab="practicals" data-roles="instructor,student">🖥️ Practicals</button>
+    <button class="tab" data-tab="theory" data-roles="instructor,student">📘 Theory</button>
+    <button class="tab" data-tab="splitup" data-roles="instructor,student">🗓️ Split-up Syllabus</button>
+    <button class="tab" data-tab="evaluation" data-roles="instructor,student">📝 Evaluation</button>
+    <button class="tab" data-tab="notices" data-roles="instructor,student">📰 Notice Board</button>
+    <button class="tab" data-tab="leave" data-roles="instructor,student">🩺 Leave &amp; Discipline</button>
+    <button class="tab" data-tab="exams" data-roles="instructor,student">📝 Class Test</button>
+    <button class="tab" data-tab="ojt" data-roles="instructor,student">🏭 OJT &amp; Projects</button>
+    <button class="tab" data-tab="gallery" data-roles="instructor,student">🖼️ Gallery</button>
+    <button class="tab" data-tab="activities" data-roles="instructor,student">🏆 Extra Activities</button>
+    <button class="tab" data-tab="record-formats" data-roles="instructor,principal">🖨️ Record Formats</button>
+        <button class="tab" data-tab="inspection" data-roles="instructor,principal">🛡️ Inspection File</button>
+        <button class="tab" data-tab="cloud" data-roles="instructor,principal">☁️ Cloud &amp; Drive</button>
+        <button class="tab" data-tab="reports" data-roles="instructor,principal">📄 Reports</button>
+  </nav>
+
+  <nav id="mobileNav" class="mobile-nav" aria-label="Mobile navigation"></nav>
+  <div id="mobileMoreSheet" class="mobile-more-sheet" aria-hidden="true">
+    <div class="mobile-sheet-backdrop" onclick="App.closeMobileMore()"></div>
+    <div class="mobile-sheet-panel">
+      <div class="mobile-sheet-handle"></div>
+      <div class="mobile-sheet-head"><div><b>More</b><small>All available sections</small></div><button class="icon-btn" onclick="App.closeMobileMore()" aria-label="Close">✕</button></div>
+      <div id="mobileMoreGrid" class="mobile-more-grid"></div>
+    </div>
+  </div>
+
+  <main id="main">
+
+
+    <!-- ---------- FREE AI INSTRUCTOR ASSISTANT ---------- -->
+    <section id="tab-ai-assistant" class="panel">
+      <div class="hero" style="margin-bottom:16px"><div class="hero-content"><div><h2>✨ Instructor AI Assistant</h2><p>Create syllabus analysis, Lesson Plans and Demonstration Plans. AI prepares a draft; the instructor reviews and approves the record.</p></div></div></div>
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        <div class="card">
+          <div class="field-row" style="justify-content:space-between"><h3>AI Connection</h3><span id="aiConnectionBadge" class="badge">○ Manual / no-key mode</span></div>
+          <p id="aiConnectionHelp" class="muted"></p>
+          <div class="field"><label>Gemini API key <span class="muted">(optional)</span></label><input id="aiApiKey" type="password" autocomplete="off" placeholder="Paste key for this session only"></div>
+          <div class="field"><label>Model</label><input id="aiModel" value="gemini-3.6-flash"></div>
+          <div class="field-row"><button class="btn primary" onclick="InstructorAI.setKey()">Connect Gemini</button><button class="btn ghost" onclick="InstructorAI.disconnect()">Disconnect</button></div>
+          <div class="callout" style="margin-top:12px"><b>Privacy:</b> API key stays only in browser sessionStorage and is not saved in the app database. Do not send trainee Aadhaar, phone numbers or other personal records to free AI services.</div>
+        </div>
+        <div class="card"><h3>Today's Teaching</h3><div id="aiToday"></div></div>
+      </div>
+      <div class="card"><h3>Prepare Any Plan</h3><p class="muted">Choose a topic from the approved register. Trade, batch, duration and previous/next topic are added automatically.</p><div class="field-row"><select id="aiTopicSelect" style="flex:1"><option value="">Select a topic…</option></select><button class="btn primary" onclick="InstructorAI.openQuickPlan()">✨ Create AI Draft</button></div></div>
+      <div class="card"><h3>Free workflow without an API key</h3><p>1. Generate a prompt here. 2. Copy it to any free AI chatbot. 3. Paste the returned JSON back into the AI window. 4. Preview. 5. Approve &amp; Keep only when satisfied.</p></div>
+    </section>
+
+    <!-- ---------- UNIVERSAL SYLLABUS AI ---------- -->
+    <section id="tab-syllabus-ai" class="panel">
+      <div class="hero" style="margin-bottom:16px">
+        <div class="hero-content">
+          <div>
+            <h2>🤖 Universal Syllabus AI</h2>
+            <p>Upload a trade syllabus once. The app extracts modules, practicals, theory and hours, then builds a working-day calendar.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        <div class="card">
+          <h3>1. Trade & Session</h3>
+          <div class="field"><label>Trade name</label><input id="uTrade" placeholder="e.g. Electrician"></div>
+          <div class="field-row">
+            <div class="field" style="flex:1"><label>Session start</label><input id="uStart" type="date"></div>
+            <div class="field" style="flex:1"><label>Session end</label><input id="uEnd" type="date"></div>
+          </div>
+          <div class="field">
+            <label>Syllabus file</label>
+            <input id="uFile" type="file" accept=".pdf,.txt,.csv,.xlsx,.xls,.docx">
+            <small class="muted">PDF, Word, Excel, CSV or text. Text-based PDFs work directly; scanned/image-only PDFs still require OCR.</small>
+          </div>
+          <div class="field-row">
+            <button class="btn primary" onclick="InstructorAI.analyzeSyllabusFile()">✨ Analyze with AI</button>
+            <button class="btn secondary" onclick="UniversalSyllabus.analyzeFile()">🔍 Basic Analyze</button>
+            <button class="btn ghost" onclick="UniversalSyllabus.loadDemo()">Load Demo</button>
+          </div>
+          <div id="uStatus" class="callout" style="display:none"></div>
+        </div>
+
+        <div class="card">
+          <h3>2. Government / Institute Calendar</h3>
+          <p class="muted">Free mode uses verified Maharashtra 2026 public holidays plus your institute rules. For future years, add/import the dates published by Government/DVET.</p>
+          <div class="field-row" id="uDays">
+            <label><input type="checkbox" value="1" checked> Mon</label>
+            <label><input type="checkbox" value="2" checked> Tue</label>
+            <label><input type="checkbox" value="3" checked> Wed</label>
+            <label><input type="checkbox" value="4" checked> Thu</label>
+            <label><input type="checkbox" value="5" checked> Fri</label>
+            <label><input type="checkbox" value="6" checked> Sat</label>
+            <label><input type="checkbox" value="0"> Sun</label>
+          </div>
+          <div class="field-row">
+            <label><input id="uAltSat" type="checkbox" checked> Auto holiday: 2nd &amp; 4th Saturday</label>
+            <label><input id="uUseExistingHolidays" type="checkbox" checked> Include existing institute holidays</label>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Total training hours / day</label><input id="uHours" type="number" value="7" min="1" max="12"></div>
+            <div class="field"><label>Theory hours / day</label><input id="uTheoryHours" type="number" value="1" min="0" max="7" step="0.5"></div>
+          </div>
+          <div class="field">
+            <label>Government / additional holidays <span class="muted">(YYYY-MM-DD | Holiday name)</span></label>
+            <textarea id="uHolidays" rows="8" placeholder="2026-08-15 | Independence Day\n2026-08-26 | Id-E-Milad"></textarea>
+          </div>
+          <div class="field-row">
+            <button class="btn secondary" onclick="UniversalSyllabus.loadMaharashtra2026Holidays()">🇮🇳 Load Maharashtra 2026 Holidays</button>
+            <a class="btn ghost" href="https://www.dvet.gov.in/en/training-calender/" target="_blank" rel="noopener">Open DVET Training Calendar</a>
+            <a class="btn ghost" href="https://www.dvet.gov.in/en/%E0%A4%B8%E0%A4%BE%E0%A4%B0%E0%A5%8D%E0%A4%B5%E0%A4%9C%E0%A4%A8%E0%A4%BF%E0%A4%95-%E0%A4%B8%E0%A5%81%E0%A4%9F%E0%A5%8D%E0%A4%AF%E0%A4%BE/" target="_blank" rel="noopener">Open DVET Holidays</a>
+          </div>
+          <div class="field-row" style="margin-top:10px">
+            <button class="btn primary" onclick="UniversalSyllabus.generateCalendar()">🗓️ Generate Working Calendar</button>
+            <button class="btn ghost" onclick="UniversalSyllabus.exportJSON()">Export syllabus JSON</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="field-row" style="justify-content:space-between">
+          <div><h3 style="margin-bottom:3px">3. AI/Automatic analysis preview</h3><p class="muted">Edit type, module, topic or hours before applying anything to the main register.</p></div>
+          <div id="uCounts" class="muted"></div>
+        </div>
+        <div class="table-scroll">
+          <table class="datatable"><thead><tr><th>#</th><th>Type</th><th>Module / Unit</th><th>Title</th><th>Hours</th><th>Confidence</th></tr></thead><tbody id="uPreviewBody"></tbody></table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="field-row" style="justify-content:space-between">
+          <h3>4. Generated day-wise calendar</h3>
+          <div class="field-row">
+            <button class="btn primary" onclick="UniversalSyllabus.createCompletePlan()">⚡ Create Complete Training Plan</button>
+            <button class="btn secondary" onclick="UniversalSyllabus.applyToRegister()">Apply Syllabus Only</button>
+            <button class="btn ghost" onclick="UniversalSyllabus.printCalendar()">🖨️ Print Calendar</button>
+          </div>
+        </div>
+        <div class="table-scroll"><table class="datatable"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Practical</th><th>Theory</th><th>Allocated Hours</th></tr></thead><tbody id="uCalendarBody"></tbody></table></div>
+      </div>
+
+      <div class="card accent-teal" style="margin-top:16px">
+        <h3>🚀 What “Create Complete Training Plan” does</h3>
+        <div class="cards" style="grid-template-columns:repeat(5,1fr);gap:10px">
+          <div class="stat-card"><strong>1</strong><span>Read syllabus</span></div>
+          <div class="stat-card"><strong>2</strong><span>Create modules</span></div>
+          <div class="stat-card"><strong>3</strong><span>Create theory & practicals</span></div>
+          <div class="stat-card"><strong>4</strong><span>Assign calendar dates</span></div>
+          <div class="stat-card"><strong>5</strong><span>Update training records</span></div>
+        </div>
+        <p class="muted" style="margin-top:12px">Review the detected syllabus first. The complete-plan action updates the syllabus structure and planned dates while keeping trainee and attendance records.</p>
+      </div>
+    </section>
+
+    <!-- ---------- DASHBOARD ---------- -->
+    <section id="tab-dashboard" class="panel active">
+      <div class="hero">
+        <div class="hero-content">
+          <div>
+            <h2 id="heroGreeting">Dashboard</h2>
+            <p id="heroSub">Bharat Ratna Dr. Babasaheb Ambedkar Govt. ITI, Mumbai-01</p>
+          </div>
+          <div class="hero-marks">
+            <span class="reg-mark"></span><span class="reg-mark"></span><span class="reg-mark"></span>
+          </div>
+        </div>
+      </div>
+      <div class="cards" id="dashCards"></div>
+
+      <div class="card instructor-profile-dashboard">
+        <div class="profile-inline">
+          <div class="profile-avatar small-avatar">DK</div>
+          <div>
+            <span class="eyebrow">MY INSTRUCTOR PROFILE</span>
+            <h3>Durgesh Kadam</h3>
+            <p class="muted">Craft Instructor — DTP / DTPO • Government ITI, Mumbai-01</p>
+          </div>
+          <button class="btn ghost small" onclick="App.switchTab('inspection')">Open Inspection File</button>
+        </div>
+      </div>
+
+      <div id="principalDashboard" class="principal-dashboard" style="display:none">
+        <div class="principal-head">
+          <div><span class="eyebrow">ADMINISTRATION</span><h3>Principal Command Center</h3><p>Manage instructors, monitor training progress and access institutional reports.</p></div>
+          <div class="principal-badge">🔐 Principal</div>
+        </div>
+        <div id="principalStats" class="principal-stats"></div>
+        <div class="principal-actions">
+          <button class="quick-action" onclick="App.switchTab('users')"><span>👤</span><b>Instructor Accounts</b><small>Create, disable or reset instructor logins</small></button>
+          <button class="quick-action" onclick="App.switchTab('reports')"><span>📄</span><b>Institution Reports</b><small>Registers, certificates and backup</small></button>
+        </div>
+        <div class="card principal-instructors"><div class="section-title"><div><h3>Instructor Overview</h3><p class="muted">Current instructor accounts on this device.</p></div><button class="btn primary small" onclick="App.switchTab('users')">Manage</button></div><div id="principalInstructorList"></div></div>
+      </div>
+
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        <div class="card"><h3>Syllabus split</h3><canvas id="chartSyllabus" height="200"></canvas></div>
+        <div class="card"><h3>Attendance — last 7 days</h3><canvas id="chartAttendance" height="200"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h3>📰 Latest Notice</h3>
+        <div id="dashLatestNotice"></div>
+      </div>
+
+      <div class="card accent-teal">
+        <h3>🗺️ Coming Up Next</h3>
+        <div id="dashRoadmap"></div>
+      </div>
+
+      <div class="card">
+        <h3>Pending signatures</h3>
+        <div id="pendingSigList" class="pending-list"></div>
+      </div>
+
+      <div class="card">
+        <h3>Syllabus progress</h3>
+        <div id="syllabusBarWrap"></div>
+      </div>
+    </section>
+
+    <!-- ---------- INSTRUCTOR ACCOUNTS ---------- -->
+    <section id="tab-users" class="panel">
+      <div class="hero" style="margin-bottom:16px">
+        <div class="hero-content">
+          <div>
+            <h2>👤 Instructor Accounts</h2>
+            <p>Create separate User IDs and PINs for every instructor. This screen is available only to the Principal.</p>
+          </div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Create Instructor Login</h3>
+          <div class="field"><label>Instructor Name</label><input id="newUserName" placeholder="e.g. Amit Patil"></div>
+          <div class="field"><label>User ID</label><input id="newUserUsername" placeholder="e.g. amit.patil"></div>
+          <div class="field"><label>PIN</label><input id="newUserPin" type="password" inputmode="numeric" placeholder="Minimum 4 characters"></div>
+          <button class="btn primary" onclick="Users.create()">➕ Create Instructor Account</button>
+          <p class="login-note">Give the generated User ID and PIN to that instructor. They select <b>Instructor</b> on the login screen.</p>
+        </div>
+        <div class="card">
+          <h3>How it works</h3>
+          <ol>
+            <li>Principal logs in.</li>
+            <li>Open <b>👤 Instructor Accounts</b>.</li>
+            <li>Create an account for each instructor.</li>
+            <li>Instructor logs in using their own User ID + PIN.</li>
+            <li>You can disable an account or reset its PIN anytime.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Instructor Accounts</h3>
+        <div class="table-scroll"><table class="datatable">
+          <thead><tr><th>Name</th><th>User ID</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="usersTable"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ---------- MODULE MANAGER ---------- -->
+    <section id="tab-modules" class="panel">
+      <div class="hero" style="margin-bottom:16px">
+        <div class="hero-content">
+          <div>
+            <h2>🧩 Module Manager</h2>
+            <p>Create and manage your trade modules before adding practical and theory topics. Modules are reusable by the calendar and syllabus planner.</p>
+          </div>
+        </div>
+      </div>
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        <div class="card">
+          <h3>1. Create Module</h3>
+          <div class="field"><label>Module / Unit name</label><input id="moduleName" placeholder="e.g. Module 1 – Basic Electricity"></div>
+          <div class="field-row">
+            <div class="field" style="flex:1"><label>Module code</label><input id="moduleCode" placeholder="M01"></div>
+            <div class="field" style="flex:1"><label>Total hours</label><input id="moduleHours" type="number" min="0" value="0"></div>
+          </div>
+          <div class="field"><label>Description / learning outcome</label><textarea id="moduleDesc" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit" placeholder="What should the trainee learn in this module?"></textarea></div>
+          <div class="field-row" style="justify-content:flex-end"><button class="btn primary" onclick="ModuleManager.saveModule()">➕ Create Module</button></div>
+        </div>
+        <div class="card">
+          <h3>2. Add Topic to Module</h3>
+          <div class="field"><label>Module</label><select id="topicModule"></select></div>
+          <div class="field"><label>Type</label><select id="topicType"><option value="practical">Practical</option><option value="theory">Theory</option></select></div>
+          <div class="field"><label>Topic / Job title</label><textarea id="topicTitle" rows="2" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit" placeholder="e.g. Perform basic circuit connections"></textarea></div>
+          <div class="field"><label>Hours</label><input id="topicHours" type="number" min="1" value="7"></div>
+          <div class="field-row" style="justify-content:flex-end"><button class="btn secondary" onclick="ModuleManager.addTopic()">➕ Add Topic</button></div>
+          <p class="muted">You can also use Syllabus AI to create these modules/topics automatically from an uploaded PDF, Word or Excel syllabus.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div><h3 style="margin-bottom:3px">Modules & Topics</h3><p class="muted">Instructor-created structure used by the syllabus planner.</p></div>
+          <button class="btn ghost" onclick="ModuleManager.refresh()">↻ Refresh</button>
+        </div>
+        <div id="moduleManagerBody"></div>
+      </div>
+    </section>
+
+    <!-- ---------- TRAINEES ---------- -->
+    <section id="tab-trainees" class="panel">
+      <h2>Trainee Master</h2>
+      <div id="instructorOnlyTrainees" class="field-row">
+        <button class="btn primary" onclick="Trainees.openForm()">+ Add Trainee</button>
+        <button class="btn ghost" onclick="Trainees.loadSample()">Load 5 sample trainees (for testing)</button>
+        <button class="btn ghost" onclick="Trainees.clearAll()">Clear all trainees</button>
+      </div>
+      <table class="datatable">
+        <thead><tr><th>Roll</th><th>Name</th><th>PRN</th><th>Category</th><th>Attendance %</th><th>Practical Avg</th><th>PIN</th><th></th></tr></thead>
+        <tbody id="traineeTableBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ---------- ATTENDANCE ---------- -->
+    <section id="tab-attendance" class="panel">
+      <h2>Attendance</h2>
+      <div id="instructorOnlyAttendance">
+        <div class="field-row">
+          <label>Date</label>
+          <input type="date" id="attDate">
+          <button class="btn secondary" onclick="Attendance.loadDay()">Load</button>
+        </div>
+        <div id="attHolidayWarning"></div>
+        <table class="datatable" id="attTable">
+          <thead><tr><th>Roll</th><th>Name</th><th>Status</th></tr></thead>
+          <tbody id="attTableBody"></tbody>
+        </table>
+        <button class="btn primary" onclick="Attendance.saveDay()">Save Attendance</button>
+
+        <div class="card accent-coral" style="margin-top:20px">
+          <h3>Holiday Calendar</h3>
+          <p class="muted">Sundays, 2nd/4th Saturdays, and government holidays here are excluded from working-day and attendance % calculations everywhere in the app.</p>
+          <div class="field-row">
+            <label>From</label><input type="date" id="holidayGenFrom">
+            <label>To</label><input type="date" id="holidayGenTo">
+            <button class="btn secondary" onclick="Holidays.autoGenerate()">Auto-mark Sundays + 2nd/4th Saturdays</button>
+          </div>
+          <div class="field-row">
+            <input type="date" id="holidayDate">
+            <input type="text" id="holidayLabel" placeholder="e.g. Diwali, Republic Day">
+            <button class="btn primary" onclick="Holidays.add()">Add Holiday</button>
+          </div>
+          <table class="datatable"><thead><tr><th>Date</th><th>Label</th><th></th></tr></thead><tbody id="holidayTableBody"></tbody></table>
+        </div>
+      </div>
+      <div id="studentOnlyAttendance" style="display:none">
+        <div class="card"><h3>My attendance this month</h3><div id="myAttSummary"></div></div>
+        <table class="datatable"><thead><tr><th>Date</th><th>Status</th></tr></thead><tbody id="myAttTableBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ---------- PRACTICALS ---------- -->
+    <section id="tab-practicals" class="panel">
+      <h2>Practical &amp; Theory Plan</h2>
+      <p class="muted">Global numbering per DVET format. Mark a practical "Completed" once taught — this feeds the syllabus tracker and Log Book.</p>
+      <div id="instructorOnlyPracticalsAdd" class="field-row">
+        <button class="btn primary" onclick="Practicals.openAdd()">+ Add Custom Practical</button>
+      </div>
+      <table class="datatable">
+        <thead><tr><th>No.</th><th>Unit</th><th>Skill / Practical</th><th>Planned Date</th><th>Status</th><th></th></tr></thead>
+        <tbody id="practicalTableBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ---------- THEORY ---------- -->
+    <section id="tab-theory" class="panel">
+      <h2>Theory Topics</h2>
+      <p class="muted">Independent parallel track from practicals. Add your theory syllabus once — completion feeds the syllabus tracker alongside practicals.</p>
+      <div id="instructorOnlyTheory">
+        <div class="field-row">
+          <button class="btn primary" onclick="Theory.openAdd()">+ Add Theory Topic</button>
+          <button class="btn secondary" onclick="Theory.openBulkAdd()">+ Bulk Add (paste list)</button>
+        </div>
+      </div>
+      <table class="datatable">
+        <thead><tr><th>No.</th><th>Topic</th><th>Planned Date</th><th>Status</th><th></th></tr></thead>
+        <tbody id="theoryTableBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ---------- NOTICE BOARD ---------- -->
+    <section id="tab-notices" class="panel">
+      <h2>📰 Notice Board</h2>
+      <div id="instructorOnlyNotices" class="field-row">
+        <button class="btn primary" onclick="Notices.openForm()">+ Post Notice</button>
+      </div>
+      <div id="noticeList"></div>
+    </section>
+
+    <!-- ---------- LEAVE & DISCIPLINE ---------- -->
+    <section id="tab-leave" class="panel">
+      <h2>🩺 Leave &amp; Discipline</h2>
+
+      <!-- Leave Applications -->
+      <div class="card">
+        <h3>Leave Application</h3>
+        <div id="studentOnlyLeave" style="display:none">
+          <div class="field-row">
+            <select id="leaveType"><option>Casual</option><option>Medical</option><option>Other</option></select>
+            <label>From</label><input type="date" id="leaveFrom">
+            <label>To</label><input type="date" id="leaveTo">
+          </div>
+          <div class="field-row">
+            <input type="text" id="leaveReason" placeholder="Reason" style="flex:1;min-width:180px">
+            <input type="text" id="leaveCert" placeholder="Medical certificate link (if any)" style="flex:1;min-width:180px">
+            <button class="btn primary" onclick="Leave.apply()">Apply</button>
+          </div>
+        </div>
+        <table class="datatable">
+          <thead><tr><th>Trainee</th><th>Type</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+          <tbody id="leaveTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Attendance Warnings -->
+      <div id="instructorOnlyWarnings" class="card accent-coral">
+        <h3>Attendance Shortage Warning (टाकीत पत्र)</h3>
+        <div class="field-row" id="warningsAddControls">
+          <label>Warn when attendance falls below</label>
+          <input type="number" id="attThresholdInput" min="1" max="100" style="width:70px">
+          <span>%</span>
+          <button class="btn secondary" onclick="Leave.saveThreshold()">Save Threshold</button>
+        </div>
+        <table class="datatable">
+          <thead><tr><th>Trainee</th><th>Attendance %</th><th>Guardian</th><th></th></tr></thead>
+          <tbody id="belowThresholdTableBody"></tbody>
+        </table>
+        <h4 style="margin-top:16px">Warnings issued</h4>
+        <table class="datatable">
+          <thead><tr><th>Trainee</th><th>Date</th><th>Attendance % at issue</th><th>Status</th><th></th></tr></thead>
+          <tbody id="warningsTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Parent Undertaking -->
+      <div id="instructorOnlyUndertakings" class="card accent-plum">
+        <h3>Parent Undertaking (हमीपत्र)</h3>
+        <div class="field-row" id="undertakingsAddControls">
+          <select id="undertakingTrainee"></select>
+          <input type="text" id="undertakingNote" placeholder="Reason / context" style="flex:1;min-width:160px">
+          <button class="btn primary" onclick="Leave.addUndertaking()">Log Undertaking</button>
+        </div>
+        <table class="datatable">
+          <thead><tr><th>Trainee</th><th>Date</th><th>Note</th><th>Status</th><th></th></tr></thead>
+          <tbody id="undertakingsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- CLASS TEST (MCQ EXAMS) ---------- -->
+    <section id="tab-exams" class="panel">
+      <h2>📝 Class Test</h2>
+
+      <!-- Instructor: exam list + create -->
+      <div id="instructorOnlyExams">
+        <div class="field-row">
+          <button class="btn primary" onclick="Exam.openCreate()">+ Create Exam</button>
+        </div>
+        <table class="datatable">
+          <thead><tr><th>Title</th><th>Date</th><th>Questions</th><th>Status</th><th></th></tr></thead>
+          <tbody id="examListTableBody"></tbody>
+        </table>
+
+        <!-- Exam builder (shown when Manage is clicked) -->
+        <div id="examBuilder" class="card accent-teal" style="display:none">
+          <h3 id="examBuilderTitle">Exam Builder</h3>
+          <div class="field-row">
+            <button class="btn secondary" onclick="Exam.openAddQuestion()">+ Add Question</button>
+            <button class="btn ghost" id="examPublishBtn" onclick="Exam.togglePublish()">Publish</button>
+            <button class="btn ghost" onclick="Exam.viewResults()">View Results</button>
+            <button class="btn ghost" onclick="Exam.closeBuilder()">Close</button>
+          </div>
+          <table class="datatable">
+            <thead><tr><th>#</th><th>Question</th><th>Correct</th><th>Marks</th><th></th></tr></thead>
+            <tbody id="examQuestionsTableBody"></tbody>
+          </table>
+          <div id="examResultsBox"></div>
+        </div>
+      </div>
+
+      <!-- Student: available exams + my results -->
+      <div id="studentOnlyExams" style="display:none">
+        <h3>Available Tests</h3>
+        <table class="datatable">
+          <thead><tr><th>Title</th><th>Date</th><th>Questions</th><th></th></tr></thead>
+          <tbody id="examAvailableTableBody"></tbody>
+        </table>
+        <h3 style="margin-top:20px">My Results</h3>
+        <table class="datatable">
+          <thead><tr><th>Title</th><th>Score</th><th>%</th><th>Submitted</th></tr></thead>
+          <tbody id="examMyResultsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- OJT & INDUSTRY VISITS + PROJECTS ---------- -->
+    <section id="tab-ojt" class="panel">
+      <h2>🏭 OJT &amp; Industry Visits</h2>
+      <div id="instructorOnlyOjt" class="field-row">
+        <button class="btn primary" onclick="Visits.openCreate()">+ Add OJT / Visit Record</button>
+      </div>
+      <table class="datatable">
+        <thead><tr><th>Date</th><th>Type</th><th>Title</th><th>Organization</th><th>Attendees</th><th></th></tr></thead>
+        <tbody id="visitsTableBody"></tbody>
+      </table>
+
+      <h2 style="margin-top:28px">🎓 Trainee Projects</h2>
+      <div id="instructorOnlyProjects" class="field-row">
+        <button class="btn primary" onclick="Projects.openCreate()">+ Add Project</button>
+      </div>
+      <table class="datatable">
+        <thead><tr><th>Trainee</th><th>Project</th><th>Completed</th><th>Description</th><th></th></tr></thead>
+        <tbody id="projectsTableBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ---------- GALLERY ---------- -->
+    <section id="tab-gallery" class="panel">
+      <h2>🖼️ Photo Gallery</h2>
+      <p class="muted">Batch activities, workshops, and project showcase photos.</p>
+      <div id="instructorOnlyGallery" class="field-row">
+        <button class="btn primary" onclick="Gallery.openForm()">+ Add Photo</button>
+      </div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+    </section>
+
+    <!-- ---------- SPLIT-UP SYLLABUS ---------- -->
+    <section id="tab-splitup" class="panel">
+      <h2>🗓️ Split-up Syllabus (Day-wise)</h2>
+      <p class="muted">Auto-generates which Practical and Theory topic falls on which working day — like your
+        week-wise split-up sheet — using teaching sequence (set via ↑↓ in Practicals/Theory), hours per
+        practical, and your Holiday Calendar.</p>
+      <div id="instructorOnlySplitup">
+        <div class="field-row">
+          <button class="btn primary" onclick="Schedule.useRealCalendar()">Use Official 2026-27 Calendar</button>
+          <button class="btn secondary" onclick="Reports.printSplitUp()">Print Split-up Syllabus</button>
+        </div>
+        <p class="muted">The button above resets every Planned Date to match your actual <code>DPO_LIVE_2026-27</code> calendar — use this unless you've reordered teaching sequence. The generator below is only for exploring an alternate order.</p>
+        <div class="field-row">
+          <label>Alt. Start Date</label><input type="date" id="splitupStart">
+          <label>Hours/working day</label><input type="number" id="splitupHoursPerDay" value="7" min="1" max="12" style="width:70px">
+          <label>Days per Theory topic</label><input type="number" id="splitupDaysPerTheory" value="1" min="1" max="10" style="width:70px">
+          <button class="btn ghost" onclick="Schedule.generate()">Generate Alternate Schedule</button>
+        </div>
+        <div class="callout" style="background:#fdf1ee;border-left:4px solid var(--bad);padding:10px 14px;margin:14px 0;font-size:.85em" id="splitupWarning"></div>
+      </div>
+      <table class="datatable">
+        <thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Trade Practical</th><th>Trade Theory</th></tr></thead>
+        <tbody id="splitupTableBody"></tbody>
+      </table>
+    </section>
+
+    <!-- ---------- EVALUATION ---------- -->
+    <section id="tab-evaluation" class="panel">
+      <h2>Practical Evaluation</h2>
+      <div id="instructorOnlyEval">
+        <div class="field-row">
+          <label>Practical No.</label>
+          <select id="evalPracticalSelect"></select>
+          <button class="btn secondary" onclick="Evaluation.loadGrid()">Load</button>
+        </div>
+        <table class="datatable" id="evalTable">
+          <thead>
+            <tr>
+              <th>Trainee</th>
+              <th>Prep<br><small>/5</small></th>
+              <th>Process<br><small>/8</small></th>
+              <th>Accuracy<br><small>/8</small></th>
+              <th>Safety<br><small>/4</small></th>
+              <th>Time<br><small>/4</small></th>
+              <th>Finish<br><small>/6</small></th>
+              <th>Total<br><small>/35</small></th>
+              <th>Submission</th>
+            </tr>
+          </thead>
+          <tbody id="evalTableBody"></tbody>
+        </table>
+        <button class="btn primary" onclick="Evaluation.saveGrid()">Save Marks</button>
+      </div>
+      <div id="studentOnlyEval" style="display:none">
+        <div class="field-row">
+          <label>Submit work for practical</label>
+          <select id="studentSubmitSelect"></select>
+        </div>
+        <div class="submit-box">
+          <p class="muted"><b>Where does this go?</b> This v1 only stores the <i>link</i> you paste — the actual file stays wherever you exported it (your own device/Drive). It is <b>not</b> copied into the institute's records yet. Phase 2 replaces this with a direct file picker that uploads straight into your instructor's official Google Drive folder, so submissions become part of the institute's record, not your personal Drive.</p>
+          <input type="text" id="studentSubmitLink" placeholder="https://drive.google.com/... or any link to your exported file">
+          <button class="btn primary" onclick="Evaluation.studentSubmit()">Submit</button>
+        </div>
+        <table class="datatable"><thead><tr><th>Practical</th><th>Marks</th><th>Grade</th></tr></thead><tbody id="myMarksTableBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ---------- EXTRA ACTIVITIES ---------- -->
+    <section id="tab-activities" class="panel">
+      <h2>Extra Activities / Projects</h2>
+      <div id="instructorOnlyActivities">
+        <div class="field-row">
+          <input type="text" id="actName" placeholder="Activity / Project name">
+          <input type="date" id="actDate">
+          <input type="text" id="actRemarks" placeholder="Remarks">
+          <button class="btn primary" onclick="Activities.add()">Add</button>
+        </div>
+      </div>
+      <table class="datatable"><thead><tr><th>Date</th><th>Activity</th><th>Remarks</th></tr></thead><tbody id="actTableBody"></tbody></table>
+
+      <h2 style="margin-top:28px">🚀 Beyond Syllabus — Additional Topics Taught</h2>
+      <p class="muted">Tools, software, or skills you've taught beyond the prescribed curriculum (Canva, AI image tools, etc.) — visible to students and reportable to your seniors as evidence of extra value delivered.</p>
+      <div id="instructorOnlyExtraTopics">
+        <div class="field-row">
+          <input type="text" id="extraTopicTitle" placeholder="e.g. Canva for quick social graphics">
+          <input type="date" id="extraTopicDate">
+        </div>
+        <div class="field-row">
+          <input type="text" id="extraTopicDesc" placeholder="Brief description of what was covered" style="flex:1;min-width:220px">
+          <button class="btn primary" onclick="ExtraTopics.add()">Add</button>
+        </div>
+      </div>
+      <table class="datatable"><thead><tr><th>Date</th><th>Topic</th><th>Description</th><th></th></tr></thead><tbody id="extraTopicsTableBody"></tbody></table>
+      <div id="instructorOnlyExtraTopicsReport" class="field-row">
+        <button class="btn secondary" onclick="Reports.printExtraTopics()">Generate Report PDF</button>
+      </div>
+    </section>
+
+    <!-- ---------- REPORTS ---------- -->
+
+    <!-- ---------- INSPECTION FILE ---------- -->
+
+    <!-- ---------- PRINT-READY RECORD FORMATS ---------- -->
+    <section id="tab-record-formats" class="panel">
+      <div class="hero">
+        <div class="hero-content">
+          <div>
+            <span class="eyebrow">PRINT-READY RECORDS</span>
+            <h2>🖨️ Record Formats</h2>
+            <p>Generate the structured DVET/ITI-style records from your saved training data. Review first, then print or save as PDF.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="format-grid">
+        <div class="format-card">
+          <div class="format-icon">🧪</div>
+          <h3>Demonstration Plan</h3>
+          <p>Instructor, trade, batch, unit, time, dates, topic, objectives, tools, procedure, safety/key points, spot hints, questions and next demonstration.</p>
+          <div class="record-plan-picker"><label for="recordDemoNo">Select Demonstration</label><select id="recordDemoNo"><option value="1">Demonstration 1</option><option value="2">Demonstration 2</option><option value="3">Demonstration 3</option><option value="4">Demonstration 4</option><option value="5">Demonstration 5</option><option value="6">Demonstration 6</option><option value="7">Demonstration 7</option><option value="8">Demonstration 8</option><option value="9">Demonstration 9</option><option value="10">Demonstration 10</option><option value="11">Demonstration 11</option><option value="12">Demonstration 12</option><option value="13">Demonstration 13</option><option value="14">Demonstration 14</option><option value="15">Demonstration 15</option><option value="16">Demonstration 16</option><option value="17">Demonstration 17</option><option value="18">Demonstration 18</option><option value="19">Demonstration 19</option><option value="20">Demonstration 20</option><option value="21">Demonstration 21</option><option value="22">Demonstration 22</option><option value="23">Demonstration 23</option><option value="24">Demonstration 24</option><option value="25">Demonstration 25</option><option value="26">Demonstration 26</option><option value="27">Demonstration 27</option><option value="28">Demonstration 28</option><option value="29">Demonstration 29</option><option value="30">Demonstration 30</option><option value="31">Demonstration 31</option><option value="32">Demonstration 32</option><option value="33">Demonstration 33</option><option value="34">Demonstration 34</option><option value="35">Demonstration 35</option><option value="36">Demonstration 36</option><option value="37">Demonstration 37</option><option value="38">Demonstration 38</option><option value="39">Demonstration 39</option><option value="40">Demonstration 40</option><option value="41">Demonstration 41</option><option value="42">Demonstration 42</option><option value="43">Demonstration 43</option><option value="44">Demonstration 44</option><option value="45">Demonstration 45</option><option value="46">Demonstration 46</option><option value="47">Demonstration 47</option><option value="48">Demonstration 48</option><option value="49">Demonstration 49</option><option value="50">Demonstration 50</option><option value="51">Demonstration 51</option><option value="52">Demonstration 52</option><option value="53">Demonstration 53</option><option value="54">Demonstration 54</option><option value="55">Demonstration 55</option><option value="56">Demonstration 56</option><option value="57">Demonstration 57</option><option value="58">Demonstration 58</option><option value="59">Demonstration 59</option><option value="60">Demonstration 60</option><option value="61">Demonstration 61</option><option value="62">Demonstration 62</option><option value="63">Demonstration 63</option><option value="64">Demonstration 64</option><option value="65">Demonstration 65</option><option value="66">Demonstration 66</option><option value="67">Demonstration 67</option><option value="68">Demonstration 68</option><option value="69">Demonstration 69</option><option value="70">Demonstration 70</option><option value="71">Demonstration 71</option><option value="72">Demonstration 72</option><option value="73">Demonstration 73</option><option value="74">Demonstration 74</option><option value="75">Demonstration 75</option><option value="76">Demonstration 76</option><option value="77">Demonstration 77</option><option value="78">Demonstration 78</option><option value="79">Demonstration 79</option><option value="80">Demonstration 80</option><option value="81">Demonstration 81</option><option value="82">Demonstration 82</option><option value="83">Demonstration 83</option><option value="84">Demonstration 84</option><option value="85">Demonstration 85</option><option value="86">Demonstration 86</option><option value="87">Demonstration 87</option><option value="88">Demonstration 88</option><option value="89">Demonstration 89</option><option value="90">Demonstration 90</option><option value="91">Demonstration 91</option><option value="92">Demonstration 92</option><option value="93">Demonstration 93</option><option value="94">Demonstration 94</option><option value="95">Demonstration 95</option><option value="96">Demonstration 96</option><option value="97">Demonstration 97</option><option value="98">Demonstration 98</option><option value="99">Demonstration 99</option><option value="100">Demonstration 100</option><option value="101">Demonstration 101</option><option value="102">Demonstration 102</option><option value="103">Demonstration 103</option><option value="104">Demonstration 104</option><option value="105">Demonstration 105</option><option value="106">Demonstration 106</option><option value="107">Demonstration 107</option><option value="108">Demonstration 108</option><option value="109">Demonstration 109</option><option value="110">Demonstration 110</option><option value="111">Demonstration 111</option><option value="112">Demonstration 112</option><option value="113">Demonstration 113</option><option value="114">Demonstration 114</option><option value="115">Demonstration 115</option><option value="116">Demonstration 116</option><option value="117">Demonstration 117</option><option value="118">Demonstration 118</option><option value="119">Demonstration 119</option></select></div>
+          <div class="format-actions">
+            <button class="btn primary" onclick="RecordFormats.preview('demo',document.getElementById('recordDemoNo').value)">👁️ View Full Plan</button>
+            <button class="btn secondary" onclick="RecordFormats.print('demo',document.getElementById('recordDemoNo').value)">🖨️ Print / PDF</button>
+          </div>
+        </div>
+        <div class="format-card">
+          <div class="format-icon">📖</div>
+          <h3>Lesson Plan</h3>
+          <p>Instructor, trade, batch, unit, lesson, time, dates, topic, objectives, materials, review, motivation, teaching steps, information points, chalk-board/spot hints, questions, summary, assignment and next lesson.</p>
+          <div class="record-plan-picker"><label for="recordLessonNo">Select Lesson</label><select id="recordLessonNo"><option value="1">Lesson 1</option><option value="2">Lesson 2</option><option value="3">Lesson 3</option><option value="4">Lesson 4</option><option value="5">Lesson 5</option><option value="6">Lesson 6</option><option value="7">Lesson 7</option><option value="8">Lesson 8</option><option value="9">Lesson 9</option><option value="10">Lesson 10</option><option value="11">Lesson 11</option><option value="12">Lesson 12</option><option value="13">Lesson 13</option><option value="14">Lesson 14</option><option value="15">Lesson 15</option><option value="16">Lesson 16</option><option value="17">Lesson 17</option><option value="18">Lesson 18</option><option value="19">Lesson 19</option><option value="20">Lesson 20</option><option value="21">Lesson 21</option><option value="22">Lesson 22</option><option value="23">Lesson 23</option><option value="24">Lesson 24</option><option value="25">Lesson 25</option><option value="26">Lesson 26</option><option value="27">Lesson 27</option><option value="28">Lesson 28</option><option value="29">Lesson 29</option><option value="30">Lesson 30</option><option value="31">Lesson 31</option><option value="32">Lesson 32</option><option value="33">Lesson 33</option><option value="34">Lesson 34</option><option value="35">Lesson 35</option><option value="36">Lesson 36</option><option value="37">Lesson 37</option><option value="38">Lesson 38</option><option value="39">Lesson 39</option><option value="40">Lesson 40</option><option value="41">Lesson 41</option><option value="42">Lesson 42</option><option value="43">Lesson 43</option><option value="44">Lesson 44</option><option value="45">Lesson 45</option><option value="46">Lesson 46</option><option value="47">Lesson 47</option><option value="48">Lesson 48</option><option value="49">Lesson 49</option><option value="50">Lesson 50</option><option value="51">Lesson 51</option><option value="52">Lesson 52</option><option value="53">Lesson 53</option><option value="54">Lesson 54</option><option value="55">Lesson 55</option><option value="56">Lesson 56</option><option value="57">Lesson 57</option><option value="58">Lesson 58</option></select></div>
+          <div class="format-actions">
+            <button class="btn primary" onclick="RecordFormats.preview('lesson',document.getElementById('recordLessonNo').value)">👁️ View Full Plan</button>
+            <button class="btn secondary" onclick="RecordFormats.print('lesson',document.getElementById('recordLessonNo').value)">🖨️ Print / PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <div><h3>📋 Other printable records</h3><p class="muted">These are the next templates to be mapped to your supplied official examples.</p></div>
+      </div>
+      <div class="record-status-grid">
+        <div><b>📅 Annual / Split-up</b><span>Planned for structured A4 output</span></div>
+        <div><b>📔 Daily Diary</b><span>Planned for structured A4 output</span></div>
+        <div><b>👥 Attendance</b><span>Planned for structured A4 output</span></div>
+        <div><b>🧪 Practical / Evaluation</b><span>Planned for structured A4 output</span></div>
+        <div><b>📊 Progress</b><span>Planned for structured A4 output</span></div>
+        <div><b>🏭 OJT / Project</b><span>Planned for structured A4 output</span></div>
+      </div>
+      </div>
+    </section>
+
+    <section id="tab-inspection" class="panel">
+      <div class="hero inspection-hero">
+        <div class="hero-content">
+          <div>
+            <span class="eyebrow">INSPECTION READINESS</span>
+            <h2>🛡️ Instructor Inspection File</h2>
+            <p>One place to verify the teaching evidence an instructor can present during ITI inspection, review or audit.</p>
+          </div>
+          <div class="inspection-score" id="inspectionScore">0%</div>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-avatar">DK</div>
+        <div class="profile-main">
+          <div class="profile-kicker">INSTRUCTOR PROFILE</div>
+          <h3 id="profileDisplayName">Durgesh Kadam</h3>
+          <p id="profileDisplayRole">Craft Instructor — DTP / DTPO Trade</p>
+          <p id="profileDisplayInstitute">Bharat Ratna Dr. Babasaheb Ambedkar Government ITI, Mumbai-01</p>
+        </div>
+        <button class="btn secondary small" onclick="Inspection.editProfile()">Edit Profile</button>
+      </div>
+
+      <div class="notice-box">
+        <b>Important:</b> This is an inspection-readiness checklist, not an official DGT/NCVT inspection form.
+        The current DGT material shows evidence such as lesson/demo plans, daily diary/record book, assessment sheets,
+        progress evidence, attendance, practical work, assignments and projects can be relevant to evidence-based review.
+      </div>
+
+      <div class="inspection-grid">
+        <div class="card">
+          <div class="section-title"><div><h3>📚 Teaching & Planning</h3><p class="muted">Keep current, signed/approved records where your institute requires them.</p></div></div>
+          <div id="inspectionTeaching"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h3>👥 Trainee Records</h3><p class="muted">Evidence of training, attendance and learner progress.</p></div></div>
+          <div id="inspectionTrainees"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h3>🧪 Practical & Assessment</h3><p class="muted">Evidence that practical training and assessment were actually conducted.</p></div></div>
+          <div id="inspectionAssessment"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h3>🏆 Student Development & Activities</h3><p class="muted">Projects, assignments, OJT and achievement evidence.</p></div></div>
+          <div id="inspectionActivities"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h3>📄 Administrative Evidence</h3><p class="muted">Institute/department documents connected with your work.</p></div></div>
+          <div id="inspectionAdmin"></div>
+        </div>
+        <div class="card">
+          <div class="section-title"><div><h3>🧰 DTP Trade Evidence</h3><p class="muted">Trade-specific work that demonstrates actual training.</p></div></div>
+          <div id="inspectionDtp"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <div><h3>📦 Inspection Day — Quick Pack</h3><p class="muted">Generate a simple checklist before an inspection/review.</p></div>
+          <button class="btn primary small" onclick="Inspection.printChecklist()">Print Checklist</button>
+        </div>
+        <div id="inspectionQuickPack"></div>
+      </div>
+
+      <div class="card accent-teal">
+        <h3>✍️ Your professional profile & work</h3>
+        <p class="muted">Use this area to preserve your instructor identity, innovations, achievements and evidence links. The profile belongs to the logged-in instructor in the future cloud version.</p>
+        <div id="profileWorkSummary"></div>
+      </div>
+    </section>
+
+    <!-- ---------- CLOUD & DRIVE ---------- -->
+    <section id="tab-cloud" class="panel">
+      <div class="hero cloud-hero"><div class="hero-content"><div><span class="eyebrow">DATA SAFETY &amp; ARCHIVE</span><h2>☁️ Cloud &amp; Google Drive</h2><p>Keep the app usable locally, optionally sync structured records to Firebase, and archive backups/reports in your Google Drive.</p></div><div class="developer-mini"><span>Built by</span><strong>Durgesh Kadam</strong></div></div></div>
+      <div id="cloudStatusMessage" class="callout">Local mode is active. Cloud and Drive are optional.</div>
+      <div class="cards cloud-status-cards" style="grid-template-columns:repeat(3,1fr)">
+        <div class="card"><span class="eyebrow">LOCAL DATABASE</span><h3>✅ This Device</h3><p class="muted">Current records remain available even if cloud is not configured.</p><p><b>Schema:</b> V<span id="dataSchemaVersion">14</span></p></div>
+        <div class="card"><span class="eyebrow">LIVE RECORD SYNC</span><h3>Firebase</h3><span id="firebaseStatusBadge" class="badge pending">○ Cloud not connected</span><p class="muted">Recommended for the same instructor using PC, laptop or mobile.</p></div>
+        <div class="card"><span class="eyebrow">DOCUMENT ARCHIVE</span><h3>Google Drive</h3><span id="driveStatusBadge" class="badge pending">○ Drive not connected</span><p class="muted">For JSON backups and generated report PDFs.</p></div>
+      </div>
+
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        <div class="card cloud-setup-card">
+          <h3>1. Firebase Cloud Sync <span class="badge">Optional</span></h3>
+          <p class="muted">Create a Firebase project on the no-cost Spark plan, enable Firestore + Google Authentication, register a Web App, then paste its Web configuration JSON here.</p>
+          <div class="field"><label>Firebase Web configuration (JSON)</label><textarea id="cloudFirebaseConfig" rows="8" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea></div>
+          <label class="cloud-check"><input id="cloudAutoSync" type="checkbox"> Auto-sync after this device has been initialized</label>
+          <div class="field-row"><button class="btn ghost" onclick="CloudCenter.saveSettings()">Save Settings</button><button class="btn primary" onclick="CloudCenter.connectFirebase()">Connect Google + Firebase</button><button class="btn ghost" onclick="CloudCenter.disconnectFirebase()">Disconnect</button></div>
+          <hr class="soft-rule">
+          <div class="field-row"><button class="btn primary" onclick="CloudCenter.pushNow()">⬆ Push This Device → Cloud</button><button class="btn secondary" onclick="CloudCenter.restoreFromCloud()">⬇ Restore Cloud → This Device</button></div>
+          <p class="muted small-note">Gallery photo binaries stay local in this version; their index can sync. Use Drive for backup/report files. Cloud restore creates a local safety snapshot first.</p>
+        </div>
+
+        <div class="card cloud-setup-card">
+          <h3>2. Google Drive Archive <span class="badge">Optional</span></h3>
+          <p class="muted">Enable Google Drive API in a Google Cloud project and create a Web OAuth Client ID. The app requests the limited <code>drive.file</code> scope.</p>
+          <div class="field"><label>Google OAuth Web Client ID</label><input id="driveClientId" type="text" placeholder="xxxx.apps.googleusercontent.com"></div>
+          <div class="field"><label>Drive archive folder name</label><input id="driveFolderName" type="text" value="Universal ITI Instructor Automation"></div>
+          <div class="field"><label>Existing folder ID <span class="muted">(optional)</span></label><input id="driveFolderId" type="text" placeholder="Leave blank and the app will create its own folder"></div>
+          <div class="field-row"><button class="btn ghost" onclick="CloudCenter.saveSettings()">Save Settings</button><button class="btn primary" onclick="CloudCenter.connectDrive()">Connect Google Drive</button><button class="btn ghost" onclick="CloudCenter.disconnectDrive()">Disconnect</button></div>
+          <hr class="soft-rule">
+          <div class="field-row"><button class="btn secondary" onclick="CloudCenter.saveBackupToDrive()">💾 Save Full Backup to Drive</button><button class="btn secondary" onclick="CloudCenter.saveLastReportToDrive()">📄 Save Last Generated Report PDF</button></div>
+          <p class="muted small-note">Generate a report from Reports first, then return here and save that last generated report as a PDF archive.</p>
+        </div>
+      </div>
+
+      <div class="card data-safety-card">
+        <div class="section-title"><div><span class="eyebrow">SAFE UPGRADES</span><h3>3. Change the app later without losing records</h3></div><span class="version-chip">Database Schema V14</span></div>
+        <p>UI, AI prompts, report formats and new modules can be upgraded separately from instructor data. V14 creates a local pre-upgrade/pre-import safety snapshot before migrations.</p>
+        <div class="field-row"><button class="btn ghost" onclick="CloudCenter.createLocalSafetySnapshot()">Create Local Safety Snapshot</button><button class="btn primary" onclick="CloudCenter.downloadSafetyBackup()">⬇ Download Safety Backup</button></div>
+      </div>
+
+      <div class="card creator-feature-card"><div><span>CONCEPT &amp; DEVELOPED BY</span><strong>DURGESH KADAM</strong><small>Craft Instructor • DTP / DTPO • Universal ITI Instructor Automation</small></div><div class="creator-mark">DK</div></div>
+    </section>
+
+    <section id="tab-reports" class="panel">
+      <h2>Reports &amp; Registers</h2>
+      <div id="instructorOnlyReports" class="cards">
+        <div class="card">
+          <h3>Attendance Register</h3>
+          <input type="month" id="reportAttMonth">
+          <button class="btn secondary" onclick="Reports.printAttendance()">Generate PDF</button>
+        </div>
+        <div class="card">
+          <h3>Evaluation Sheet</h3>
+          <select id="reportEvalSelect"></select>
+          <button class="btn secondary" onclick="Reports.printEvaluation()">Generate PDF</button>
+        </div>
+        <div class="card">
+          <h3>Progress Card</h3>
+          <select id="reportTraineeSelect"></select>
+          <button class="btn secondary" onclick="Reports.printProgress()">Generate PDF</button>
+        </div>
+        <div class="card">
+          <h3>Syllabus Completion Certificate</h3>
+          <button class="btn secondary" onclick="Reports.printCertificate()">Generate PDF</button>
+        </div>
+        <div class="card accent-teal">
+          <h3>Actual Dates Taught Report</h3>
+          <p class="muted">Real dates you marked things complete — not planned/calendar dates.</p>
+          <button class="btn secondary" onclick="Reports.printCompletionReport()">Generate PDF</button>
+        </div>
+        <div class="card">
+          <h3>Backup</h3>
+          <button class="btn ghost" onclick="App.exportData()">Export all data (.json)</button>
+          <label class="btn ghost" style="display:inline-block;cursor:pointer;">Import backup
+            <input type="file" id="importFile" accept="application/json" style="display:none" onchange="App.importData(event)">
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Registers &amp; Signatures</h3>
+        <p class="muted">Every PDF you generate is logged here. Once the Principal has physically signed the printed copy, mark it below.</p>
+        <table class="datatable"><thead><tr><th>Register</th><th>Generated</th><th>Status</th><th></th></tr></thead><tbody id="signaturesTableBody"></tbody></table>
+      </div>
+      <div class="card accent-teal">
+        <h3>💾 Storage &amp; Data — where does this live?</h3>
+        <p class="muted">A local copy is stored in <b>this browser/device</b>. If you configure Cloud &amp; Drive, structured records can also sync to Firebase and backups/reports can be archived to Google Drive.</p>
+        <div id="storageStats"></div>
+      </div>
+    </section>
+
+  </main>
+
+<footer class="app-credit">
+  <div><strong>Universal ITI Instructor Automation</strong><span>ITI training records • planning • inspection readiness</span></div>
+  <div class="creator-badge">Designed &amp; developed by <strong>Durgesh Kadam</strong> • DTP Instructor</div>
+</footer>
+
+</div>
+
+<!-- ============ POST NOTICE MODAL ============ -->
+<div id="noticeModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Post Notice</h3>
+    <div class="field"><label>Title</label><input id="noticeTitle" type="text" placeholder="e.g. Terminal Exam Schedule"></div>
+    <div class="field"><label>Details</label><textarea id="noticeBody" rows="4" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit"></textarea></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="Notices.closeForm()">Cancel</button>
+      <button class="btn primary" onclick="Notices.submitForm()">Post</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD PHOTO MODAL ============ -->
+<div id="galleryModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Add Photo</h3>
+    <p class="muted">Photo is compressed and stored on this device. V14 does not sync gallery image binaries to Firestore; use Drive/archive backup for file storage.</p>
+    <div class="field"><label>Photo</label><input id="galleryFile" type="file" accept="image/*"></div>
+    <div class="field"><label>Caption</label><input id="galleryCaption" type="text" placeholder="e.g. Independence Day activity"></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="Gallery.closeForm()">Cancel</button>
+      <button class="btn primary" onclick="Gallery.submitForm()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CREATE EXAM MODAL ============ -->
+<div id="examCreateModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Create Exam</h3>
+    <div class="field"><label>Title</label><input id="examTitle" type="text" placeholder="e.g. September Monthly Test"></div>
+    <div class="field"><label>Date</label><input id="examDate" type="date"></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="Exam.closeCreate()">Cancel</button>
+      <button class="btn primary" onclick="Exam.submitCreate()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD QUESTION MODAL ============ -->
+<div id="examQuestionModal" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-width:440px">
+    <h3>Add Question</h3>
+    <div class="field"><label>Question</label><textarea id="qText" rows="2" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit"></textarea></div>
+    <div class="field"><label>Option A</label><input id="qOptA" type="text"></div>
+    <div class="field"><label>Option B</label><input id="qOptB" type="text"></div>
+    <div class="field"><label>Option C</label><input id="qOptC" type="text"></div>
+    <div class="field"><label>Option D</label><input id="qOptD" type="text"></div>
+    <div class="field"><label>Correct Option</label>
+      <select id="qCorrect"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select>
+    </div>
+    <div class="field"><label>Marks</label><input id="qMarks" type="number" value="1" min="1"></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="Exam.closeAddQuestion()">Cancel</button>
+      <button class="btn primary" onclick="Exam.submitAddQuestion()">Add Question</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TAKE EXAM MODAL ============ -->
+<div id="examTakeModal" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-width:560px;max-height:85vh;overflow-y:auto">
+    <h3 id="examTakeTitle">Exam</h3>
+    <p class="muted">Answer all questions, then submit. You can only attempt this once.</p>
+    <div id="examTakeBody"></div>
+    <div class="field-row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn ghost" onclick="Exam.closeTake()">Cancel</button>
+      <button class="btn primary" onclick="Exam.submitAttempt()">Submit Test</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PLAN & MATERIALS VIEWER MODAL ============ -->
+<div id="planModal" class="modal-overlay" style="display:none">
+  <div class="modal-card plan-modal-card">
+    <h3 id="planModalTitle">Plan</h3>
+    <div id="planModalBody"></div>
+    <div class="field-row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn ghost" onclick="PlanViewer.close()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CHANGE PIN MODAL ============ -->
+<div id="pinModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Change PIN</h3>
+    <p class="muted">This is a simple device-level PIN to stop students accidentally opening the Instructor/Principal view — it is not encrypted security. Anyone with access to this device's browser storage could still view raw data.</p>
+    <div class="field"><label>Current PIN</label><input id="pinOld" type="password" inputmode="numeric"></div>
+    <div class="field"><label>New PIN</label><input id="pinNew" type="password" inputmode="numeric"></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="App.closePinChange()">Cancel</button>
+      <button class="btn primary" onclick="App.savePinChange()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD OJT/VISIT MODAL ============ -->
+<div id="visitCreateModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Add OJT / Industry Visit</h3>
+    <div class="field"><label>Type</label><select id="visitType"><option>OJT</option><option>Industry Visit</option></select></div>
+    <div class="field"><label>Title</label><input id="visitTitle" type="text" placeholder="e.g. Print Production Unit Visit"></div>
+    <div class="field"><label>Organization / Place</label><input id="visitOrg" type="text" placeholder="e.g. ABC Print Solutions, Andheri"></div>
+    <div class="field"><label>Date</label><input id="visitDate" type="date"></div>
+    <div class="field"><label>Purpose</label><textarea id="visitPurpose" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit"></textarea></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="Visits.closeCreate()">Cancel</button>
+      <button class="btn primary" onclick="Visits.submitCreate()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MANAGE ATTENDANCE (VISIT) MODAL ============ -->
+<div id="visitAttendanceModal" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-height:80vh;overflow-y:auto">
+    <h3>Attendance for this Visit/OJT</h3>
+    <div id="visitAttendanceList"></div>
+    <div class="field-row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn ghost" onclick="Visits.closeAttendance()">Cancel</button>
+      <button class="btn primary" onclick="Visits.saveAttendance()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD PROJECT MODAL ============ -->
+<div id="projectCreateModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Add Project</h3>
+    <div class="field"><label>Trainee</label><select id="projectTrainee"></select></div>
+    <div class="field"><label>Project Title</label><input id="projectTitle" type="text" placeholder="e.g. Brand Identity Design for a Local Business"></div>
+    <div class="field"><label>Date Completed</label><input id="projectDate" type="date"></div>
+    <div class="field"><label>Description</label><textarea id="projectDesc" rows="3" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit"></textarea></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="Projects.closeCreate()">Cancel</button>
+      <button class="btn primary" onclick="Projects.submitCreate()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MARK COMPLETE (WITH DATE) MODAL ============ -->
+<div id="markCompleteModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Mark Complete</h3>
+    <p class="muted" id="markCompleteItemLabel"></p>
+    <div class="field"><label>Date actually taught</label><input id="markCompleteDate" type="date"></div>
+    <p class="muted">Defaults to today, but change it if your device's date is wrong or you're logging this after the fact.</p>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="MarkComplete.close()">Cancel</button>
+      <button class="btn primary" onclick="MarkComplete.confirm()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EDIT/ADD PRACTICAL MODAL ============ -->
+<div id="practicalEditModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3 id="practicalEditTitle">Edit Practical</h3>
+    <div class="field"><label>Unit</label><input id="pracEditUnit" type="text"></div>
+    <div class="field"><label>Title</label><textarea id="pracEditName" rows="2" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit"></textarea></div>
+    <div class="field"><label>Hours</label><input id="pracEditHours" type="number" min="1" value="7"></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="Practicals.closeEdit()">Cancel</button>
+      <button class="btn primary" onclick="Practicals.saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EDIT/ADD THEORY MODAL ============ -->
+<div id="theoryEditModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3 id="theoryEditTitle">Edit Theory Topic</h3>
+    <div class="field"><label>Title</label><textarea id="theoryEditName" rows="2" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit"></textarea></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="Theory.closeEdit()">Cancel</button>
+      <button class="btn primary" onclick="Theory.saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD TRAINEE MODAL ============ -->
+<div id="traineeModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Add Trainee</h3>
+    <div class="field"><label>Roll No.</label><input id="mRoll" type="text" placeholder="e.g. 01"></div>
+    <div class="field"><label>Full Name</label><input id="mName" type="text" placeholder="e.g. Aarti Sharma"></div>
+    <div class="field"><label>PRN <span class="muted">(leave blank if not allotted yet)</span></label><input id="mPrn" type="text" placeholder="e.g. 2026123456"></div>
+    <div class="field"><label>Category</label>
+      <select id="mCategory">
+        <option>OPEN</option><option>OBC</option><option>SC</option><option>ST</option><option>NT</option><option>VJ</option><option>EWS</option>
+      </select>
+    </div>
+    <div class="field"><label>Trainee Phone <span class="muted">(optional)</span></label><input id="mPhone" type="text" placeholder="e.g. 9876543210"></div>
+    <div class="field"><label>Parent/Guardian Name</label><input id="mGuardian" type="text" placeholder="e.g. Suresh Sharma"></div>
+    <div class="field"><label>Parent/Guardian Phone</label><input id="mGuardianPhone" type="text" placeholder="e.g. 9876500000"></div>
+    <div class="field-row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="Trainees.closeForm()">Cancel</button>
+      <button class="btn primary" onclick="Trainees.submitForm()">Save Trainee</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ ADD THEORY TOPICS MODAL ============ -->
+<div id="theoryModal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <h3>Add Theory Topics</h3>
+    <p class="muted">Paste one topic per line (from your Theory sheet / syllabus). They'll be numbered continuing from your last theory topic.</p>
+    <textarea id="theoryBulkText" rows="8" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:inherit"></textarea>
+    <div class="field-row" style="justify-content:flex-end;margin-top:12px">
+      <button class="btn ghost" onclick="Theory.closeBulkAdd()">Cancel</button>
+      <button class="btn primary" onclick="Theory.saveBulkAdd()">Add Topics</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ AI ASSISTANT MODAL ============ -->
+<div id="aiModal" class="modal-overlay" style="display:none">
+  <div class="modal-card" style="max-width:980px;width:min(96vw,980px);max-height:94vh;overflow:auto">
+    <div class="field-row" style="justify-content:space-between"><h3 id="aiModalTitle">AI Assistant</h3><button class="btn ghost small" onclick="InstructorAI.closeModal()">✕ Close</button></div>
+    <div id="aiModalStatus" class="callout">AI draft</div>
+    <div class="field"><label>Prompt</label><textarea id="aiPromptText" rows="10"></textarea></div>
+    <div class="field-row"><button class="btn ghost" onclick="InstructorAI.copyPrompt()">📋 Copy Prompt</button><button id="aiGenerateBtn" class="btn primary" onclick="InstructorAI.generatePending()">✨ Generate with Gemini</button></div>
+    <div class="field"><label>AI JSON result <span class="muted">(you may edit before saving)</span></label><textarea id="aiResultText" rows="14" placeholder="Paste JSON returned by your AI here"></textarea></div>
+    <div class="field-row"><button class="btn secondary" onclick="InstructorAI.previewResult()">Preview Result</button><button class="btn ghost" onclick="InstructorAI.saveResult(false)">Save as Draft</button><button class="btn primary" onclick="InstructorAI.saveResult(true)">✅ Approve & Keep</button></div>
+    <div id="aiPreviewBox" class="callout" style="display:none;margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ============ PRINT AREA (hidden on screen, shown only in print) ============ -->
+<div id="printArea" class="print-only"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="official-plans.js"></script>
+<script src="app.js"></script>
+<script src="cloud.js"></script>
+<script src="ai.js"></script>
+</body>
+</html>

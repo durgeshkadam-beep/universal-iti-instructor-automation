@@ -1,0 +1,12 @@
+{
+  "name": "Universal ITI Instructor Automation V14",
+  "short_name": "ITI AI V14",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0b2740",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
