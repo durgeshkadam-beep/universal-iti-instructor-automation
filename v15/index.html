@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b2740">
+<title>Universal ITI V15 Pilot</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7fb;color:#0b2740;font-family:Arial,sans-serif}.box{max-width:520px;margin:20px;background:#fff;border-radius:18px;padding:28px;box-shadow:0 14px 40px rgba(0,0,0,.10);text-align:center}.spin{width:42px;height:42px;border:4px solid #dce5ec;border-top-color:#0b2740;border-radius:50%;margin:0 auto 16px;animation:s 1s linear infinite}@keyframes s{to{transform:rotate(360deg)}}small{color:#667085;line-height:1.5}.err{color:#a61b1b;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div class="box" id="loaderBox">
+  <div class="spin"></div>
+  <h2>Universal ITI V15</h2>
+  <p>Opening the shared multi-user pilot safely…</p>
+  <small>Your existing V14 browser records are not deleted. V15 uses the same origin only as a migration/cache source and moves shared records into separate V15 Firestore documents.</small>
+</div>
+<script>
+(async function(){
+  try{
+    const res=await fetch('../index.html',{cache:'no-store'});
+    if(!res.ok) throw new Error('Could not load the current app shell. HTTP '+res.status);
+    let html=await res.text();
+    html=html.replace(/<head([^>]*)>/i,'<head$1><base href="../">');
+    html=html.replace(/<link\s+rel=["']manifest["']\s+href=["']manifest\.json["'][^>]*>/i,'<link rel="manifest" href="v15/manifest.json">');
+    const v15=`
+<script>if(!window.SecurityPatch){document.write('<script src="security-patch.js"><\\/script>')}<\/script>
+<script src="v15/v15-core.js"><\/script>
+<script src="v15/v15-data.js"><\/script>
+<script src="v15/v15-access.js"><\/script>
+<script src="v15/v15-hardening.js"><\/script>
+<script src="v15/v15-ui.js"><\/script>
+`;
+    html=html.replace(/<\/body>/i,v15+'</body>');
+    document.open();document.write(html);document.close();
+  }catch(e){
+    const box=document.getElementById('loaderBox');
+    if(box) box.innerHTML='<h2>V15 pilot could not start</h2><p class="err">'+String(e.message||e).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))+'</p><small>Your V14 app and records were not changed.</small>';
+  }
+})();
+</script>
+</body>
+</html>
