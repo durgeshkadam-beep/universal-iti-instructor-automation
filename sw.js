@@ -1,4 +1,4 @@
-const CACHE = "iti-v14-4-printable-records";
+const CACHE = "iti-v14-5-expanded-printable-records";
 const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./other-printable-records.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
@@ -27,7 +27,7 @@ self.addEventListener("fetch", e=>{
   }
 
   // index.html already loads cloud.js. Append the security layer, admission importer,
-  // and the restored Other Printable Records UI without rewriting the large HTML file.
+  // and functional Other Printable Records UI without rewriting the large HTML file.
   if(e.request.method==="GET" && url.pathname.endsWith("/cloud.js")){
     e.respondWith(
       caches.open(CACHE).then(async cache=>{
