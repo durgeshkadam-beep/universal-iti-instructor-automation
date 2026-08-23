@@ -1,0 +1,13 @@
+{
+  "name": "Universal ITI Instructor Automation V15 Pilot",
+  "short_name": "ITI V15",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0b2740",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "../icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
