@@ -1,5 +1,5 @@
-const CACHE = "iti-v14-2-admission-import";
-const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./admission-import.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
+const CACHE = "iti-v14-3-security";
+const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
@@ -13,14 +13,28 @@ self.addEventListener("activate", e=>{
 self.addEventListener("fetch", e=>{
   const url = new URL(e.request.url);
 
-  // index.html already loads cloud.js. Append the optional admission importer to that
-  // script response so existing HTML does not need a risky full-file rewrite.
+  // Security prelude: never let the legacy app auto-trust a role-bearing session
+  // persisted in localStorage. The user authenticates again after a full reload.
+  if(e.request.method==="GET" && url.pathname.endsWith("/app.js")){
+    e.respondWith(
+      caches.open(CACHE).then(async cache=>{
+        const base = await cache.match("./app.js") || await fetch("./app.js");
+        const prelude = `try{localStorage.removeItem("dtpoAppSession_v1");}catch(e){}\n`;
+        return new Response(prelude + (await base.text()),{status:200,headers:{"Content-Type":"application/javascript; charset=utf-8","Cache-Control":"no-cache"}});
+      })
+    );
+    return;
+  }
+
+  // index.html already loads cloud.js. Append the security layer first, then the
+  // optional DVET admission importer. This avoids rewriting the large index/app files.
   if(e.request.method==="GET" && url.pathname.endsWith("/cloud.js")){
     e.respondWith(
       caches.open(CACHE).then(async cache=>{
         const base = await cache.match("./cloud.js") || await fetch("./cloud.js");
-        const addon = await cache.match("./admission-import.js") || await fetch("./admission-import.js");
-        const combined = (await base.text()) + "\n\n" + (await addon.text());
+        const security = await cache.match("./security-patch.js") || await fetch("./security-patch.js");
+        const admission = await cache.match("./admission-import.js") || await fetch("./admission-import.js");
+        const combined = (await base.text()) + "\n\n" + (await security.text()) + "\n\n" + (await admission.text());
         return new Response(combined,{status:200,headers:{"Content-Type":"application/javascript; charset=utf-8","Cache-Control":"no-cache"}});
       })
     );
