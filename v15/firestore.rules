@@ -53,13 +53,18 @@ service cloud.firestore {
     }
 
     match /institutes/{inst} {
+      // Any authenticated account may GET only the institute root document so the
+      // client can safely determine whether first-owner bootstrap is required.
+      // Subcollections remain protected by membership/role checks below.
+      allow get: if signedIn();
+      allow list: if isOwner(inst) || hasMember(inst);
+
       // Safe bootstrap: the first owner must already own a V14 cloud workspace
       // containing its manifest. A clean outsider account cannot claim the institute.
       allow create: if signedIn()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.legacyWorkspaceId is string
         && exists(legacyManifestPath(request.auth.uid, request.resource.data.legacyWorkspaceId));
-      allow read: if isOwner(inst) || hasMember(inst);
       allow update: if isPrincipal(inst);
       allow delete: if false;
 
