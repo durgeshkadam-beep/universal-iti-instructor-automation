@@ -17,6 +17,7 @@ const LABEL={admin:'System Admin',principal:'Principal',instructor:'Instructor',
 const CAPTION={admin:'Technical administration • V15',principal:'Principal oversight • V15',instructor:'Instructor workspace • V15',staff:'Staff read-only • V15',student:'Student workspace • V15'};
 let busy=false,last='';
 function role(){return window.SESSION?.role||'';}
+function removeBootGuard(){document.getElementById('v15BootGuard')?.remove();document.getElementById('v15BootGuardStyle')?.remove();}
 function ensureAdmin(){
   const tabs=document.getElementById('tabs'),main=document.getElementById('main');if(!tabs||!main)return null;
   let b=tabs.querySelector('.tab[data-tab="admin-console"]');
@@ -30,6 +31,7 @@ function caption(r){
   const c=document.querySelector('.sidebar-caption small');if(c)c.textContent=CAPTION[r]||'V15 workspace';
   const who=document.getElementById('whoName');if(who&&window.SESSION)who.textContent=`${SESSION.name||''} • ${LABEL[r]||r}${V.member?.owner&&r!=='admin'?' • Creator':''}`;
   const pin=document.getElementById('changePinBtn');if(pin)pin.style.display='none';
+  document.title='Universal ITI V15';
 }
 function showAllowed(r){
   const allowed=MATRIX[r]||new Set();
@@ -38,13 +40,12 @@ function showAllowed(r){
 function fallbackError(p,e){if(!p)return;p.innerHTML=`<div class="card" style="margin:20px;border:1px solid #efb2b2"><h3>V15 ${LABEL[role()]||'role'} panel could not load</h3><p>${String(e?.message||e||'Unknown error').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}</p><button class="btn primary" onclick="location.reload()">Reload V15</button></div>`;}
 async function enforce(force=false){
   const r=role();if(!r||!window.SESSION||busy)return false;
-  const sig=`${r}|${V.workspaceId||''}|${V.fb?.user?.uid||''}`;if(!force&&sig===last){caption(r);showAllowed(r);return true;}
+  const sig=`${r}|${V.workspaceId||''}|${V.fb?.user?.uid||''}`;
+  if(!force&&sig===last){caption(r);showAllowed(r);removeBootGuard();return true;}
   busy=true;
   try{
     let admin=null;if(r==='admin')admin=ensureAdmin();
     showAllowed(r);caption(r);
-    // Try the full role portal first. If one optional panel fails, continue with a
-    // deterministic shell instead of leaving the old Instructor/V13 UI visible.
     try{if(typeof V.applyRolePortal==='function')await V.applyRolePortal();}catch(e){console.error('V15 full portal apply failed',e);}
     showAllowed(r);caption(r);
     if(r==='admin'){
@@ -55,18 +56,17 @@ async function enforce(force=false){
     }else{
       const current=document.querySelector('#tabs .tab.active');
       if(!current||current.style.display==='none')try{App.switchTab('dashboard');}catch(e){}
-      if(r==='principal'){
-        try{await V.renderPrincipalDashboard?.();await V.renderPrincipalStaff?.();}catch(e){console.error('V15 principal renderer',e);}
-      }
+      if(r==='principal')try{await V.renderPrincipalDashboard?.();await V.renderPrincipalStaff?.();}catch(e){console.error('V15 principal renderer',e);}
       if(r==='staff')try{V.renderStaffDashboard?.();}catch(e){}
       if(r==='student')try{V.renderStudentDashboard?.();V.sanitizeStudent?.();}catch(e){}
       if(r==='instructor')try{await V.ensureWorkspaceSwitcher?.();}catch(e){}
     }
+    removeBootGuard();
     document.documentElement.dataset.v15RoleReady=r;document.body?.classList.add('v15-role-ready');last=sig;return true;
   }finally{busy=false;}
 }
 V.enforceRoleUI=enforce;
-let n=0,t=setInterval(async()=>{n++;if(window.SESSION){const ok=await enforce(n%8===0);if(ok&&n>12)clearInterval(t);}if(n>80)clearInterval(t);},200);
+let n=0,t=setInterval(async()=>{n++;if(window.SESSION){const ok=await enforce(n%8===0);if(ok&&n>15)clearInterval(t);}if(n>100)clearInterval(t);},200);
 window.addEventListener('pageshow',()=>setTimeout(()=>enforce(true),50));
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>enforce(true),50);});
 console.info('V15 final role UI enforcer active.');
