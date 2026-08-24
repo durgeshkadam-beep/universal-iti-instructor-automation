@@ -20,13 +20,13 @@ service cloud.firestore {
     function isSupportStaff(inst) { return hasMember(inst) && member(inst).role == 'staff'; }
     function isStudent(inst) { return hasMember(inst) && member(inst).role == 'student'; }
 
-    // Principal is highest operational authority. The owner flag is technical administration only.
     function canWriteTraining(inst) { return isPrincipal(inst) || isInstructor(inst); }
     function canReadInstitute(inst) { return isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || isSupportStaff(inst); }
-    function canManageAccounts(inst) { return isOwner(inst) || isPrincipal(inst); }
 
+    // Principal has institute-wide read/oversight across every Trade workspace.
+    // Instructor/Staff/Student remain limited to workspaceIds assigned to their account.
     function workspaceAllowed(inst, wid) {
-      return isOwner(inst) || (hasMember(inst) && wid in member(inst).workspaceIds);
+      return isOwner(inst) || isPrincipal(inst) || (hasMember(inst) && wid in member(inst).workspaceIds);
     }
     function ownTrainee(inst, traineeId) {
       return isStudent(inst) && member(inst).traineeId == traineeId;
@@ -39,17 +39,13 @@ service cloud.firestore {
     function principalCanCreateRole(inst, role) { return isPrincipal(inst) && role in ['instructor','staff']; }
     function instructorCanCreateRole(inst, role) { return isInstructor(inst) && role == 'student'; }
 
-    // V14 remains private to its original Firebase account for migration and rollback.
     match /itiInstructorUsers/{userId}/{document=**} {
       allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
     match /institutes/{inst} {
-      // Needed so an authenticated client can determine whether the institute exists.
       allow get: if signedIn();
       allow list: if isOwner(inst) || hasMember(inst);
-
-      // Safe first bootstrap must come from an existing V14 cloud owner.
       allow create: if signedIn()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.legacyWorkspaceId is string
@@ -96,8 +92,6 @@ service cloud.firestore {
       match /members/{memberId} {
         allow read: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || (signedIn() && memberId == request.auth.uid);
 
-        // Users may create only their own membership and only from an exact approved email/code.
-        // The technical owner can create its own member during safe first bootstrap.
         allow create: if signedIn() && memberId == request.auth.uid && (
           isOwner(inst)
           || (
@@ -115,8 +109,6 @@ service cloud.firestore {
           )
         );
 
-        // System Admin can assign any operational role to non-owner members.
-        // Principal can manage only Instructor/Staff accounts.
         allow update: if
           (
             isOwner(inst)
@@ -138,7 +130,9 @@ service cloud.firestore {
 
       match /workspaces/{wid} {
         allow read: if workspaceAllowed(inst, wid);
-        allow create, update: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
+        // Trade/Session/Batch workspace lifecycle belongs to System Admin or Principal.
+        allow create: if isOwner(inst) || isPrincipal(inst);
+        allow update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
         allow delete: if isOwner(inst) || isPrincipal(inst);
 
         match /trainees/{docId} {
