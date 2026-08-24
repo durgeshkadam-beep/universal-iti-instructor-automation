@@ -1,4 +1,4 @@
-const CACHE = "iti-v15-role-portals-20260824-5";
+const CACHE = "iti-v15-multitrade-20260824-6";
 const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./other-printable-records.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
