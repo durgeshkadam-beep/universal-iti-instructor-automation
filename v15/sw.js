@@ -1,7 +1,7 @@
-const CACHE='iti-v15-standalone-20260824-prod12';
+const CACHE='iti-v15-standalone-20260824-prod13';
 const CORE=[
   './index.html','./manifest.json','./v15-core.js','./v15-data.js','./v15-access.js','./v15-ui.js',
-  './v15-auth-roles-v2.js','./v15-workspaces-v2.js','./v15-governance-v2.js','./v15-portals-v2.js','./v15-boot-final.js',
+  './v15-auth-roles-v2.js','./v15-workspaces-v2.js','./v15-governance-v2.js','./v15-portals-v2.js','./v15-boot-final.js','./v15-role-enforcer.js',
   '../index.html','../style.css','../app.js','../ai.js','../cloud.js','../security-patch.js','../admission-import.js',
   '../other-printable-records.js','../official-plans.js','../logo.png','../icon.svg'
 ];
@@ -24,7 +24,6 @@ self.addEventListener('fetch',event=>{
     }catch(err){
       const exact=await cache.match(req);
       if(exact)return exact;
-      // Never return HTML as a JavaScript/CSS fallback. That caused random blank V15 menus.
       if(req.destination==='document'){
         const shell=await cache.match('./index.html');
         if(shell)return shell;
