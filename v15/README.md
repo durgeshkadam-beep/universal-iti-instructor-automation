@@ -1,63 +1,72 @@
-# Universal ITI Instructor Automation — V15 Pilot
+# Universal ITI Instructor Automation — V15
 
-This folder is an **isolated pilot**. The existing root V14 app remains unchanged.
+V15 remains isolated under `/v15/` so the root V14 app and V14 Firestore collection stay available as rollback/migration sources.
 
-## Why this pilot exists
+## Consolidated runtime
 
-V14 is local-first and synchronizes large sections. V15 is designed for Principal, Instructor and Student/Trainee users working from different devices at the same time.
+The V15 loader now uses a small set of purpose-built modules instead of the previous chain of role/auth patch scripts:
 
-V15 uses:
+1. `v15-core.js` — Firebase references, migration primitives and base helpers.
+2. `v15-data.js` — record-level Firestore reads/listeners.
+3. `v15-access.js` — approved Gmail/student linking helpers.
+4. `v15-ui.js` — base UI bridge.
+5. `v15-auth-roles-v2.js` — Google authentication, redirect/session restore and role authorization.
+6. `v15-workspaces-v2.js` — Trade + Session + Batch isolation, workspace lifecycle and Principal summary documents.
+7. `v15-governance-v2.js` — durable operation queue, audit trail, recycle bin, attendance locks, trainee identity index and Drive gallery archive.
+8. `v15-portals-v2.js` — System Admin, Principal, Instructor, Staff and Student portals.
 
-- Google Authentication for all roles.
-- Approved Google/Gmail access only.
-- One-time 6-digit activation code on first approved login.
-- Shared Firestore institute/workspace membership.
-- Record-per-document Firestore writes so two devices adding different trainees/entries do not replace the whole list.
-- Realtime listeners so changes from another device appear automatically.
-- LocalStorage only as a cache/offline fallback after V15 is active.
+The old V15 patch files remain in the repository only as history/rollback material; `v15/index.html` no longer loads them.
 
-## Existing records are preserved
+## Role model
 
-The pilot does not delete the root V14 app, V14 browser database, or the V14 Firestore collection.
+- **System Admin** — technical account/workspace setup, recovery and recycle controls.
+- **Principal** — highest institute operational authority; institute-wide Trade/Batch summaries, staff access, notices, inspection and reports.
+- **Instructor** — teaching, attendance, trainee, evaluation and student-account workflow for assigned Trade/Batch workspaces.
+- **Staff** — read-only support portal.
+- **Student** — own trainee/attendance/marks/leave/test/training data only.
 
-The first V15 owner login is intentionally allowed to create the shared institute only when that same Firebase user already owns the existing V14 cloud workspace manifest. The V14 source remains in place after migration for rollback.
+The original V14 migration owner may deliberately enter System Admin, Principal or Instructor views. Other accounts must match the role approved for their Gmail.
+
+## Multi-trade + academic-session model
+
+One Firestore workspace represents exactly one **Trade + Session + Batch**. Workspaces can be **active** or **archived**. Principal reads all active workspaces; Instructor/Staff/Student remain limited to their assigned workspace IDs.
+
+Each Instructor workspace maintains a compact `state/principalSummary` document. Principal dashboards and reports use these summary documents instead of reading every daily attendance record from every Trade.
+
+## Governance
+
+V15 now includes:
+
+- durable local operation queue for temporary offline work;
+- append-only audit log;
+- recycle bin for deleted official records;
+- institute-wide trainee identity index (Application/PRN/Registration when available);
+- monthly attendance submit → Principal approve/reopen workflow;
+- Institute notices targeted to all users or one Trade/Batch;
+- Google Drive gallery archive metadata;
+- archived academic sessions/workspaces;
+- consolidated Principal institute reports and inspection readiness.
+
+## Required Firestore rules
+
+After any governance/rules update, publish the current root `firestore.rules` in:
+
+**Firebase Console → Firestore Database → Rules → replace all → Publish**
+
+The root rules and `v15/firestore.rules` are kept aligned. The V14 private collection is still permitted for the same V14 owner so rollback/migration remains possible.
+
+## Automated tests
+
+Run locally or in GitHub Actions:
+
+```bash
+node tests/v15-production-test.js
+```
+
+The test checks JavaScript syntax, consolidated-loader architecture, role/governance features, Firestore rule markers and responsive PWA orientation. GitHub Actions workflow: `.github/workflows/v15-production-tests.yml`.
 
 ## Pilot URL
 
 `https://durgeshkadam-beep.github.io/universal-iti-instructor-automation/v15/`
 
-The pilot loader reuses the current app shell and adds the isolated V15 runtime. The normal root URL remains V14 during testing.
-
-## Required Firestore rules before first V15 login
-
-Copy the complete contents of `v15/firestore.rules` into:
-
-Firebase Console → Firestore Database → Rules → Publish
-
-These rules continue to allow the owner's V14 private workspace, so V14 rollback/migration remains possible.
-
-## First owner migration test
-
-1. On the desktop/browser where V14 cloud already contains the current records, open the V15 pilot URL.
-2. Select Instructor (or Principal if that is the intended owner role).
-3. Click **Continue with Google** and use the same Google account that owns the V14 cloud workspace.
-4. V15 verifies the legacy V14 manifest, creates the shared institute/workspace, and copies the records into V15 record-level collections.
-5. Confirm trainees, attendance, theory/practical records and notices are present.
-6. Do not delete the V14 Firestore collection.
-
-## Multi-device test
-
-After owner migration:
-
-- Add one test trainee on desktop.
-- Open the V15 pilot on mobile with the same approved staff Google account; the trainee should appear without Firebase JSON, Push or Restore.
-- Add a second different test trainee on mobile; desktop should receive it through the realtime listener.
-- Confirm both records remain.
-
-## Student access
-
-In Trainee Master, use **Set Gmail** for a trainee. V15 creates an approved access entry and a one-time activation code. The student selects Student/Trainee, signs in with that exact Google account, and enters the code once. An unapproved Google account is denied.
-
-## Safety
-
-Keep V14 and V15 in parallel until the two-device staff test and at least one student login test succeed. Only then should V15 replace the root app.
+Keep V14 until real-account testing passes for System Admin, Principal, two Instructors in different Trades, Staff and at least one Student, including realtime sync and an offline/reconnect test.
