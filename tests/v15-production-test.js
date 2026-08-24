@@ -3,7 +3,7 @@ const fs=require('fs');
 const path=require('path');
 const cp=require('child_process');
 const root=path.resolve(__dirname,'..');
-const files=['v15/v15-auth-roles-v2.js','v15/v15-session-bridge.js','v15/v15-workspaces-v2.js','v15/v15-governance-v2.js','v15/v15-portals-v2.js','v15/v15-boot-final.js','v15/v15-role-enforcer.js','v15/v15-runtime-role-fix.js','v15/sw.js'];
+const files=['v15/v15-auth-roles-v2.js','v15/v15-session-bridge.js','v15/v15-workspaces-v2.js','v15/v15-governance-v2.js','v15/v15-portals-v2.js','v15/v15-boot-final.js','v15/v15-role-enforcer.js','v15/v15-runtime-role-fix.js','v15/v15-router-final.js','v15/sw.js'];
 let failed=0;
 function ok(cond,msg){if(cond)console.log('PASS',msg);else{console.error('FAIL',msg);failed++;}}
 function text(p){return fs.readFileSync(path.join(root,p),'utf8');}
@@ -11,14 +11,19 @@ for(const f of files){ok(fs.existsSync(path.join(root,f)),`${f} exists`);try{cp.
 const idx=text('v15/index.html'),recover=text('v15/recover.html'),sw=text('v15/sw.js');
 for(const f of files.filter(x=>x!=='v15/sw.js'))ok(idx.includes(f),`V15 loader includes ${f}`);
 ok(idx.indexOf('v15/v15-session-bridge.js')>idx.indexOf('v15/v15-auth-roles-v2.js'),'SESSION bridge loads after auth');
-ok(idx.indexOf('v15/v15-runtime-role-fix.js')>idx.indexOf('v15/v15-role-enforcer.js'),'runtime role fix loads last');
+ok(idx.indexOf('v15/v15-runtime-role-fix.js')>idx.indexOf('v15/v15-role-enforcer.js'),'runtime role fix loads after role enforcer');
+ok(idx.indexOf('v15/v15-router-final.js')>idx.indexOf('v15/v15-runtime-role-fix.js'),'deterministic role router loads last');
 const old=['v15-mobile-auth.js','v15-fast-session.js','v15-authority-auth.js','v15-authority-final.js','v15-role-login.js','v15-role-matrix.js','v15-multitrade.js','v15-multitrade-hardening.js','v15-account-workspace-ux.js','v15-principal-login-stability.js','v15-auth-loop-fix.js'];
 for(const f of old)ok(!idx.includes(f),`old patch not loaded: ${f}`);
-const auth=text(files[0]),bridge=text(files[1]),ws=text(files[2]),gov=text(files[3]),portals=text(files[4]),boot=text(files[5]),enforcer=text(files[6]),runtime=text(files[7]),rules=text('firestore.rules'),manifest=JSON.parse(text('v15/manifest.json'));
+const auth=text(files[0]),bridge=text(files[1]),ws=text(files[2]),gov=text(files[3]),portals=text(files[4]),boot=text(files[5]),enforcer=text(files[6]),runtime=text(files[7]),router=text(files[8]),rules=text('firestore.rules'),manifest=JSON.parse(text('v15/manifest.json'));
 ok(auth.includes('signInWithRedirect')&&auth.includes('authStateReady'),'auth handles redirect + persisted session');
 ok(auth.includes("OWNER_ROLES=new Set(['admin','principal','instructor'])"),'creator multi-role is explicit');
 ok(bridge.includes("typeof SESSION!=='undefined'")&&bridge.includes('window.SESSION=s'),'legacy lexical SESSION bridge exists');
 ok(runtime.includes('const baseLogin=V.login?.bind(V)')&&runtime.includes('window.SESSION=s')&&runtime.includes("r==='admin'"),'post-login runtime fix publishes session and forces Admin portal');
+ok(router.includes('e.stopImmediatePropagation()')&&router.includes('V.openRoleTab')&&router.includes('renderPrincipalStaff'),'final router prevents legacy Users.render from overwriting Principal Staff & Access');
+ok(router.includes("#tabs[data-v15-footer]::after")&&router.includes('Principal oversight • V15'),'V13 sidebar footer is overridden by V15 role caption');
+ok(router.includes("principal:new Set(['dashboard','users','notices','record-formats','inspection','reports'])"),'Principal portal is least-privilege and explicit');
+ok(router.includes('showError')&&router.includes('Retry'),'role pages show visible errors instead of blank screens');
 ok(ws.includes('createTradeWorkspace')&&ws.includes("status:'active'"),'Trade/Session/Batch lifecycle exists');
 ok(ws.includes('rebuildWorkspaceSummary')&&ws.includes('principalSummary'),'optimized Principal summary exists');
 ok(gov.includes('iti-v15-opqueue-v2')&&gov.includes('flushQueue'),'durable offline operation queue exists');
@@ -26,12 +31,12 @@ ok(gov.includes('auditLog')&&gov.includes('recycleBin'),'audit + recycle governa
 ok(gov.includes('attendanceLocks')&&gov.includes('submitAttendanceMonth'),'attendance month approval workflow exists');
 ok(gov.includes('traineeIndex')&&gov.includes('claimTraineeIdentity'),'institute trainee uniqueness index exists');
 ok(gov.includes('syncGalleryToDrive')&&gov.includes('uploadDriveBlob'),'Drive gallery archive exists');
-ok(portals.includes('Institute Notices')&&portals.includes('Institute Reports')&&portals.includes('Inspection & Compliance'),'Principal institute-wide portals exist');
+ok(portals.includes('Institute Notices')&&portals.includes('Institute Reports')&&portals.includes('Inspection & Compliance'),'Principal institute-wide renderers exist');
 ok(portals.includes("student:new Set(['dashboard','trainees','attendance'"),'Student least-privilege portal exists');
 ok(enforcer.includes('ensureAdmin')&&enforcer.includes('Technical administration • V15')&&enforcer.includes('renderAdminPanel'),'final role UI enforcer can recover Admin menu/panel');
-ok(idx.includes('Production 15')&&idx.includes("register('./sw.js?build=prod15'"),'V15 Production 15 registers dedicated worker');
-ok(sw.includes("iti-v15-standalone-20260824-prod15")&&sw.includes('v15-runtime-role-fix.js')&&sw.includes("req.destination==='document'"),'dedicated V15 worker caches runtime role fix and never HTML-fallbacks scripts');
-ok(recover.includes('production-15')&&recover.includes('unregister()')&&recover.includes('caches.delete'),'one-click V15 cache recovery points to Production 15');
+ok(idx.includes('Production 16')&&idx.includes("register('./sw.js?build=prod16'"),'V15 Production 16 registers dedicated worker');
+ok(sw.includes("iti-v15-standalone-20260824-prod16")&&sw.includes('v15-router-final.js')&&sw.includes("req.destination==='document'"),'dedicated V15 worker caches final router and never HTML-fallbacks scripts');
+ok(recover.includes('production-16')&&recover.includes('unregister()')&&recover.includes('caches.delete'),'one-click V15 cache recovery points to Production 16');
 ok(boot.includes('ensureRolePortal'),'deterministic boot coordinator remains present');
 for(const marker of ['match /auditLog/{auditId}','match /recycleBin/{recycleId}','match /traineeIndex/{identityId}','match /instituteNotices/{noticeId}','match /attendanceLocks/{month}','match /galleryCloud/{galleryId}'])ok(rules.includes(marker),`Firestore rule present: ${marker}`);
 ok(rules.includes('allow delete: if false;'),'protected delete policy present');
