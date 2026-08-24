@@ -1,4 +1,4 @@
-const CACHE = "iti-v15-role-matrix-20260824-4";
+const CACHE = "iti-v15-role-portals-20260824-5";
 const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./other-printable-records.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
@@ -13,8 +13,6 @@ self.addEventListener("activate", e=>{
 self.addEventListener("fetch", e=>{
   const url = new URL(e.request.url);
 
-  // Security prelude: never let the legacy app auto-trust a role-bearing session
-  // persisted in localStorage. V15 restores only Firebase-authenticated sessions.
   if(e.request.method==="GET" && url.pathname.endsWith("/app.js")){
     e.respondWith(
       caches.open(CACHE).then(async cache=>{
@@ -40,8 +38,6 @@ self.addEventListener("fetch", e=>{
     return;
   }
 
-  // V15 is an active pilot. Prefer the newest GitHub Pages file so old cached patches
-  // do not keep login, role or migration bugs alive. Cache is only an offline fallback.
   if(e.request.method==="GET" && url.pathname.includes("/v15/")){
     e.respondWith(caches.open(CACHE).then(async cache=>{
       try{
