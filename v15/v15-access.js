@@ -3,23 +3,31 @@
 'use strict';
 Object.assign(V,{
  async invite(email,role,traineeId=null,name=''){
-   if(!this.ready||!this.staff()) throw new Error('Staff access required.');
+   if(!this.ready||!this.member||this.member.active===false) throw new Error('Authenticated institute account required.');
    email=this.email(email);
    if(!this.validEmail(email)) throw new Error('Enter a valid Google/Gmail email address.');
 
    const isOwner=!!this.member?.owner;
    const currentRole=SESSION?.role||this.member?.role||'';
+   const adminView=isOwner&&currentRole==='admin';
+   const principalView=currentRole==='principal';
+   const instructorView=currentRole==='instructor';
 
-   // V15 hierarchy:
-   // System Owner / App Admin -> Principal (and Instructor for testing/exception)
-   // Principal                -> Instructor
-   // Instructor               -> Student through Trainee Master
-   if(role==='principal' && !isOwner)
-     throw new Error('Only the System Owner / App Admin can create a Principal account.');
-   if(role==='instructor' && !(isOwner||currentRole==='principal'))
-     throw new Error('Only the Principal or System Owner / App Admin can create an Instructor account.');
-   if(role==='student' && !(isOwner||currentRole==='instructor'))
-     throw new Error('Student Google access must be approved by the Instructor from Trainee Master.');
+   // Final V15 hierarchy by the currently selected workspace role:
+   // System Admin -> Principal / Instructor / Staff / Student
+   // Principal    -> Instructor / Staff
+   // Instructor   -> Student (normally from Trainee Master)
+   // Staff/Student cannot create accounts.
+   if(role==='principal' && !adminView)
+     throw new Error('Only System Admin can create or approve a Principal account.');
+   if(role==='instructor' && !(adminView||principalView))
+     throw new Error('Only System Admin or Principal can create an Instructor account.');
+   if(role==='staff' && !(adminView||principalView))
+     throw new Error('Only System Admin or Principal can create a Staff account.');
+   if(role==='student' && !(adminView||instructorView))
+     throw new Error('Student Google access must be approved by System Admin or the Instructor.');
+   if(!['principal','instructor','staff','student'].includes(role))
+     throw new Error('Invalid account role.');
 
    const c=this.code(),h=await this.hash(c),M=this.fb.M;
    const a={email,role,traineeId:traineeId||null,displayName:name||'',workspaceIds:[this.workspaceId],active:true,createdBy:this.fb.user.uid,createdAt:this.now()};
@@ -29,8 +37,8 @@ Object.assign(V,{
  },
  async inviteStudent(t){return t?.email?this.invite(t.email,'student',t.id,t.name||'Student'):null;},
  async setStudentEmail(t){
-   if(!(this.member?.owner||SESSION?.role==='instructor'||this.member?.role==='instructor')){
-     alert('Only the Instructor can approve a student Google account.');return;
+   if(!(SESSION?.role==='instructor'||(this.member?.owner&&SESSION?.role==='admin'))){
+     alert('Only the Instructor or System Admin can approve a student Google account.');return;
    }
    const e=this.email(prompt(`Approved Google/Gmail for ${t.name}:`,this.email(t.email||''))||'');
    if(!e)return;
@@ -47,7 +55,7 @@ Object.assign(V,{
    const e=this.email(document.getElementById('v15InviteEmail')?.value||''),r=document.getElementById('v15InviteRole')?.value||'instructor';
    try{
      const c=await this.invite(e,r,null,e);
-     alert(`${r==='principal'?'Principal':'Instructor'} account approved.\nEmail: ${e}\nActivation code: ${c}\n\nGive this code privately for first Google login. After activation, future logins use Google only.`);
+     alert(`${r==='principal'?'Principal':r==='staff'?'Staff':'Instructor'} account approved.\nEmail: ${e}\nActivation code: ${c}\n\nGive this code privately for first Google login. After activation, future logins use Google only.`);
    }catch(x){alert(x.message||x);}
  },
  traineeUI(){
@@ -79,7 +87,7 @@ Object.assign(V,{
        const t=(DATA.trainees||[])[i];if(!t)return;
        const n=tr.children[1];
        if(n&&t.email&&!n.querySelector('.v15-email')){const s=document.createElement('small');s.className='v15-email muted';s.style.display='block';s.textContent=t.email;n.appendChild(s);}
-       const canApproveStudent=SESSION?.role==='instructor'||V.member?.owner;
+       const canApproveStudent=SESSION?.role==='instructor'||(V.member?.owner&&SESSION?.role==='admin');
        if(canApproveStudent){
          const c=tr.lastElementChild;
          if(c&&!c.querySelector('.v15-set-email')){const x=document.createElement('button');x.type='button';x.className='btn ghost small v15-set-email';x.textContent=t.email?'Change Gmail':'Set Gmail';x.onclick=()=>V.setStudentEmail(t);c.appendChild(x);}
