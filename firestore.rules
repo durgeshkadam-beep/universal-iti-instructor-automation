@@ -11,81 +11,71 @@ service cloud.firestore {
     function isOwner(inst) {
       return signedIn() && exists(institutePath(inst)) && get(institutePath(inst)).data.ownerUid == request.auth.uid;
     }
-    function principalSet(inst) {
-      return exists(institutePath(inst))
-        && get(institutePath(inst)).data.keys().hasAny(['principalUid'])
-        && get(institutePath(inst)).data.principalUid != null;
-    }
     function hasMember(inst) {
       return signedIn() && exists(memberPath(inst, request.auth.uid)) && get(memberPath(inst, request.auth.uid)).data.active == true;
     }
     function member(inst) { return get(memberPath(inst, request.auth.uid)).data; }
-    function isSetupOwner(inst) { return isOwner(inst) && !principalSet(inst); }
-    function isRealPrincipal(inst) {
-      return hasMember(inst)
-        && member(inst).role == 'principal'
-        && (!principalSet(inst) || get(institutePath(inst)).data.principalUid == request.auth.uid);
-    }
+    function isPrincipal(inst) { return hasMember(inst) && member(inst).role == 'principal'; }
     function isInstructor(inst) { return hasMember(inst) && member(inst).role == 'instructor'; }
-    function isStaff(inst) { return isSetupOwner(inst) || isRealPrincipal(inst) || isInstructor(inst); }
+    function isSupportStaff(inst) { return hasMember(inst) && member(inst).role == 'staff'; }
+    function isStudent(inst) { return hasMember(inst) && member(inst).role == 'student'; }
+
+    // Principal is highest operational authority. The owner flag is technical administration only.
+    function canWriteTraining(inst) { return isPrincipal(inst) || isInstructor(inst); }
+    function canReadInstitute(inst) { return isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || isSupportStaff(inst); }
+    function canManageAccounts(inst) { return isOwner(inst) || isPrincipal(inst); }
+
     function workspaceAllowed(inst, wid) {
-      return isSetupOwner(inst) || (hasMember(inst) && wid in member(inst).workspaceIds);
+      return isOwner(inst) || (hasMember(inst) && wid in member(inst).workspaceIds);
     }
     function ownTrainee(inst, traineeId) {
-      return hasMember(inst) && member(inst).role == 'student' && member(inst).traineeId == traineeId;
+      return isStudent(inst) && member(inst).traineeId == traineeId;
     }
     function publicStudentSection(section) {
       return section in ['theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams'];
     }
-    function setupCanCreateRole(inst, role) { return isSetupOwner(inst) && role == 'principal'; }
-    function principalCanCreateRole(inst, role) { return isRealPrincipal(inst) && role == 'instructor'; }
+    function validRole(role) { return role in ['principal','instructor','staff','student']; }
+    function ownerCanCreateRole(inst, role) { return isOwner(inst) && validRole(role); }
+    function principalCanCreateRole(inst, role) { return isPrincipal(inst) && role in ['instructor','staff']; }
     function instructorCanCreateRole(inst, role) { return isInstructor(inst) && role == 'student'; }
 
-    // Preserve original V14 private cloud for migration / rollback.
+    // V14 remains private to its original Firebase account for migration and rollback.
     match /itiInstructorUsers/{userId}/{document=**} {
       allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
     match /institutes/{inst} {
-      // Authentication may check only the institute root before membership exists.
+      // Needed so an authenticated client can determine whether the institute exists.
       allow get: if signedIn();
-      allow list: if isSetupOwner(inst) || hasMember(inst);
+      allow list: if isOwner(inst) || hasMember(inst);
 
-      // One-time safe bootstrap must originate from an existing V14 owner workspace.
+      // Safe first bootstrap must come from an existing V14 cloud owner.
       allow create: if signedIn()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.legacyWorkspaceId is string
         && exists(legacyManifestPath(request.auth.uid, request.resource.data.legacyWorkspaceId));
-
-      // After activation, Principal is the highest operational authority.
-      // The Principal UID can be established only once and only by that Principal.
-      allow update: if isRealPrincipal(inst) && (
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['principalUid','principalEmail'])
-        || (
-          !principalSet(inst)
-          && request.resource.data.principalUid == request.auth.uid
-          && request.resource.data.principalEmail == request.auth.token.email
-        )
-      );
+      allow update: if isOwner(inst) || isPrincipal(inst);
       allow delete: if false;
 
       match /access/{email} {
-        allow get: if signedIn() && (isStaff(inst) || request.auth.token.email == email);
-        allow list: if isStaff(inst);
-        allow create, update: if setupCanCreateRole(inst, request.resource.data.role)
+        allow get: if signedIn() && (
+          isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || request.auth.token.email == email
+        );
+        allow list: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst);
+        allow create, update: if ownerCanCreateRole(inst, request.resource.data.role)
           || principalCanCreateRole(inst, request.resource.data.role)
           || instructorCanCreateRole(inst, request.resource.data.role);
-        allow delete: if setupCanCreateRole(inst, resource.data.role)
-          || (isRealPrincipal(inst) && resource.data.role == 'instructor')
+        allow delete: if isOwner(inst)
+          || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
           || (isInstructor(inst) && resource.data.role == 'student');
       }
 
       match /inviteSecrets/{email} {
-        allow read: if isStaff(inst);
-        allow create: if setupCanCreateRole(inst, request.resource.data.role)
+        allow read: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst);
+        allow create: if ownerCanCreateRole(inst, request.resource.data.role)
           || principalCanCreateRole(inst, request.resource.data.role)
           || instructorCanCreateRole(inst, request.resource.data.role);
-        allow update: if setupCanCreateRole(inst, request.resource.data.role)
+        allow update: if ownerCanCreateRole(inst, request.resource.data.role)
           || principalCanCreateRole(inst, request.resource.data.role)
           || instructorCanCreateRole(inst, request.resource.data.role)
           || (
@@ -98,22 +88,18 @@ service cloud.firestore {
             && request.resource.data.active == false
             && request.resource.data.usedBy == request.auth.uid
           );
-        allow delete: if setupCanCreateRole(inst, resource.data.role)
-          || (isRealPrincipal(inst) && resource.data.role == 'instructor')
+        allow delete: if isOwner(inst)
+          || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
           || (isInstructor(inst) && resource.data.role == 'student');
       }
 
       match /members/{memberId} {
-        allow read: if isStaff(inst) || (signedIn() && memberId == request.auth.uid);
+        allow read: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || (signedIn() && memberId == request.auth.uid);
 
-        // Users cannot self-select a role. Their exact approved Gmail/access record,
-        // workspace and one-time activation proof must match the server-side invite.
+        // Users may create only their own membership and only from an exact approved email/code.
+        // The technical owner can create its own member during safe first bootstrap.
         allow create: if signedIn() && memberId == request.auth.uid && (
-          (
-            isSetupOwner(inst)
-            && request.resource.data.owner == true
-            && request.resource.data.uid == request.auth.uid
-          )
+          isOwner(inst)
           || (
             request.auth.token.email != null
             && exists(accessPath(inst, request.auth.token.email))
@@ -121,67 +107,90 @@ service cloud.firestore {
             && get(accessPath(inst, request.auth.token.email)).data.active == true
             && get(secretPath(inst, request.auth.token.email)).data.active == true
             && request.resource.data.email == request.auth.token.email
+            && validRole(request.resource.data.role)
             && request.resource.data.role == get(accessPath(inst, request.auth.token.email)).data.role
             && request.resource.data.workspaceIds == get(accessPath(inst, request.auth.token.email)).data.workspaceIds
             && request.resource.data.traineeId == get(accessPath(inst, request.auth.token.email)).data.traineeId
             && request.resource.data.activationProof == get(secretPath(inst, request.auth.token.email)).data.codeHash
-            && (request.resource.data.role != 'principal' || !principalSet(inst))
           )
         );
 
-        // Principal may manage Instructor accounts; Instructor cannot manage staff.
-        allow update: if isRealPrincipal(inst)
-          && resource.data.owner != true
-          && resource.data.role == 'instructor'
-          && request.resource.data.role == 'instructor'
-          && request.resource.data.owner == resource.data.owner;
-        allow delete: if isRealPrincipal(inst)
-          && resource.data.owner != true
-          && resource.data.role == 'instructor';
+        // System Admin can assign any operational role to non-owner members.
+        // Principal can manage only Instructor/Staff accounts.
+        allow update: if
+          (
+            isOwner(inst)
+            && resource.data.owner != true
+            && request.resource.data.owner != true
+            && validRole(request.resource.data.role)
+          )
+          || (
+            isPrincipal(inst)
+            && resource.data.owner != true
+            && resource.data.role in ['instructor','staff']
+            && request.resource.data.role in ['instructor','staff']
+            && request.resource.data.owner == resource.data.owner
+          );
+        allow delete: if
+          (isOwner(inst) && resource.data.owner != true)
+          || (isPrincipal(inst) && resource.data.owner != true && resource.data.role in ['instructor','staff']);
       }
 
       match /workspaces/{wid} {
         allow read: if workspaceAllowed(inst, wid);
-        allow create, update: if workspaceAllowed(inst, wid) && isStaff(inst);
-        allow delete: if isRealPrincipal(inst);
+        allow create, update: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
+        allow delete: if isOwner(inst) || isPrincipal(inst);
 
         match /trainees/{docId} {
-          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || (resource.data.data.id != null && ownTrainee(inst, resource.data.data.id)));
-          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow read: if workspaceAllowed(inst, wid) && (
+            canReadInstitute(inst) || (resource.data.data.id != null && ownTrainee(inst, resource.data.data.id))
+          );
+          allow create, update, delete: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
         }
+
         match /attendance/{docId} {
-          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, resource.data.traineeId));
-          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId));
+          allow create, update, delete: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
         }
+
         match /marks/{docId} {
-          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, resource.data.traineeId));
-          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId));
+          allow create, update, delete: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
         }
+
         match /submissions/{docId} {
-          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, resource.data.traineeId));
-          allow create, update: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.traineeId));
-          allow delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId));
+          allow create, update: if workspaceAllowed(inst, wid) && (
+            canWriteTraining(inst) || ownTrainee(inst, request.resource.data.traineeId)
+          );
+          allow delete: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
         }
+
         match /leaves/{docId} {
-          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, resource.data.data.traineeId));
-          allow create: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.data.traineeId));
-          allow update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId));
+          allow create: if workspaceAllowed(inst, wid) && (canWriteTraining(inst) || ownTrainee(inst, request.resource.data.data.traineeId));
+          allow update, delete: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
         }
+
         match /examAttempts/{docId} {
-          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, resource.data.data.traineeId));
-          allow create, update: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.data.traineeId));
-          allow delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId));
+          allow create, update: if workspaceAllowed(inst, wid) && (canWriteTraining(inst) || ownTrainee(inst, request.resource.data.data.traineeId));
+          allow delete: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
         }
+
         match /projects/{docId} {
-          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, resource.data.data.traineeId));
-          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId));
+          allow create, update, delete: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
         }
+
         match /state/{docId} {
-          allow read, write: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow write: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
         }
+
         match /{section}/{docId} {
-          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || publicStudentSection(section));
-          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || publicStudentSection(section));
+          allow create, update, delete: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
         }
       }
     }
