@@ -1,4 +1,4 @@
-const CACHE = "iti-v15-principal-auth-20260824-2";
+const CACHE = "iti-v15-admin-dtp-recovery-20260824-1";
 const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./other-printable-records.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
@@ -37,6 +37,21 @@ self.addEventListener("fetch", e=>{
         return new Response(combined,{status:200,headers:{"Content-Type":"application/javascript; charset=utf-8","Cache-Control":"no-cache"}});
       })
     );
+    return;
+  }
+
+  // V15 is an active pilot. Prefer the newest GitHub Pages file so old cached patches
+  // do not keep login, role or migration bugs alive. Cache is only an offline fallback.
+  if(e.request.method==="GET" && url.pathname.includes("/v15/")){
+    e.respondWith(caches.open(CACHE).then(async cache=>{
+      try{
+        const resp=await fetch(e.request,{cache:"no-store"});
+        if(resp&&resp.status===200) await cache.put(e.request,resp.clone());
+        return resp;
+      }catch(err){
+        return (await cache.match(e.request)) || (await cache.match("./index.html"));
+      }
+    }));
     return;
   }
 
