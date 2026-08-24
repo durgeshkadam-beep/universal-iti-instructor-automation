@@ -1,4 +1,4 @@
-const CACHE = "iti-v15-principal-admin-20260824-1";
+const CACHE = "iti-v15-principal-auth-20260824-2";
 const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./other-printable-records.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
@@ -13,23 +13,8 @@ self.addEventListener("activate", e=>{
 self.addEventListener("fetch", e=>{
   const url = new URL(e.request.url);
 
-  // V15 is under active pilot development: prefer the latest network copy so
-  // role/access fixes are not hidden by an old service-worker cache.
-  if(e.request.method==="GET" && url.pathname.includes("/v15/")){
-    e.respondWith(
-      fetch(e.request,{cache:"no-store"}).then(async resp=>{
-        if(resp && resp.status===200){
-          const cache=await caches.open(CACHE);
-          cache.put(e.request,resp.clone()).catch(()=>{});
-        }
-        return resp;
-      }).catch(()=>caches.match(e.request))
-    );
-    return;
-  }
-
-  // Security prelude for the legacy V14 shell. V15 itself restores identity from
-  // Firebase Auth, not from this old local role session.
+  // Security prelude: never let the legacy app auto-trust a role-bearing session
+  // persisted in localStorage. V15 restores only Firebase-authenticated sessions.
   if(e.request.method==="GET" && url.pathname.endsWith("/app.js")){
     e.respondWith(
       caches.open(CACHE).then(async cache=>{
