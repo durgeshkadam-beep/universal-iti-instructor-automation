@@ -1,0 +1,32 @@
+name: V15 Production Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'v15/**'
+      - 'firestore.rules'
+      - 'tests/v15-production-test.js'
+      - '.github/workflows/v15-production-tests.yml'
+  pull_request:
+    paths:
+      - 'v15/**'
+      - 'firestore.rules'
+      - 'tests/v15-production-test.js'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run V15 production tests
+        run: node tests/v15-production-test.js
