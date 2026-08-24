@@ -1,132 +1,52 @@
 /* V15 Production Governance
- * Durable local operation queue, audit trail, recycle bin, trainee identity index,
+ * Durable per-user local operation queue, audit trail, recycle bin, trainee identity index,
  * attendance month submission/approval, and Google Drive gallery archive metadata.
  */
 (function(V){
 'use strict';
 if(!V)return;
-const QKEY='iti-v15-opqueue-v2';
+const QBASE='iti-v15-opqueue-v2';
 function role(){return window.SESSION?.role||'';}
 function clone(v){return V.clone(v);}
 function eq(a,b){return V.eq(a,b);}
 function monthOf(v){const s=String(v||'');const m=s.match(/(\d{4})[-/](\d{1,2})/);return m?`${m[1]}-${String(m[2]).padStart(2,'0')}`:'';}
 function uid(){return V.fb?.user?.uid||'unknown';}
+function qkey(){return `${QBASE}-${uid()}`;}
 function opId(){return `${Date.now()}-${Math.random().toString(36).slice(2,10)}`;}
-function safeJson(v){try{return JSON.stringify(v);}catch(e){return ''}}
+function safeJson(v){try{return JSON.stringify(v);}catch(e){return '';}}
 
-V.queueRead=function(){try{const a=JSON.parse(localStorage.getItem(QKEY)||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}};
-V.queueWrite=function(a){localStorage.setItem(QKEY,JSON.stringify(a.slice(-3000)));this.badge?.(a.length?'Sync pending':'Synced');};
-V.queuePush=function(op){const a=this.queueRead();const sig=safeJson([op.workspaceId,op.kind,op.section,op.docId,op.action,op.data]);if(!a.some(x=>safeJson([x.workspaceId,x.kind,x.section,x.docId,x.action,x.data])===sig))a.push({...op,id:op.id||opId(),queuedAt:this.now(),actorUid:uid(),actorRole:role()});this.queueWrite(a);};
+V.queueRead=function(){try{const a=JSON.parse(localStorage.getItem(qkey())||'[]');return Array.isArray(a)?a:[];}catch(e){return [];}};
+V.queueWrite=function(a){localStorage.setItem(qkey(),JSON.stringify(a.slice(-3000)));this.badge?.(a.length?'Sync pending':'Synced');};
+V.queuePush=function(op){const a=this.queueRead(),sig=safeJson([op.workspaceId,op.kind,op.section,op.docId,op.action,op.data]);if(!a.some(x=>safeJson([x.workspaceId,x.kind,x.section,x.docId,x.action,x.data])===sig))a.push({...op,id:op.id||opId(),queuedAt:this.now(),actorUid:uid(),actorRole:role()});this.queueWrite(a);};
 
-V.audit=async function(action,details={},workspaceId=this.workspaceId){
-  if(!this.fb?.db||!this.fb?.user)return;const M=this.fb.M,id=this.esc(`${Date.now()}-${this.fb.user.uid}-${Math.random().toString(36).slice(2,8)}`);
-  try{await M.setDoc(M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'auditLog',id),{action,workspaceId:workspaceId||null,actorUid:this.fb.user.uid,actorEmail:this.email(this.fb.user.email),actorRole:role()||this.member?.role||'',details:this.safe(details),createdAt:this.now()});}catch(e){console.warn('V15 audit',e);}
-};
+V.audit=async function(action,details={},workspaceId=this.workspaceId){if(!this.fb?.db||!this.fb?.user)return;const M=this.fb.M,id=this.esc(`${Date.now()}-${this.fb.user.uid}-${Math.random().toString(36).slice(2,8)}`);try{await M.setDoc(M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'auditLog',id),{action,workspaceId:workspaceId||null,actorUid:this.fb.user.uid,actorEmail:this.email(this.fb.user.email),actorRole:role()||this.member?.role||'',details:this.safe(details),createdAt:this.now()});}catch(e){console.warn('V15 audit',e);}};
 
-V.identityForTrainee=function(t){
-  const pairs=[['applicationId',t?.applicationId||t?.applicationID||t?.applicationNo],['prn',t?.prn||t?.PRN],['registrationId',t?.registrationId||t?.registrationID||t?.nulmId||t?.NULM_ID]];
-  const p=pairs.find(x=>String(x[1]||'').trim());return p?{type:p[0],value:String(p[1]).trim()}:null;
-};
-V.claimTraineeIdentity=async function(t,workspaceId=this.workspaceId){
-  const ident=this.identityForTrainee(t);if(!ident)return;const M=this.fb.M,ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'traineeIndex',this.esc(`${ident.type}-${ident.value}`));
-  if(typeof M.runTransaction==='function'){
-    await M.runTransaction(this.fb.db,async tx=>{const z=await tx.get(ref);if(z.exists()){const x=z.data();if(x.active!==false&&(x.workspaceId!==workspaceId||String(x.traineeId)!==String(t.id)))throw new Error(`${ident.type} ${ident.value} is already linked to another trainee/workspace.`);}tx.set(ref,{...ident,workspaceId,traineeId:t.id,name:t.name||'',active:true,updatedAt:this.now(),updatedBy:uid()},{merge:true});});
-  }else{
-    const z=await M.getDoc(ref);if(z.exists()){const x=z.data();if(x.active!==false&&(x.workspaceId!==workspaceId||String(x.traineeId)!==String(t.id)))throw new Error(`${ident.type} ${ident.value} is already linked to another trainee/workspace.`);}await M.setDoc(ref,{...ident,workspaceId,traineeId:t.id,name:t.name||'',active:true,updatedAt:this.now(),updatedBy:uid()},{merge:true});
-  }
-};
+V.identityForTrainee=function(t){const pairs=[['applicationId',t?.applicationId||t?.applicationID||t?.applicationNo],['prn',t?.prn||t?.PRN],['registrationId',t?.registrationId||t?.registrationID||t?.nulmId||t?.NULM_ID]],p=pairs.find(x=>String(x[1]||'').trim());return p?{type:p[0],value:String(p[1]).trim()}:null;};
+V.claimTraineeIdentity=async function(t,workspaceId=this.workspaceId){const ident=this.identityForTrainee(t);if(!ident)return;const M=this.fb.M,ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'traineeIndex',this.esc(`${ident.type}-${ident.value}`));if(typeof M.runTransaction==='function'){await M.runTransaction(this.fb.db,async tx=>{const z=await tx.get(ref);if(z.exists()){const x=z.data();if(x.active!==false&&(x.workspaceId!==workspaceId||String(x.traineeId)!==String(t.id)))throw new Error(`${ident.type} ${ident.value} is already linked to another trainee/workspace.`);}tx.set(ref,{...ident,workspaceId,traineeId:t.id,name:t.name||'',active:true,updatedAt:this.now(),updatedBy:uid()},{merge:true});});}else{const z=await M.getDoc(ref);if(z.exists()){const x=z.data();if(x.active!==false&&(x.workspaceId!==workspaceId||String(x.traineeId)!==String(t.id)))throw new Error(`${ident.type} ${ident.value} is already linked to another trainee/workspace.`);}await M.setDoc(ref,{...ident,workspaceId,traineeId:t.id,name:t.name||'',active:true,updatedAt:this.now(),updatedBy:uid()},{merge:true});}};
 
 V.lockRef=function(month,w=this.workspaceId){return this.fb.M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',w,'attendanceLocks',month);};
 V.getAttendanceLock=async function(month,w=this.workspaceId){try{const z=await this.fb.M.getDoc(this.lockRef(month,w));return z.exists()?z.data():null;}catch(e){return null;}};
-V.submitAttendanceMonth=async function(month){
-  if(role()!=='instructor')throw new Error('Only Instructor can submit attendance for Principal approval.');if(!/^\d{4}-\d{2}$/.test(month))throw new Error('Select a valid month.');
-  const old=await this.getAttendanceLock(month);if(old?.status==='approved')throw new Error('This month is already approved. Principal must reopen it before correction.');
-  await this.fb.M.setDoc(this.lockRef(month),{month,status:'submitted',submittedAt:this.now(),submittedBy:uid(),submittedByEmail:this.email(this.fb.user.email),updatedAt:this.now()},{merge:true});await this.audit('attendance.month.submit',{month});
-};
-V.reviewAttendanceMonth=async function(wid,month,status,reason=''){
-  if(role()!=='principal'&&!this.member?.owner)throw new Error('Principal/System Admin access required.');if(!['approved','reopened'].includes(status))throw new Error('Invalid review status.');
-  await this.fb.M.setDoc(this.lockRef(month,wid),{month,status,reviewedAt:this.now(),reviewedBy:uid(),reviewedByEmail:this.email(this.fb.user.email),reason:String(reason||''),updatedAt:this.now()},{merge:true});await this.audit('attendance.month.'+status,{month,reason},wid);
-};
+V.submitAttendanceMonth=async function(month){if(role()!=='instructor')throw new Error('Only Instructor can submit attendance for Principal approval.');if(!/^\d{4}-\d{2}$/.test(month))throw new Error('Select a valid month.');const old=await this.getAttendanceLock(month);if(old?.status==='approved')throw new Error('This month is already approved. Principal must reopen it before correction.');await this.fb.M.setDoc(this.lockRef(month),{month,status:'submitted',submittedAt:this.now(),submittedBy:uid(),submittedByEmail:this.email(this.fb.user.email),updatedAt:this.now()},{merge:true});await this.audit('attendance.month.submit',{month});};
+V.reviewAttendanceMonth=async function(wid,month,status,reason=''){if(role()!=='principal'&&!this.member?.owner)throw new Error('Principal/System Admin access required.');if(!['approved','reopened'].includes(status))throw new Error('Invalid review status.');await this.fb.M.setDoc(this.lockRef(month,wid),{month,status,reviewedAt:this.now(),reviewedBy:uid(),reviewedByEmail:this.email(this.fb.user.email),reason:String(reason||''),updatedAt:this.now()},{merge:true});await this.audit('attendance.month.'+status,{month,reason},wid);};
 V.assertAttendanceWritable=async function(date,wid=this.workspaceId){const m=monthOf(date);if(!m||role()==='principal'||this.member?.owner)return;const l=await this.getAttendanceLock(m,wid);if(l&&['submitted','approved'].includes(l.status))throw new Error(`Attendance ${m} is ${l.status}. Principal must reopen it before editing.`);};
 
-V.recycle=async function(op){
-  if(op.before===undefined)return;const M=this.fb.M,id=this.esc(`${Date.now()}-${op.workspaceId}-${op.section}-${op.docId}`);
-  await M.setDoc(M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'recycleBin',id),{workspaceId:op.workspaceId,kind:op.kind,section:op.section,docId:op.docId,record:this.safe(op.before),deletedAt:this.now(),deletedBy:uid(),deletedByEmail:this.email(this.fb.user.email),restored:false});
-};
+V.recycle=async function(op){if(op.before===undefined)return;const M=this.fb.M,id=this.esc(`${Date.now()}-${op.workspaceId}-${op.section}-${op.docId}`);await M.setDoc(M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'recycleBin',id),{workspaceId:op.workspaceId,kind:op.kind,section:op.section,docId:op.docId,record:this.safe(op.before),deletedAt:this.now(),deletedBy:uid(),deletedByEmail:this.email(this.fb.user.email),restored:false});};
 V.listRecycle=async function(){const z=await this.fb.M.getDocs(this.fb.M.collection(this.fb.db,'institutes',this.INSTITUTE_ID,'recycleBin')),a=[];z.forEach(d=>a.push({id:d.id,...d.data()}));a.sort((x,y)=>String(y.deletedAt||'').localeCompare(String(x.deletedAt||'')));return a;};
-V.restoreRecycle=async function(id){
-  if(!['principal','admin'].includes(role()))throw new Error('Principal/System Admin access required.');const M=this.fb.M,ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'recycleBin',id),z=await M.getDoc(ref);if(!z.exists())throw new Error('Recycle record not found.');const x=z.data();
-  let target;if(x.kind==='array')target=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',x.workspaceId,x.section,x.docId);else if(x.kind==='map')target=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',x.workspaceId,x.section,x.docId);else throw new Error('This recycle item cannot be restored automatically.');
-  await M.setDoc(target,x.record,{merge:false});await M.setDoc(ref,{restored:true,restoredAt:this.now(),restoredBy:uid()},{merge:true});await this.audit('recycle.restore',{recycleId:id,section:x.section,docId:x.docId},x.workspaceId);
-};
+V.restoreRecycle=async function(id){if(!['principal','admin'].includes(role()))throw new Error('Principal/System Admin access required.');const M=this.fb.M,ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'recycleBin',id),z=await M.getDoc(ref);if(!z.exists())throw new Error('Recycle record not found.');const x=z.data();let target;if(x.kind==='array'||x.kind==='map')target=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',x.workspaceId,x.section,x.docId);else if(x.kind==='genericMap')target=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',x.workspaceId,'map_'+x.section,x.docId);else throw new Error('This recycle item cannot be restored automatically.');await M.setDoc(target,x.record,{merge:false});await M.setDoc(ref,{restored:true,restoredAt:this.now(),restoredBy:uid()},{merge:true});await this.audit('recycle.restore',{recycleId:id,section:x.section,docId:x.docId},x.workspaceId);};
 
-V.applyQueuedToSection=function(section){
-  const ops=this.queueRead().filter(o=>o.workspaceId===this.workspaceId&&o.section===section);if(!ops.length)return;
-  if(['attendance','marks','submissions'].includes(section)){
-    DATA[section]=DATA[section]||{};for(const o of ops){const k=o.key,sk=o.subKey;if(!k||!sk)continue;DATA[section][k]=DATA[section][k]||{};if(o.action==='delete')delete DATA[section][k][sk];else DATA[section][k][sk]=clone(o.value);}
-  }else if(Array.isArray(DATA[section])){
-    const a=DATA[section],map=new Map(a.map((x,i)=>[this.itemId(section,x,i),x]));for(const o of ops){if(o.action==='delete')map.delete(o.docId);else map.set(o.docId,clone(o.value));}DATA[section]=[...map.values()];
-  }
-};
+V.applyQueuedToSection=function(section){const ops=this.queueRead().filter(o=>o.workspaceId===this.workspaceId&&o.section===section);if(!ops.length)return;if(['attendance','marks','submissions'].includes(section)){DATA[section]=DATA[section]||{};for(const o of ops){const k=o.key,sk=o.subKey;if(!k||!sk)continue;DATA[section][k]=DATA[section][k]||{};if(o.action==='delete')delete DATA[section][k][sk];else DATA[section][k][sk]=clone(o.value);}}else if(Array.isArray(DATA[section])){const map=new Map(DATA[section].map((x,i)=>[this.itemId(section,x,i),x]));for(const o of ops){if(o.action==='delete')map.delete(o.docId);else map.set(o.docId,clone(o.value));}DATA[section]=[...map.values()];}else if(DATA[section]&&typeof DATA[section]==='object'){for(const o of ops){if(!o.key)continue;if(o.action==='delete')delete DATA[section][o.key];else DATA[section][o.key]=clone(o.value);}}};
 V.applyAllQueued=function(){const sections=[...new Set(this.queueRead().filter(o=>o.workspaceId===this.workspaceId).map(o=>o.section).filter(Boolean))];sections.forEach(s=>this.applyQueuedToSection(s));};
-
-// Preserve unsynced records when a realtime snapshot arrives.
-V.remote=function(section){
-  if(!this.ready)return;this.shadow=this.shadow||{};this.shadow[section]=clone(DATA[section]);this.applyQueuedToSection(section);try{this.refresh?.();}catch(e){}
-};
+V.remote=function(section){if(!this.ready)return;this.shadow=this.shadow||{};this.shadow[section]=clone(DATA[section]);this.applyQueuedToSection(section);try{this.refresh?.();}catch(e){}if(section==='notices')setTimeout(()=>this.injectInstituteNotices?.().catch?.(()=>{}),0);};
 const loadBase=V.load?.bind(V);if(loadBase)V.load=async function(...args){const r=await loadBase(...args);this.applyAllQueued();return r;};
 
-V.flushQueue=async function(){
-  if(!this.ready||!navigator.onLine||this._queueFlushing)return;this._queueFlushing=true;let q=this.queueRead();
-  try{
-    while(q.length){const o=q[0];if(o.workspaceId&&!o.workspaceId){q.shift();continue;}const M=this.fb.M;
-      try{
-        if(o.section==='attendance'&&o.action!=='delete')await this.assertAttendanceWritable(o.key,o.workspaceId);
-        if(o.section==='trainees'&&o.action==='set'&&o.value)await this.claimTraineeIdentity(o.value,o.workspaceId);
-        let ref;
-        if(o.kind==='array')ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',o.workspaceId,o.section,o.docId);
-        else if(o.kind==='map')ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',o.workspaceId,o.section,o.docId);
-        else if(o.kind==='meta')ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',o.workspaceId);
-        if(!ref)throw new Error('Invalid queued operation.');
-        if(o.action==='delete'){await this.recycle(o);await M.deleteDoc(ref);}else await M.setDoc(ref,o.data,{merge:o.kind==='meta'});
-        await this.audit(`${o.section}.${o.action}`,{docId:o.docId,before:o.before,after:o.value},o.workspaceId);
-        q.shift();this.queueWrite(q);
-      }catch(e){console.warn('V15 queued operation pending',o,e);this.badge?.('Sync pending');break;}
-    }
-    if(!q.length){try{await this.rebuildWorkspaceSummary?.();}catch(e){}this.badge?.('Synced');}
-  }finally{this._queueFlushing=false;}
-};
+V.flushQueue=async function(){if(!this.ready||!navigator.onLine||this._queueFlushing)return;this._queueFlushing=true;let q=this.queueRead();try{while(q.length){const o=q[0],M=this.fb.M;try{if(o.actorUid&&o.actorUid!==uid())throw new Error('Pending operation belongs to a different signed-in account.');if(o.section==='attendance'&&o.action!=='delete')await this.assertAttendanceWritable(o.key,o.workspaceId);if(o.section==='trainees'&&o.action==='set'&&o.value)await this.claimTraineeIdentity(o.value,o.workspaceId);let ref;if(o.kind==='array'||o.kind==='map')ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',o.workspaceId,o.section,o.docId);else if(o.kind==='genericMap')ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',o.workspaceId,'map_'+o.section,o.docId);else if(o.kind==='meta')ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',o.workspaceId);if(!ref)throw new Error('Invalid queued operation.');if(o.action==='delete'){await this.recycle(o);await M.deleteDoc(ref);}else await M.setDoc(ref,o.data,{merge:o.kind==='meta'});await this.audit(`${o.section}.${o.action}`,{docId:o.docId,before:o.before,after:o.value},o.workspaceId);q.shift();this.queueWrite(q);}catch(e){console.warn('V15 queued operation pending',o,e);this.badge?.('Sync pending');break;}}if(!q.length){try{await this.rebuildWorkspaceSummary?.();}catch(e){}this.badge?.('Synced');}}finally{this._queueFlushing=false;}};
 
 V.schedule=function(ms=250){if(!this.ready||this.suppressLocalSync)return;clearTimeout(this.pendingTimer);this.pendingTimer=setTimeout(()=>this.diff().catch(console.error),ms);};
-V.diff=async function(){
-  if(!this.ready||this.syncing)return;this.syncing=true;
-  try{
-    const o=this.shadow||{},n=DATA||{},wid=this.workspaceId,staff=this.member?.owner||['principal','instructor'].includes(role());
-    const arrs=new Set([...this.arraySections,...Object.keys(n).filter(k=>Array.isArray(n[k])&&!['users','gallery'].includes(k))]);
-    for(const s of arrs){const oa=Array.isArray(o[s])?o[s]:[],na=Array.isArray(n[s])?n[s]:[],om=new Map(oa.map((x,i)=>[this.itemId(s,x,i),x])),nm=new Map(na.map((x,i)=>[this.itemId(s,x,i),x]));
-      for(const[id,x]of nm){if(eq(x,om.get(id)))continue;const ownStudent=role()==='student'&&['leaves','examAttempts'].includes(s)&&String(x?.traineeId||'')===String(this.member?.traineeId||'');if(!(staff||ownStudent))continue;this.queuePush({workspaceId:wid,kind:'array',section:s,docId:id,action:'set',value:this.safe(x),before:om.get(id),data:{data:this.safe(x),updatedAt:this.now(),updatedBy:uid()}});}
-      for(const[id,x]of om){if(nm.has(id)||!staff)continue;this.queuePush({workspaceId:wid,kind:'array',section:s,docId:id,action:'delete',before:{data:this.safe(x),updatedAt:this.now(),updatedBy:uid()}});}
-      this.arraySections.add(s);
-    }
-    const maps=new Set([...this.mapSections,...Object.keys(n).filter(k=>n[k]&&typeof n[k]==='object'&&!Array.isArray(n[k])&&k!=='meta')]);
-    for(const s of maps){const ov=o[s]||{},nv=n[s]||{};
-      if(['attendance','marks','submissions'].includes(s))for(const k of new Set([...Object.keys(ov),...Object.keys(nv)])){const a=ov[k]||{},b=nv[k]||{};for(const sk of new Set([...Object.keys(a),...Object.keys(b)])){if(eq(a[sk],b[sk]))continue;const can=staff||(role()==='student'&&s==='submissions'&&String(sk)===String(this.member?.traineeId));if(!can)continue;const docId=this.esc(k+'--'+sk);if(b[sk]===undefined)this.queuePush({workspaceId:wid,kind:'map',section:s,docId,key:k,subKey:sk,action:'delete',before:{key:k,subKey:sk,traineeId:sk,data:this.safe(a[sk])}});else this.queuePush({workspaceId:wid,kind:'map',section:s,docId,key:k,subKey:sk,action:'set',value:this.safe(b[sk]),before:a[sk],data:{key:k,subKey:sk,traineeId:sk,data:this.safe(b[sk]),updatedAt:this.now(),updatedBy:uid()}});}}
-      this.mapSections.add(s);
-    }
-    if(staff&&!eq(o.meta,n.meta)){const m=this.safe(n.meta||{});delete m.instructorPin;delete m.principalPin;delete m.ownerUid;this.queuePush({workspaceId:wid,kind:'meta',section:'meta',docId:wid,action:'set',value:m,before:o.meta,data:{...m,schemaVersion:15,appVersion:'V15',arraySections:[...this.arraySections],mapSections:[...this.mapSections],updatedAt:this.now(),updatedBy:uid()}});}
-    this.shadow=clone(DATA);if(navigator.onLine)await this.flushQueue();else this.badge?.('Offline • saved on device');
-  }finally{this.syncing=false;}
-};
+V.diff=async function(){if(!this.ready||this.syncing)return;this.syncing=true;try{const o=this.shadow||{},n=DATA||{},wid=this.workspaceId,staff=this.member?.owner||['principal','instructor'].includes(role());const arrs=new Set([...this.arraySections,...Object.keys(n).filter(k=>Array.isArray(n[k])&&!['users','gallery'].includes(k))]);for(const s of arrs){const oa=Array.isArray(o[s])?o[s]:[],na=Array.isArray(n[s])?n[s]:[],om=new Map(oa.map((x,i)=>[this.itemId(s,x,i),x])),nm=new Map(na.map((x,i)=>[this.itemId(s,x,i),x]));for(const[id,x]of nm){if(eq(x,om.get(id)))continue;const ownStudent=role()==='student'&&['leaves','examAttempts'].includes(s)&&String(x?.traineeId||'')===String(this.member?.traineeId||'');if(!(staff||ownStudent))continue;this.queuePush({workspaceId:wid,kind:'array',section:s,docId:id,action:'set',value:this.safe(x),before:om.get(id),data:{data:this.safe(x),updatedAt:this.now(),updatedBy:uid()}});}for(const[id,x]of om){if(nm.has(id)||!staff)continue;this.queuePush({workspaceId:wid,kind:'array',section:s,docId:id,action:'delete',before:{data:this.safe(x),updatedAt:this.now(),updatedBy:uid()}});}this.arraySections.add(s);}const maps=new Set([...this.mapSections,...Object.keys(n).filter(k=>n[k]&&typeof n[k]==='object'&&!Array.isArray(n[k])&&k!=='meta')]);for(const s of maps){const ov=o[s]||{},nv=n[s]||{};if(['attendance','marks','submissions'].includes(s)){for(const k of new Set([...Object.keys(ov),...Object.keys(nv)])){const a=ov[k]||{},b=nv[k]||{};for(const sk of new Set([...Object.keys(a),...Object.keys(b)])){if(eq(a[sk],b[sk]))continue;const can=staff||(role()==='student'&&s==='submissions'&&String(sk)===String(this.member?.traineeId));if(!can)continue;const docId=this.esc(k+'--'+sk);if(b[sk]===undefined)this.queuePush({workspaceId:wid,kind:'map',section:s,docId,key:k,subKey:sk,action:'delete',before:{key:k,subKey:sk,traineeId:sk,data:this.safe(a[sk])}});else this.queuePush({workspaceId:wid,kind:'map',section:s,docId,key:k,subKey:sk,action:'set',value:this.safe(b[sk]),before:a[sk],data:{key:k,subKey:sk,traineeId:sk,data:this.safe(b[sk]),updatedAt:this.now(),updatedBy:uid()}});}}}else if(staff){for(const k of new Set([...Object.keys(ov),...Object.keys(nv)])){if(eq(ov[k],nv[k]))continue;const docId=this.esc(k);if(nv[k]===undefined)this.queuePush({workspaceId:wid,kind:'genericMap',section:s,docId,key:k,action:'delete',before:{key:k,data:this.safe(ov[k])}});else this.queuePush({workspaceId:wid,kind:'genericMap',section:s,docId,key:k,action:'set',value:this.safe(nv[k]),before:ov[k],data:{key:k,data:this.safe(nv[k]),updatedAt:this.now(),updatedBy:uid()}});}}this.mapSections.add(s);}if(staff&&!eq(o.meta,n.meta)){const m=this.safe(n.meta||{});delete m.instructorPin;delete m.principalPin;delete m.ownerUid;this.queuePush({workspaceId:wid,kind:'meta',section:'meta',docId:wid,action:'set',value:m,before:o.meta,data:{...m,schemaVersion:15,appVersion:'V15',arraySections:[...this.arraySections],mapSections:[...this.mapSections],updatedAt:this.now(),updatedBy:uid()}});}this.shadow=clone(DATA);if(navigator.onLine)await this.flushQueue();else this.badge?.('Offline • saved on device');}finally{this.syncing=false;}};
 window.addEventListener('online',()=>V.flushQueue().catch(console.error),{passive:true});
 
-// Google Drive gallery archive: upload local photo binaries and keep shared Firestore metadata.
 function dataUrlBlob(s){const [h,b]=String(s||'').split(',');if(!b)return null;const mime=(h.match(/data:([^;]+)/)||[])[1]||'image/jpeg',bin=atob(b),a=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i);return new Blob([a],{type:mime});}
-V.syncGalleryToDrive=async function(){
-  if(role()!=='instructor'&&!this.member?.owner)throw new Error('Instructor/System Admin access required.');if(!window.CloudCenter?.drive?.connected)throw new Error('Connect Google Drive first from Cloud & Drive.');
-  const M=this.fb.M,items=DATA?.gallery||[];let uploaded=0,skipped=0;
-  for(const g of items){const id=this.esc(g.id||`${g.date||''}-${g.caption||''}`),ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',this.workspaceId,'galleryCloud',id),z=await M.getDoc(ref);if(z.exists()&&z.data()?.driveFileId){skipped++;continue;}const src=g.dataUrl||g.src||g.image||'';const blob=dataUrlBlob(src);if(!blob){skipped++;continue;}const ext=(blob.type.split('/')[1]||'jpg').replace('jpeg','jpg'),name=`${DATA?.meta?.trade||'ITI'}-${g.date||new Date().toISOString().slice(0,10)}-${id}.${ext}`,obj=await CloudCenter.uploadDriveBlob(blob,name,blob.type);await M.setDoc(ref,{id,caption:g.caption||'',date:g.date||'',driveFileId:obj.id,driveName:obj.name,webViewLink:obj.webViewLink||'',uploadedAt:this.now(),uploadedBy:uid()});uploaded++;}
-  await this.audit('gallery.drive.sync',{uploaded,skipped});return {uploaded,skipped};
-};
+V.syncGalleryToDrive=async function(){if(role()!=='instructor'&&!this.member?.owner)throw new Error('Instructor/System Admin access required.');if(!window.CloudCenter?.drive?.connected)throw new Error('Connect Google Drive first from Cloud & Drive.');const M=this.fb.M,items=DATA?.gallery||[];let uploaded=0,skipped=0;for(const g of items){const id=this.esc(g.id||`${g.date||''}-${g.caption||''}`),ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',this.workspaceId,'galleryCloud',id),z=await M.getDoc(ref);if(z.exists()&&z.data()?.driveFileId){skipped++;continue;}const src=g.dataUrl||g.src||g.image||'',blob=dataUrlBlob(src);if(!blob){skipped++;continue;}const ext=(blob.type.split('/')[1]||'jpg').replace('jpeg','jpg'),name=`${DATA?.meta?.trade||'ITI'}-${g.date||new Date().toISOString().slice(0,10)}-${id}.${ext}`,obj=await CloudCenter.uploadDriveBlob(blob,name,blob.type);await M.setDoc(ref,{id,caption:g.caption||'',date:g.date||'',driveFileId:obj.id,driveName:obj.name,webViewLink:obj.webViewLink||'',uploadedAt:this.now(),uploadedBy:uid()});uploaded++;}await this.audit('gallery.drive.sync',{uploaded,skipped});return{uploaded,skipped};};
 
-console.info('V15 governance: durable queue + audit + locks + recycle + gallery archive active.');
+console.info('V15 governance: per-user durable queue + audit + locks + recycle + gallery archive active.');
 })(window.V15Sync);
