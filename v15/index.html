@@ -14,17 +14,17 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7f
   <div class="spin"></div>
   <h2>Universal ITI V15</h2>
   <p>Preparing the secure V15 workspace…</p>
-  <small>Production 13 • dedicated cache • enforced role portal</small>
+  <small>Production 14 • fixed role-session bridge</small>
 </div>
 <script>
 (async function(){
   try{
     if('serviceWorker' in navigator){
-      const reg=await navigator.serviceWorker.register('./sw.js?build=prod13',{scope:'./',updateViaCache:'none'});
+      const reg=await navigator.serviceWorker.register('./sw.js?build=prod14',{scope:'./',updateViaCache:'none'});
       try{await reg.update();}catch(e){}
       await navigator.serviceWorker.ready;
     }
-    const res=await fetch('../index.html?v15-shell=20260824-prod13-'+Date.now(),{cache:'no-store'});
+    const res=await fetch('../index.html?v15-shell=20260824-prod14-'+Date.now(),{cache:'no-store'});
     if(!res.ok) throw new Error('Could not load the current app shell. HTTP '+res.status);
     let html=await res.text();
     html=html.replace(/<head([^>]*)>/i,'<head$1><base href="../">');
@@ -35,16 +35,17 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7f
     html=html.replace(/Instructor tools/gi,'V15 workspace');
     const v15=`
 <script>if(!window.SecurityPatch){document.write('<script src="security-patch.js"><\\/script>')}<\/script>
-<script src="v15/v15-core.js?v=20260824-prod13"><\/script>
-<script src="v15/v15-data.js?v=20260824-prod13"><\/script>
-<script src="v15/v15-access.js?v=20260824-prod13"><\/script>
-<script src="v15/v15-ui.js?v=20260824-prod13"><\/script>
-<script src="v15/v15-auth-roles-v2.js?v=20260824-prod13"><\/script>
-<script src="v15/v15-workspaces-v2.js?v=20260824-prod13"><\/script>
-<script src="v15/v15-governance-v2.js?v=20260824-prod13"><\/script>
-<script src="v15/v15-portals-v2.js?v=20260824-prod13"><\/script>
-<script src="v15/v15-boot-final.js?v=20260824-prod13"><\/script>
-<script src="v15/v15-role-enforcer.js?v=20260824-prod13"><\/script>
+<script src="v15/v15-core.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-data.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-access.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-ui.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-auth-roles-v2.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-session-bridge.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-workspaces-v2.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-governance-v2.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-portals-v2.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-boot-final.js?v=20260824-prod14"><\/script>
+<script src="v15/v15-role-enforcer.js?v=20260824-prod14"><\/script>
 `;
     html=html.replace(/<\/body>/i,v15+'</body>');
     document.open();document.write(html);document.close();
