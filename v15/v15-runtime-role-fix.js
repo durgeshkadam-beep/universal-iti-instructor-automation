@@ -82,13 +82,19 @@ if(baseLogin){
   };
 }
 
-// autoResume is scheduled by auth after script parsing. This interval also covers
-// persisted sessions and any unusually slow Firebase restore without expiring.
+// Covers persisted sessions and any unusually slow Firebase restore without expiring.
+// It also repairs visual text if the legacy App.refresh() writes V13/V14 captions later.
 let last='';
 setInterval(()=>{
   if(!V.ready||!V.fb?.user)return;
   const r=requestedRole(),sig=`${r}|${V.fb.user.uid}|${V.workspaceId||''}`;
   if(!r)return;
+  const s=window.__V15_SESSION||window.SESSION||makeSession();
+  const caption=document.querySelector('.sidebar-caption small');
+  const who=document.getElementById('whoName');
+  const captionWrong=!!caption&&caption.textContent!==(CAPTION[r]||'V15 workspace');
+  const whoWrong=!!who&&s&&!String(who.textContent||'').includes(LABEL[r]||r);
+  if(captionWrong||whoWrong)forceCaption(r,s||makeSession());
   if(sig!==last||document.documentElement.dataset.v15RuntimeRole!==r){
     last=sig;applyNow().catch(e=>console.error('V15 runtime role repair',e));
   }
