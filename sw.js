@@ -1,4 +1,4 @@
-const CACHE = "iti-v15-admin-dtp-recovery-20260824-1";
+const CACHE = "iti-v15-role-login-20260824-3";
 const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./other-printable-records.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
