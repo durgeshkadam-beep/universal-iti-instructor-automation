@@ -10,16 +10,16 @@ Object.assign(V,{
    const isOwner=!!this.member?.owner;
    const currentRole=SESSION?.role||this.member?.role||'';
 
-   // Clear V15 hierarchy:
-   // App Admin / Owner -> Principal or Instructor
-   // Principal         -> Instructor
-   // Instructor        -> Student (through Trainee Master)
+   // V15 hierarchy:
+   // System Owner / App Admin -> Principal (and Instructor for testing/exception)
+   // Principal                -> Instructor
+   // Instructor               -> Student through Trainee Master
    if(role==='principal' && !isOwner)
-     throw new Error('Only the App Admin / Owner can create a Principal account.');
+     throw new Error('Only the System Owner / App Admin can create a Principal account.');
    if(role==='instructor' && !(isOwner||currentRole==='principal'))
-     throw new Error('Only the Principal or App Admin / Owner can create an Instructor account.');
-   if(role==='student' && !(isOwner||['principal','instructor'].includes(currentRole)))
-     throw new Error('Only authorized institute staff can approve a student account.');
+     throw new Error('Only the Principal or System Owner / App Admin can create an Instructor account.');
+   if(role==='student' && !(isOwner||currentRole==='instructor'))
+     throw new Error('Student Google access must be approved by the Instructor from Trainee Master.');
 
    const c=this.code(),h=await this.hash(c),M=this.fb.M;
    const a={email,role,traineeId:traineeId||null,displayName:name||'',workspaceIds:[this.workspaceId],active:true,createdBy:this.fb.user.uid,createdAt:this.now()};
@@ -29,6 +29,9 @@ Object.assign(V,{
  },
  async inviteStudent(t){return t?.email?this.invite(t.email,'student',t.id,t.name||'Student'):null;},
  async setStudentEmail(t){
+   if(!(this.member?.owner||SESSION?.role==='instructor'||this.member?.role==='instructor')){
+     alert('Only the Instructor can approve a student Google account.');return;
+   }
    const e=this.email(prompt(`Approved Google/Gmail for ${t.name}:`,this.email(t.email||''))||'');
    if(!e)return;
    if(!this.validEmail(e)){alert('Enter a valid email address.');return;}
@@ -76,7 +79,8 @@ Object.assign(V,{
        const t=(DATA.trainees||[])[i];if(!t)return;
        const n=tr.children[1];
        if(n&&t.email&&!n.querySelector('.v15-email')){const s=document.createElement('small');s.className='v15-email muted';s.style.display='block';s.textContent=t.email;n.appendChild(s);}
-       if(['instructor','principal'].includes(SESSION?.role)||V.member?.owner){
+       const canApproveStudent=SESSION?.role==='instructor'||V.member?.owner;
+       if(canApproveStudent){
          const c=tr.lastElementChild;
          if(c&&!c.querySelector('.v15-set-email')){const x=document.createElement('button');x.type='button';x.className='btn ghost small v15-set-email';x.textContent=t.email?'Change Gmail':'Set Gmail';x.onclick=()=>V.setStudentEmail(t);c.appendChild(x);}
        }
