@@ -1,4 +1,4 @@
-const CACHE = "iti-v14-5-expanded-printable-records";
+const CACHE = "iti-v15-account-hierarchy-20260824";
 const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./other-printable-records.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
