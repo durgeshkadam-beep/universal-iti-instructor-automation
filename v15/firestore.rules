@@ -22,10 +22,9 @@ service cloud.firestore {
 
     function canWriteTraining(inst) { return isPrincipal(inst) || isInstructor(inst); }
     function canReadInstitute(inst) { return isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || isSupportStaff(inst); }
-    function canManageAccounts(inst) { return isOwner(inst) || isPrincipal(inst); }
 
     function workspaceAllowed(inst, wid) {
-      return isOwner(inst) || (hasMember(inst) && wid in member(inst).workspaceIds);
+      return isOwner(inst) || isPrincipal(inst) || (hasMember(inst) && wid in member(inst).workspaceIds);
     }
     function ownTrainee(inst, traineeId) {
       return isStudent(inst) && member(inst).traineeId == traineeId;
@@ -127,7 +126,8 @@ service cloud.firestore {
 
       match /workspaces/{wid} {
         allow read: if workspaceAllowed(inst, wid);
-        allow create, update: if workspaceAllowed(inst, wid) && canWriteTraining(inst);
+        allow create: if isOwner(inst) || isPrincipal(inst);
+        allow update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
         allow delete: if isOwner(inst) || isPrincipal(inst);
 
         match /trainees/{docId} {
