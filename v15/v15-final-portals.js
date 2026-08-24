@@ -1,0 +1,140 @@
+/* Universal ITI V15 Final Portals
+ * Final stability layer: Admin/Principal/Staff/Student no longer share the legacy
+ * V13/V14 navigation runtime. We move only the panels each role needs into a new
+ * V15-owned shell, preserving existing panel DOM/listeners where useful.
+ * Instructor keeps the mature legacy teaching workspace.
+ */
+(function(V){
+'use strict';
+if(!V||!window.App)return;
+
+const LABEL={admin:'System Admin',principal:'Principal',instructor:'Instructor',staff:'Staff',student:'Student / Trainee'};
+const FOOTER={admin:'Technical administration • V15 FINAL',principal:'Principal oversight • V15 FINAL',staff:'Staff read-only • V15 FINAL',student:'Student workspace • V15 FINAL'};
+const NAV={
+  admin:[['admin-console','⚙️ Admin Panel']],
+  principal:[['dashboard','📊 Principal Dashboard'],['users','👥 Staff & Access'],['notices','📰 Institute Notices'],['record-formats','🖨️ Record Formats'],['inspection','🛡️ Inspection & Compliance'],['reports','📄 Institute Reports']],
+  staff:[['dashboard','📊 Staff Dashboard'],['notices','📰 Notices'],['record-formats','🖨️ Record Formats'],['reports','📄 Reports']],
+  student:[['dashboard','🏠 My Dashboard'],['trainees','👤 My Profile'],['attendance','✅ My Attendance'],['practicals','🖥️ My Practicals'],['theory','📘 Theory'],['splitup','🗓️ Training Calendar'],['evaluation','📝 My Marks'],['notices','📰 Notices'],['leave','🩺 My Leave'],['exams','📝 Class Tests'],['ojt','🏭 My OJT / Projects']]
+};
+const preserved=new Map();
+let mountedRole='';
+const baseApply=V.applyRolePortal?.bind(V);
+const baseOpen=V.openRoleTab?.bind(V);
+
+function role(){return V.currentRole?.()||V.sessionRole||window.__V15_SESSION?.role||window.SESSION?.role||'';}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+function session(){return V.currentSession?.()||window.__V15_SESSION||window.SESSION||{};}
+function defaultTab(r){return r==='admin'?'admin-console':'dashboard';}
+function allowed(r,name){return !!NAV[r]?.some(x=>x[0]===name);}
+function ensureStyle(){
+  if(document.getElementById('v15FinalPortalStyle'))return;
+  const s=document.createElement('style');s.id='v15FinalPortalStyle';
+  s.textContent=`
+    #tabs[data-v15-final-footer]::after{content:attr(data-v15-final-footer)!important}
+    #tabs[data-v15-final-brand]::before{content:attr(data-v15-final-brand)!important}
+    html[data-v15-final-role] #changePinBtn{display:none!important}
+    .v15-final-error{max-width:900px;margin:20px auto}
+  `;
+  document.head.appendChild(s);
+}
+function updateVisuals(r){
+  ensureStyle();document.documentElement.dataset.v15FinalRole=r;
+  const t=document.getElementById('tabs');if(t){t.dataset.v15FinalFooter=FOOTER[r]||'V15 FINAL';t.dataset.v15FinalBrand='Universal ITI • V15 FINAL';}
+  const cap=document.querySelector('.sidebar-caption small');if(cap)cap.textContent=FOOTER[r]||'V15 FINAL';
+  const who=document.getElementById('whoName'),s=session();if(who)who.textContent=`${s.name||V.member?.displayName||V.fb?.user?.displayName||''} • ${LABEL[r]||r}${V.member?.owner&&r!=='admin'?' • Creator':''}`;
+  const pin=document.getElementById('changePinBtn');if(pin)pin.style.display='none';
+  document.title=`Universal ITI FINAL — ${LABEL[r]||'Workspace'}`;
+}
+function keepPanel(name){
+  if(preserved.has(name))return preserved.get(name);
+  const p=document.getElementById('tab-'+name);if(p){preserved.set(name,p);return p;}
+  const x=document.createElement('section');x.id='tab-'+name;x.className='panel';preserved.set(name,x);return x;
+}
+function mount(r){
+  if(r==='instructor')return false;
+  if(!NAV[r])return false;
+  if(mountedRole===r&&document.getElementById('tabs')?.dataset.v15FinalMounted==='1'){updateVisuals(r);return true;}
+
+  const oldNav=document.getElementById('tabs'),oldMain=document.getElementById('main');
+  if(!oldNav||!oldMain)return false;
+  // Detach allowed panels before removing the legacy main. Moving nodes preserves listeners.
+  const frag=document.createDocumentFragment();
+  for(const [name] of NAV[r]){const p=keepPanel(name);p.classList.remove('active');frag.appendChild(p);}
+
+  const nav=document.createElement('nav');nav.id='tabs';nav.className=oldNav.className||'tabs';nav.dataset.v15FinalMounted='1';
+  const cap=document.createElement('div');cap.className='sidebar-caption';cap.innerHTML='<span>Workspace</span><small></small>';nav.appendChild(cap);
+  for(const [name,label] of NAV[r]){const b=document.createElement('button');b.type='button';b.className='tab';b.dataset.tab=name;b.textContent=label;b.onclick=(e)=>{e.preventDefault();V.finalOpenTab(name).catch(console.error);};nav.appendChild(b);}
+
+  const main=document.createElement('main');main.id='main';main.appendChild(frag);
+  oldNav.replaceWith(nav);oldMain.replaceWith(main);
+  mountedRole=r;updateVisuals(r);
+  try{App.buildMobileNav?.();}catch(e){}
+  return true;
+}
+function activate(name){
+  document.querySelectorAll('#tabs .tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('#mobileNav button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('#mobileMoreGrid button[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('#main .panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));
+}
+function errorPage(name,e){
+  const p=document.getElementById('tab-'+name);if(!p)return;
+  p.innerHTML=`<div class="v15-final-error"><div class="hero"><div class="hero-content"><div><h2>V15 page could not load</h2><p>${esc(LABEL[role()]||'Secure workspace')}</p></div></div></div><div class="card"><div class="callout cloud-error"><b>Error:</b> ${esc(e?.message||e||'Unknown error')}</div><p class="muted">Your Firebase and trainee records were not deleted.</p><button class="btn primary" id="v15FinalRetry">Retry this page</button></div></div>`;
+  p.querySelector('#v15FinalRetry')?.addEventListener('click',()=>V.finalOpenTab(name));
+}
+async function render(r,name){
+  if(r==='admin')return V.renderAdminPanel?.();
+  if(r==='principal'){
+    if(name==='dashboard')return V.renderPrincipalDashboard?.();
+    if(name==='users')return V.renderPrincipalStaff?.();
+    if(name==='notices')return V.renderPrincipalNotices?.();
+    if(name==='inspection')return V.renderPrincipalInspection?.();
+    if(name==='reports')return V.renderPrincipalReports?.();
+    // record-formats uses the preserved mature printable-records panel.
+    return;
+  }
+  if(r==='staff'){
+    if(name==='dashboard')return V.renderStaffDashboard?.();
+    if(name==='notices')return V.injectInstituteNotices?.();
+    if(name==='reports')return window.Reports?.renderSignatures?.();
+    return;
+  }
+  if(r==='student'){
+    if(name==='dashboard')V.renderStudentDashboard?.();
+    if(name==='notices')await V.injectInstituteNotices?.();
+    V.sanitizeStudent?.();return;
+  }
+}
+V.finalOpenTab=async function(name){
+  const r=role();if(!V.ready||!r)return false;
+  if(r==='instructor')return baseOpen?baseOpen(name):false;
+  mount(r);if(!allowed(r,name))name=defaultTab(r);updateVisuals(r);activate(name);
+  try{await render(r,name);}catch(e){console.error('V15 FINAL page error',r,name,e);errorPage(name,e);}
+  try{App.buildMobileNav?.();}catch(e){}
+  localStorage.setItem('iti-v15-tab-v2',name);return true;
+};
+V.applyRolePortal=async function(){
+  const r=role();if(!V.ready||!r)return false;
+  if(r==='instructor'){mountedRole='';updateVisuals(r);return baseApply?baseApply():true;}
+  mount(r);const saved=localStorage.getItem('iti-v15-tab-v2')||defaultTab(r);return V.finalOpenTab(allowed(r,saved)?saved:defaultTab(r));
+};
+
+const legacySwitch=App.switchTab?.bind(App);
+App.switchTab=function(name){const r=role();if(V.ready&&r&&r!=='instructor'){V.finalOpenTab(name).catch(console.error);return;}return legacySwitch?.(name);};
+
+// Strong capture: no legacy V13/V14 tab listener is allowed to render a non-instructor page.
+document.addEventListener('click',e=>{
+  const b=e.target.closest?.('#tabs .tab');const r=role();if(!b||!V.ready||!r||r==='instructor')return;
+  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();V.finalOpenTab(b.dataset.tab).catch(console.error);
+},true);
+
+// If a legacy refresh mutates the shell, remount the standalone role portal.
+setInterval(()=>{
+  const r=role();if(!V.ready||!r||r==='instructor')return;
+  if(document.getElementById('tabs')?.dataset.v15FinalMounted!=='1'||mountedRole!==r){mountedRole='';mount(r);V.finalOpenTab(defaultTab(r)).catch(()=>{});}else updateVisuals(r);
+},750);
+
+window.addEventListener('pageshow',()=>setTimeout(()=>{const r=role();if(V.ready&&r&&r!=='instructor')V.applyRolePortal().catch(console.error);},40));
+document.addEventListener('visibilitychange',()=>{const r=role();if(!document.hidden&&V.ready&&r&&r!=='instructor')setTimeout(()=>V.applyRolePortal().catch(console.error),40);});
+console.info('Universal ITI V15 FINAL standalone role portals active.');
+})(window.V15Sync);
