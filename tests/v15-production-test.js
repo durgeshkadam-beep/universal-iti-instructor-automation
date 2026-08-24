@@ -3,16 +3,13 @@ const fs=require('fs');
 const path=require('path');
 const cp=require('child_process');
 const root=path.resolve(__dirname,'..');
-const files=['v15/v15-auth-roles-v2.js','v15/v15-workspaces-v2.js','v15/v15-governance-v2.js','v15/v15-portals-v2.js','v15/v15-boot-final.js'];
+const files=['v15/v15-auth-roles-v2.js','v15/v15-workspaces-v2.js','v15/v15-governance-v2.js','v15/v15-portals-v2.js','v15/v15-boot-final.js','v15/sw.js'];
 let failed=0;
 function ok(cond,msg){if(cond)console.log('PASS',msg);else{console.error('FAIL',msg);failed++;}}
 function text(p){return fs.readFileSync(path.join(root,p),'utf8');}
-for(const f of files){
-  ok(fs.existsSync(path.join(root,f)),`${f} exists`);
-  try{cp.execFileSync(process.execPath,['--check',path.join(root,f)],{stdio:'pipe'});ok(true,`${f} JavaScript syntax`);}catch(e){console.error(String(e.stderr||e));ok(false,`${f} JavaScript syntax`);}
-}
-const idx=text('v15/index.html');
-for(const f of files)ok(idx.includes(f),`V15 loader includes ${f}`);
+for(const f of files){ok(fs.existsSync(path.join(root,f)),`${f} exists`);try{cp.execFileSync(process.execPath,['--check',path.join(root,f)],{stdio:'pipe'});ok(true,`${f} JavaScript syntax`);}catch(e){console.error(String(e.stderr||e));ok(false,`${f} JavaScript syntax`);}}
+const idx=text('v15/index.html'),recover=text('v15/recover.html'),sw=text('v15/sw.js');
+for(const f of files.filter(x=>x!=='v15/sw.js'))ok(idx.includes(f),`V15 loader includes ${f}`);
 ok(idx.indexOf('v15/v15-boot-final.js')>idx.indexOf('v15/v15-portals-v2.js'),'boot coordinator loads after role portals');
 const old=['v15-mobile-auth.js','v15-fast-session.js','v15-authority-auth.js','v15-authority-final.js','v15-role-login.js','v15-role-matrix.js','v15-multitrade.js','v15-multitrade-hardening.js','v15-account-workspace-ux.js','v15-principal-login-stability.js','v15-auth-loop-fix.js'];
 for(const f of old)ok(!idx.includes(f),`old patch not loaded: ${f}`);
@@ -28,7 +25,10 @@ ok(gov.includes('traineeIndex')&&gov.includes('claimTraineeIdentity'),'institute
 ok(gov.includes('syncGalleryToDrive')&&gov.includes('uploadDriveBlob'),'Drive gallery archive exists');
 ok(portals.includes('Institute Notices')&&portals.includes('Institute Reports')&&portals.includes('Inspection & Compliance'),'Principal institute-wide portals exist');
 ok(portals.includes("student:new Set(['dashboard','trainees','attendance'"),'Student least-privilege portal exists');
-ok(boot.includes('ensureRolePortal')&&boot.includes('System Admin panel did not initialize'),'boot coordinator repairs/restores role portal deterministically');
+ok(idx.includes('v15BootGuard')&&idx.includes("register('./sw.js?build=prod12'"),'V15 shell is hidden until role-safe boot and registers dedicated worker');
+ok(boot.includes('portalHealthy')&&boot.includes('finishBoot')&&boot.includes('Production 12'),'boot coordinator validates role menu before reveal');
+ok(sw.includes("iti-v15-standalone-20260824-prod12")&&sw.includes("req.destination==='document'"),'dedicated V15 worker uses safe exact-resource fallback');
+ok(recover.includes('unregister()')&&recover.includes('caches.delete')&&recover.includes("register('./sw.js'"),'one-click V15 cache recovery exists');
 for(const marker of ['match /auditLog/{auditId}','match /recycleBin/{recycleId}','match /traineeIndex/{identityId}','match /instituteNotices/{noticeId}','match /attendanceLocks/{month}','match /galleryCloud/{galleryId}'])ok(rules.includes(marker),`Firestore rule present: ${marker}`);
 ok(rules.includes('allow delete: if false;'),'protected delete policy present');
 ok(manifest.orientation==='any','PWA supports portrait and landscape');
