@@ -19,22 +19,23 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7f
 <script>
 (async function(){
   try{
-    const res=await fetch('../index.html',{cache:'no-store'});
+    // Query token prevents an older root service-worker cache from supplying a stale V14 shell.
+    const res=await fetch('../index.html?v15-shell=20260824-prod4',{cache:'no-store'});
     if(!res.ok) throw new Error('Could not load the current app shell. HTTP '+res.status);
     let html=await res.text();
     html=html.replace(/<head([^>]*)>/i,'<head$1><base href="../">');
     html=html.replace(/<link\s+rel=["']manifest["']\s+href=["']manifest\.json["'][^>]*>/i,'<link rel="manifest" href="v15/manifest.json">');
     const v15=`
 <script>if(!window.SecurityPatch){document.write('<script src="security-patch.js"><\\/script>')}<\/script>
-<script src="v15/v15-core.js?v=20260824-prod3"><\/script>
-<script src="v15/v15-data.js?v=20260824-prod3"><\/script>
-<script src="v15/v15-access.js?v=20260824-prod3"><\/script>
-<script src="v15/v15-ui.js?v=20260824-prod3"><\/script>
-<script src="v15/v15-auth-roles-v2.js?v=20260824-prod3"><\/script>
-<script src="v15/v15-workspaces-v2.js?v=20260824-prod3"><\/script>
-<script src="v15/v15-governance-v2.js?v=20260824-prod3"><\/script>
-<script src="v15/v15-portals-v2.js?v=20260824-prod3"><\/script>
-<script src="v15/v15-boot-final.js?v=20260824-prod3"><\/script>
+<script src="v15/v15-core.js?v=20260824-prod4"><\/script>
+<script src="v15/v15-data.js?v=20260824-prod4"><\/script>
+<script src="v15/v15-access.js?v=20260824-prod4"><\/script>
+<script src="v15/v15-ui.js?v=20260824-prod4"><\/script>
+<script src="v15/v15-auth-roles-v2.js?v=20260824-prod4"><\/script>
+<script src="v15/v15-workspaces-v2.js?v=20260824-prod4"><\/script>
+<script src="v15/v15-governance-v2.js?v=20260824-prod4"><\/script>
+<script src="v15/v15-portals-v2.js?v=20260824-prod4"><\/script>
+<script src="v15/v15-boot-final.js?v=20260824-prod4"><\/script>
 `;
     html=html.replace(/<\/body>/i,v15+'</body>');
     document.open();document.write(html);document.close();
