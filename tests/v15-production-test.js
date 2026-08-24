@@ -26,7 +26,7 @@ ok(gov.includes('syncGalleryToDrive')&&gov.includes('uploadDriveBlob'),'Drive ga
 ok(portals.includes('Institute Notices')&&portals.includes('Institute Reports')&&portals.includes('Inspection & Compliance'),'Principal institute-wide portals exist');
 ok(portals.includes("student:new Set(['dashboard','trainees','attendance'"),'Student least-privilege portal exists');
 ok(enforcer.includes('ensureAdmin')&&enforcer.includes('Technical administration • V15')&&enforcer.includes('renderAdminPanel'),'final role UI enforcer can recover Admin menu/panel');
-ok(idx.includes('production-13')&&idx.includes("register('./sw.js?build=prod13'"),'V15 Production 13 registers dedicated worker');
+ok(idx.includes('Production 13')&&idx.includes("register('./sw.js?build=prod13'"),'V15 Production 13 registers dedicated worker');
 ok(sw.includes("iti-v15-standalone-20260824-prod13")&&sw.includes('v15-role-enforcer.js')&&sw.includes("req.destination==='document'"),'dedicated V15 worker caches role enforcer and never HTML-fallbacks scripts');
 ok(recover.includes('production-13')&&recover.includes('unregister()')&&recover.includes('caches.delete'),'one-click V15 cache recovery points to Production 13');
 ok(boot.includes('ensureRolePortal'),'deterministic boot coordinator remains present');
