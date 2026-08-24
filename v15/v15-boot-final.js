@@ -10,8 +10,12 @@ const LABEL={admin:'System Admin',principal:'Principal',instructor:'Instructor',
 function role(){return window.SESSION?.role||'';}
 function caption(r){return r==='admin'?'Technical administration • V15':r==='principal'?'Principal oversight • V15':r==='staff'?'Staff read-only • V15':r==='student'?'Student workspace • V15':'Instructor workspace • V15';}
 function setCaption(r){
-  const old=[...document.querySelectorAll('.sidebar *')].find(e=>/Instructor Automation\s*•\s*V13/i.test((e.textContent||'').trim()));
-  if(old)old.textContent=caption(r);
+  const direct=document.querySelector('.sidebar-caption small');
+  if(direct)direct.textContent=caption(r);
+  else{
+    const leaf=[...document.querySelectorAll('.sidebar small,.sidebar span,.sidebar p')].find(e=>/Instructor Automation\s*•\s*V13/i.test((e.textContent||'').trim()));
+    if(leaf)leaf.textContent=caption(r);
+  }
   const who=document.getElementById('whoName');
   if(who&&window.SESSION&&LABEL[r]&&!who.textContent.includes(LABEL[r]))who.textContent=`${SESSION.name} • ${LABEL[r]}`;
 }
