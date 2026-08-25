@@ -3,16 +3,20 @@ const fs=require('fs');
 const path=require('path');
 const cp=require('child_process');
 const root=path.resolve(__dirname,'..');
-const files=['v15/v15-auth-roles-v2.js','v15/v15-session-bridge.js','v15/v15-workspaces-v2.js','v15/v15-governance-v2.js','v15/v15-portals-v2.js','v15/v15-final-controller.js','v15/sw.js'];
+const files=['v15/v15-auth-roles-v2.js','v15/v15-session-bridge.js','v15/v15-workspaces-v2.js','v15/v15-governance-v2.js','v15/v15-portals-v2.js','v15/v15-legacy-app-bridge.js','v15/v15-final-controller.js','v15/sw.js'];
 let failed=0;
 function ok(cond,msg){if(cond)console.log('PASS',msg);else{console.error('FAIL',msg);failed++;}}
 function text(p){return fs.readFileSync(path.join(root,p),'utf8');}
 for(const f of files){ok(fs.existsSync(path.join(root,f)),`${f} exists`);try{cp.execFileSync(process.execPath,['--check',path.join(root,f)],{stdio:'pipe'});ok(true,`${f} JavaScript syntax`);}catch(e){console.error(String(e.stderr||e));ok(false,`${f} JavaScript syntax`);}}
-const idx=text('v15/index.html'),recover=text('v15/recover.html'),sw=text('v15/sw.js'),auth=text(files[0]),bridge=text(files[1]),ws=text(files[2]),gov=text(files[3]),portals=text(files[4]),ctl=text(files[5]),rules=text('firestore.rules'),manifest=JSON.parse(text('v15/manifest.json')),finalEntry=text('final/index.html');
+const idx=text('v15/index.html'),recover=text('v15/recover.html'),sw=text('v15/sw.js'),auth=text(files[0]),bridge=text(files[1]),ws=text(files[2]),gov=text(files[3]),portals=text(files[4]),appBridge=text(files[5]),ctl=text(files[6]),rules=text('firestore.rules'),manifest=JSON.parse(text('v15/manifest.json')),finalEntry=text('final/index.html'),rootApp=text('app.js');
 for(const f of files.filter(x=>x!=='v15/sw.js'))ok(idx.includes(f),`final loader includes ${f}`);
 const removed=['v15/v15-boot-final.js','v15/v15-role-enforcer.js','v15/v15-runtime-role-fix.js','v15/v15-router-final.js','v15/v15-final-portals.js','v15-mobile-auth.js','v15-fast-session.js','v15-authority-auth.js','v15-role-login.js','v15-role-matrix.js','v15-multitrade.js','v15-account-workspace-ux.js','v15-auth-loop-fix.js'];
 for(const f of removed)ok(!idx.includes(f),`obsolete runtime not loaded: ${f}`);
-ok(idx.indexOf('v15/v15-final-controller.js')>idx.indexOf('v15/v15-portals-v2.js'),'clean final controller loads last');
+ok(idx.indexOf('v15/v15-legacy-app-bridge.js')>idx.indexOf('v15/v15-portals-v2.js'),'legacy App bridge loads after base role portals');
+ok(idx.indexOf('v15/v15-final-controller.js')>idx.indexOf('v15/v15-legacy-app-bridge.js'),'clean final controller loads after App bridge');
+ok(rootApp.includes('const App ='),'root legacy shell defines App as a global lexical const');
+ok(appBridge.includes("typeof App!=='undefined'")&&appBridge.includes('window.App=App'),'bridge explicitly exports lexical App to window.App');
+ok(ctl.includes('if(!V||!window.App)return;'),'controller intentionally requires exported window.App');
 ok(auth.includes('signInWithRedirect')&&auth.includes('authStateReady'),'auth handles mobile redirect and persisted session');
 ok(auth.includes("OWNER_ROLES=new Set(['admin','principal','instructor'])"),'creator multi-role remains explicit');
 ok(bridge.includes("typeof SESSION!=='undefined'")&&bridge.includes('window.SESSION=s'),'lexical SESSION bridge remains available');
@@ -33,10 +37,10 @@ ok(gov.includes('attendanceLocks')&&gov.includes('submitAttendanceMonth'),'atten
 ok(gov.includes('traineeIndex')&&gov.includes('claimTraineeIdentity'),'institute-wide trainee uniqueness exists');
 ok(gov.includes('syncGalleryToDrive')&&gov.includes('uploadDriveBlob'),'Drive gallery archive exists');
 ok(portals.includes('Institute Notices')&&portals.includes('Institute Reports')&&portals.includes('Inspection & Compliance'),'Principal institute-wide renderers exist');
-ok(idx.includes("register('./sw.js?build=final-clean'"),'final loader registers clean worker');
-ok(sw.includes('iti-v15-final-clean-20260825')&&sw.includes('v15-final-controller.js')&&!sw.includes('v15-final-portals.js'),'worker caches only clean final runtime');
-ok(recover.includes('final-clean')&&recover.includes('unregister()')&&recover.includes('caches.delete'),'recovery clears old caches and opens clean final');
-ok(finalEntry.includes('build=final-clean'),'stable /final entry points to clean final build');
+ok(idx.includes("register('./sw.js?build=final-clean2'"),'final loader registers Clean Final 2 worker');
+ok(sw.includes('iti-v15-final-clean2-20260825')&&sw.includes('v15-legacy-app-bridge.js')&&sw.includes('v15-final-controller.js')&&!sw.includes('v15-final-portals.js'),'worker caches only Clean Final 2 runtime');
+ok(recover.includes('final-clean2')&&recover.includes('unregister()')&&recover.includes('caches.delete'),'recovery clears old caches and opens Clean Final 2');
+ok(finalEntry.includes('build=final-clean2'),'stable /final entry points to Clean Final 2');
 for(const marker of ['match /auditLog/{auditId}','match /recycleBin/{recycleId}','match /traineeIndex/{identityId}','match /instituteNotices/{noticeId}','match /attendanceLocks/{month}','match /galleryCloud/{galleryId}'])ok(rules.includes(marker),`Firestore rule present: ${marker}`);
 ok(rules.includes('allow delete: if false;'),'protected delete policy remains');
 ok(manifest.orientation==='any','PWA supports portrait and landscape');
