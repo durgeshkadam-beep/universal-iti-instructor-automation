@@ -6,14 +6,18 @@ on:
     branches: [ main ]
     paths:
       - 'v15/**'
+      - 'final/**'
       - 'firestore.rules'
       - 'tests/v15-production-test.js'
+      - 'tests/v15-final-dom-test.js'
       - '.github/workflows/v15-production-tests.yml'
   pull_request:
     paths:
       - 'v15/**'
+      - 'final/**'
       - 'firestore.rules'
       - 'tests/v15-production-test.js'
+      - 'tests/v15-final-dom-test.js'
 
 permissions:
   contents: read
@@ -28,5 +32,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run V15 production tests
+      - name: Run static and syntax tests
         run: node tests/v15-production-test.js
+      - name: Install DOM test dependency
+        run: npm install --no-save --ignore-scripts jsdom@25
+      - name: Run role/menu DOM smoke tests
+        run: node tests/v15-final-dom-test.js
