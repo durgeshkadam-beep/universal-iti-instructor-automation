@@ -1,6 +1,7 @@
 /* Universal ITI FINAL — last-mile role polish
  * 1) Principal Staff & Access renders from V15's authoritative role/session, not window.SESSION only.
  * 2) Every final page synchronizes the legacy window session before older V15 render helpers run.
+ * 3) The creator's Instructor role is a teaching role, not institute-wide: it opens the original DTP workspace only.
  */
 (function(V){
 'use strict';
@@ -10,6 +11,27 @@ function syncWindowSession(){const s=V.currentSession?.()||window.__V15_SESSION|
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function wsLabel(w){return [w?.trade||'Trade',w?.session||'',w?.batch||''].filter(Boolean).join(' • ');}
 const LABEL={instructor:'Instructor',staff:'Staff (read-only)'};
+
+// Creator may intentionally log in as Admin, Principal or Instructor. Admin/Principal are institute-wide,
+// but Instructor must behave like one real teaching assignment. Prefer the original DTP/DTPO workspace
+// and never inherit COPA/other-trade access merely from creator authority.
+const chooseBase=V.chooseWorkspace?.bind(V);
+if(chooseBase)V.chooseWorkspace=async function(m,want){
+  if(m?.owner&&want==='instructor'){
+    const ids=[...new Set((m.workspaceIds||[]).filter(Boolean))];
+    let dtp='';
+    for(const id of ids){
+      try{
+        const s=await this.fb.M.getDoc(this.fb.M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',id));
+        if(!s.exists())continue;
+        const w=s.data(),name=String(w.trade||'');
+        if(/desktop\s*publishing|\bdtpo\b|\bdtp\b/i.test(name)){dtp=id;break;}
+      }catch(e){}
+    }
+    if(dtp){localStorage.setItem('iti-v15-workspace-pref-'+this.fb.user.uid,dtp);return dtp;}
+  }
+  return chooseBase(m,want);
+};
 
 const openBase=V.finalOpenTab?.bind(V);
 if(openBase)V.finalOpenTab=async function(name){syncWindowSession();return openBase(name);};
