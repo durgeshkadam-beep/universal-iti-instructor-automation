@@ -11,6 +11,7 @@ on:
       - 'tests/v15-production-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
+      - 'tests/v15-final-polish-test.js'
       - '.github/workflows/v15-production-tests.yml'
   pull_request:
     paths:
@@ -20,6 +21,7 @@ on:
       - 'tests/v15-production-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
+      - 'tests/v15-final-polish-test.js'
 
 permissions:
   contents: read
@@ -42,3 +44,5 @@ jobs:
         run: npm install --no-save --ignore-scripts jsdom@25
       - name: Run role/menu DOM smoke tests
         run: node tests/v15-final-dom-test.js
+      - name: Run Principal/workspace final polish tests
+        run: node tests/v15-final-polish-test.js
