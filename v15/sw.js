@@ -1,7 +1,7 @@
-const CACHE='iti-v15-final-clean-20260825';
+const CACHE='iti-v15-final-clean2-20260825';
 const CORE=[
   './index.html','./manifest.json','./v15-core.js','./v15-data.js','./v15-access.js','./v15-ui.js',
-  './v15-auth-roles-v2.js','./v15-session-bridge.js','./v15-workspaces-v2.js','./v15-governance-v2.js','./v15-portals-v2.js','./v15-final-controller.js',
+  './v15-auth-roles-v2.js','./v15-session-bridge.js','./v15-workspaces-v2.js','./v15-governance-v2.js','./v15-portals-v2.js','./v15-legacy-app-bridge.js','./v15-final-controller.js',
   '../index.html','../style.css','../app.js','../ai.js','../cloud.js','../security-patch.js','../admission-import.js',
   '../other-printable-records.js','../official-plans.js','../logo.png','../icon.svg'
 ];
