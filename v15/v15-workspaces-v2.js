@@ -5,16 +5,18 @@
 'use strict';
 if(!V)return;
 const PREF='iti-v15-workspace-pref-';
-function role(){return window.SESSION?.role||'';}
+function role(){return V.currentRole?.()||window.__V15_SESSION?.role||window.SESSION?.role||V.sessionRole||'';}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
 function label(w){return [w?.trade||'Unnamed Trade',w?.session||'',w?.batch||''].filter(Boolean).join(' • ');}
 function norm(v){return String(v||'').trim().toLowerCase().replace(/\s+/g,' ');}
-function canManage(){return !!V.member?.owner&&role()==='admin'||role()==='principal';}
+function canManage(){return (!!V.member?.owner&&role()==='admin')||role()==='principal';}
 function statusVal(v){if(v&&typeof v==='object')return String(v.status??v.value??v.attendance??'').trim().toUpperCase();return String(v??'').trim().toUpperCase();}
 
 V.listTradeWorkspaces=async function(opts={}){
-  const M=this.fb.M,out=[];
-  if(['admin','principal'].includes(role())||this.member?.owner){
+  const M=this.fb.M,out=[],r=role();
+  // Principal/Admin are institute-wide. Instructor/Staff/Student only see explicitly assigned workspaceIds,
+  // even when the same Google account is the technical creator/owner.
+  if(['admin','principal'].includes(r)){
     const z=await M.getDocs(M.collection(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces'));z.forEach(d=>out.push({id:d.id,...d.data()}));
   }else{
     const ids=[...new Set((this.member?.workspaceIds||[]).filter(Boolean))];
@@ -56,7 +58,7 @@ V.assignAccountWorkspaces=async function(uid,workspaceIds,{replace=true}={}){
 };
 
 V.switchWorkspace=async function(wid){
-  if(!wid||wid===this.workspaceId)return;const ids=this.member?.owner?null:(this.member?.workspaceIds||[]);if(ids&&!ids.includes(wid))throw new Error('This account is not assigned to that Trade workspace.');
+  if(!wid||wid===this.workspaceId)return;const elevated=['admin','principal'].includes(role()),ids=elevated?null:(this.member?.workspaceIds||[]);if(ids&&!ids.includes(wid))throw new Error('This account is not assigned to that Trade workspace.');
   this.unsubscribers?.forEach?.(f=>{try{f();}catch(e){}});this.unsubscribers=[];this.workspaceId=wid;localStorage.setItem(PREF+this.fb.user.uid,wid);
   // Clear old trade data before loading the new workspace.
   if(window.DATA&&typeof DATA==='object')for(const k of Object.keys(DATA)){if(['meta','gallery','users'].includes(k))continue;if(Array.isArray(DATA[k]))DATA[k]=[];else if(DATA[k]&&typeof DATA[k]==='object')DATA[k]={};}
