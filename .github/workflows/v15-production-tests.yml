@@ -10,6 +10,7 @@ on:
       - 'firestore.rules'
       - 'tests/v15-production-test.js'
       - 'tests/v15-final-dom-test.js'
+      - 'tests/v15-lexical-app-bridge-test.js'
       - '.github/workflows/v15-production-tests.yml'
   pull_request:
     paths:
@@ -18,6 +19,7 @@ on:
       - 'firestore.rules'
       - 'tests/v15-production-test.js'
       - 'tests/v15-final-dom-test.js'
+      - 'tests/v15-lexical-app-bridge-test.js'
 
 permissions:
   contents: read
@@ -34,6 +36,8 @@ jobs:
           node-version: '22'
       - name: Run static and syntax tests
         run: node tests/v15-production-test.js
+      - name: Run lexical App bridge regression test
+        run: node tests/v15-lexical-app-bridge-test.js
       - name: Install DOM test dependency
         run: npm install --no-save --ignore-scripts jsdom@25
       - name: Run role/menu DOM smoke tests
