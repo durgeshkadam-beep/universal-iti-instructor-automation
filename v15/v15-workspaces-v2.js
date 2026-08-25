@@ -14,12 +14,15 @@ function statusVal(v){if(v&&typeof v==='object')return String(v.status??v.value?
 
 V.listTradeWorkspaces=async function(opts={}){
   const M=this.fb.M,out=[],r=role();
-  // Principal/Admin are institute-wide. Instructor/Staff/Student only see explicitly assigned workspaceIds,
-  // even when the same Google account is the technical creator/owner.
+  // Principal/Admin are institute-wide. Instructor/Staff/Student only see explicitly assigned workspaceIds.
+  // Special creator rule: when the technical creator deliberately logs in as Instructor,
+  // that role represents one teaching trade only. Never expose every institute trade merely
+  // because the same Google account is also System Admin/Principal.
   if(['admin','principal'].includes(r)){
     const z=await M.getDocs(M.collection(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces'));z.forEach(d=>out.push({id:d.id,...d.data()}));
   }else{
-    const ids=[...new Set((this.member?.workspaceIds||[]).filter(Boolean))];
+    let ids=[...new Set((this.member?.workspaceIds||[]).filter(Boolean))];
+    if(r==='instructor'&&this.member?.owner&&this.workspaceId)ids=[this.workspaceId];
     for(const id of ids){try{const s=await M.getDoc(M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',id));if(s.exists())out.push({id:s.id,...s.data()});}catch(e){}}
   }
   const filtered=opts.includeArchived?out:out.filter(x=>x.status!=='archived');
@@ -60,7 +63,6 @@ V.assignAccountWorkspaces=async function(uid,workspaceIds,{replace=true}={}){
 V.switchWorkspace=async function(wid){
   if(!wid||wid===this.workspaceId)return;const elevated=['admin','principal'].includes(role()),ids=elevated?null:(this.member?.workspaceIds||[]);if(ids&&!ids.includes(wid))throw new Error('This account is not assigned to that Trade workspace.');
   this.unsubscribers?.forEach?.(f=>{try{f();}catch(e){}});this.unsubscribers=[];this.workspaceId=wid;localStorage.setItem(PREF+this.fb.user.uid,wid);
-  // Clear old trade data before loading the new workspace.
   if(window.DATA&&typeof DATA==='object')for(const k of Object.keys(DATA)){if(['meta','gallery','users'].includes(k))continue;if(Array.isArray(DATA[k]))DATA[k]=[];else if(DATA[k]&&typeof DATA[k]==='object')DATA[k]={};}
   await this.load(role()==='admin'?'instructor':role());this.shadow=this.clone(DATA);this.realtime(role()==='admin'?'instructor':role());this.refresh?.();await this.applyRolePortal?.();
 };
@@ -90,7 +92,6 @@ V.principalSummaries=async function({session='',includeArchived=false}={}){
   return out;
 };
 
-// Keep summaries fresh after a successful sync or when entering an Instructor workspace.
 const diffBase=V.diff?.bind(V);if(diffBase)V.diff=async function(...args){const r=await diffBase(...args);if(this.ready&&navigator.onLine&&['instructor','principal'].includes(role()))try{await this.rebuildWorkspaceSummary();}catch(e){}return r;};
 
 console.info('V15 consolidated multi-trade workspace engine active.');
