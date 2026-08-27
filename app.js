@@ -3088,10 +3088,12 @@ const Reports = {
   },
   header(title){
     const m = DATA.meta;
+    const address = [m.address,m.city,m.district,m.state,m.pinCode].filter(Boolean).join(", ");
     return `<div class="print-header">
       <img src="${INSTITUTE_LOGO}" alt="logo" style="width:60px;height:auto;display:block;margin:0 auto 6px">
       <h2>${m.institute}</h2>
-      <p>${m.authority}</p>
+      ${address? `<p>${address}</p>` : ""}
+      <p>${m.authority||""}</p>
       <h3>${title}</h3>
     </div>
     <div class="print-meta">
