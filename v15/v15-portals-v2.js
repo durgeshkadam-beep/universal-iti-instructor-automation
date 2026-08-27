@@ -41,7 +41,15 @@ V.createOrUpdateAccount=async function({name,email:mail,accountRole,workspaceId=
   const code=this.code(),hash=await this.hash(code);await M.setDoc(this.access(mail),{email:mail,displayName:name||mail,role:accountRole,active:true,workspaceIds:ids,traineeId:accountRole==='student'?traineeId:null,createdBy:this.fb.user.uid,createdAt:this.now(),updatedAt:this.now()});await M.setDoc(this.secret(mail),{email:mail,role:accountRole,codeHash:hash,active:true,createdBy:this.fb.user.uid,createdAt:this.now()});await this.audit?.('account.approve',{email:mail,role:accountRole,workspaceIds:ids});return {updated:false,code};
 };
 
-V.renderAdminPanel=async function(){
+V.renderAdminPanel=function(){
+  const {p}=this.ensureAdminTab();
+  if(!p||role()!=='admin')return Promise.resolve(false);
+  p.innerHTML='<div class="hero"><div class="hero-content"><div><span class="showcase-kicker">SYSTEM ADMINISTRATION</span><h2>⚙️ System Admin Control Center</h2><p>Secure login is complete. Loading institute, account and workspace management data…</p></div></div></div><div class="card"><b>Loading management data…</b><p class="muted">You can use the app while this finishes.</p></div>';
+  clearTimeout(this._adminRenderTimer);
+  this._adminRenderTimer=setTimeout(()=>this.renderAdminPanelData().catch(e=>{console.error('Admin panel',e);if(p)p.innerHTML='<div class="card"><div class="callout cloud-error">'+esc(e.message||e)+'</div><button class="btn primary" onclick="V15Sync.renderAdminPanel()">Retry</button></div>';}),0);
+  return Promise.resolve(true);
+};
+V.renderAdminPanelData=async function(){
   const {p}=this.ensureAdminTab();if(!p||role()!=='admin')return;const [ws,members,pending,recycle]=await Promise.all([this.listTradeWorkspaces({includeArchived:true}),this.accountDirectory(),this.pendingAccess(),this.listRecycle?.().catch(()=>[])||[]]);
   const activeWs=ws.filter(w=>w.status!=='archived'),wsOpts=activeWs.map(w=>`<option value="${esc(w.id)}">${esc(wsLabel(w))}</option>`).join(''),memberRows=members.map(m=>`<tr><td><b>${esc(m.displayName||m.email)}</b><br><small>${esc(m.email||'')}</small></td><td>${m.owner?'System Admin':esc(LABEL[m.role]||m.role)}</td><td>${esc((m.workspaceIds||[]).length)} workspace(s)</td><td>${m.active===false?'Disabled':'Active'}</td><td>${m.owner?'Protected':`<button class="btn ghost small" data-aedit="${esc(m.uid)}">Edit</button> <button class="btn ghost small" data-atoggle="${esc(m.uid)}">${m.active===false?'Enable':'Disable'}</button> <button class="btn danger small" data-adelete="${esc(m.uid)}">Delete</button>`}</td></tr>`).join(''),pendingRows=pending.map(a=>`<tr><td>${esc(a.displayName||a.email)}</td><td>${esc(a.email)}</td><td>${esc(LABEL[a.role]||a.role)}</td><td>Waiting first login</td><td><button class="btn danger small" data-pcancel="${esc(a.email)}">Cancel</button></td></tr>`).join('');
   p.innerHTML=`<div class="hero"><div class="hero-content"><div><span class="showcase-kicker">TECHNICAL ADMINISTRATION</span><h2>⚙️ System Admin Panel</h2><p>Accounts, Trade/Session workspaces, migration safety, recycle recovery and system health. Principal remains the highest operational authority.</p></div></div></div>
