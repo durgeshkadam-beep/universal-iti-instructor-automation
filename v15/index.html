@@ -14,17 +14,17 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7f
   <div class="spin"></div>
   <h2>Universal ITI FINAL</h2>
   <p>Preparing the secure institute workspace…</p>
-  <small>Clean Final 7 • Adaptive desktop + Android/PWA mobile shell</small>
+  <small>Clean Final 8 • Landscape split-up print + numeric roll report order</small>
 </div>
 <script>
 (async function(){
   try{
     if('serviceWorker' in navigator){
-      const reg=await navigator.serviceWorker.register('./sw.js?build=final-clean7',{scope:'./',updateViaCache:'none'});
+      const reg=await navigator.serviceWorker.register('./sw.js?build=final-clean8',{scope:'./',updateViaCache:'none'});
       try{await reg.update();}catch(e){}
       await navigator.serviceWorker.ready;
     }
-    const res=await fetch('../index.html?v15-shell=final-clean7-'+Date.now(),{cache:'no-store'});
+    const res=await fetch('../index.html?v15-shell=final-clean8-'+Date.now(),{cache:'no-store'});
     if(!res.ok) throw new Error('Could not load the current app shell. HTTP '+res.status);
     let html=await res.text();
     html=html.replace(/<head([^>]*)>/i,'<head$1><base href="../">');
@@ -35,22 +35,22 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f5f7f
     html=html.replace(/Instructor tools/gi,'V15 FINAL workspace');
     const v15=`
 <script>if(!window.SecurityPatch){document.write('<script src="security-patch.js"><\\/script>')}<\/script>
-<script src="v15/v15-core.js?v=final-clean7"><\/script>
-<script src="v15/v15-data.js?v=final-clean7"><\/script>
-<script src="v15/v15-access.js?v=final-clean7"><\/script>
-<script src="v15/v15-ui.js?v=final-clean7"><\/script>
-<script src="v15/v15-auth-roles-v2.js?v=final-clean7"><\/script>
-<script src="v15/v15-session-bridge.js?v=final-clean7"><\/script>
-<script src="v15/v15-workspaces-v2.js?v=final-clean7"><\/script>
-<script src="v15/v15-governance-v2.js?v=final-clean7"><\/script>
-<script src="v15/v15-portals-v2.js?v=final-clean7"><\/script>
-<script src="v15/v15-legacy-app-bridge.js?v=final-clean7"><\/script>
-<script src="v15/v15-final-controller.js?v=final-clean7"><\/script>
-<script src="v15/v15-final-polish.js?v=final-clean7"><\/script>
-<script src="v15/v15-final-hotfix.js?v=final-clean7"><\/script>
-<script src="v15/v15-mobile-android.js?v=final-clean7"><\/script>
-<script src="v15/v15-auth-stable-mobile.js?v=final-clean7"><\/script>
-<script src="v15/v15-adaptive-app-shell.js?v=final-clean7"><\/script>
+<script src="v15/v15-core.js?v=final-clean8"><\/script>
+<script src="v15/v15-data.js?v=final-clean8"><\/script>
+<script src="v15/v15-access.js?v=final-clean8"><\/script>
+<script src="v15/v15-ui.js?v=final-clean8"><\/script>
+<script src="v15/v15-auth-roles-v2.js?v=final-clean8"><\/script>
+<script src="v15/v15-session-bridge.js?v=final-clean8"><\/script>
+<script src="v15/v15-workspaces-v2.js?v=final-clean8"><\/script>
+<script src="v15/v15-governance-v2.js?v=final-clean8"><\/script>
+<script src="v15/v15-portals-v2.js?v=final-clean8"><\/script>
+<script src="v15/v15-legacy-app-bridge.js?v=final-clean8"><\/script>
+<script src="v15/v15-final-controller.js?v=final-clean8"><\/script>
+<script src="v15/v15-final-polish.js?v=final-clean8"><\/script>
+<script src="v15/v15-final-hotfix.js?v=final-clean8"><\/script>
+<script src="v15/v15-mobile-android.js?v=final-clean8"><\/script>
+<script src="v15/v15-auth-stable-mobile.js?v=final-clean8"><\/script>
+<script src="v15/v15-adaptive-app-shell.js?v=final-clean8"><\/script>
 `;
     html=html.replace(/<\/body>/i,v15+'</body>');
     document.open();document.write(html);document.close();
