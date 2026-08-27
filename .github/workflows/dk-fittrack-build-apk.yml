@@ -3,6 +3,8 @@ name: Build DK FitTrack APK
 on:
   push:
     branches: [ "dk-fittrack" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
