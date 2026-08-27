@@ -2035,7 +2035,7 @@ const Exam = {
     const exam = DATA.exams.find(e=>e.id===Exam.currentExamId);
     if(!exam) return;
     const maxScore = exam.questions.reduce((s,q)=>s+q.marks,0);
-    const rows = DATA.trainees.map(t=>{
+    const rows = Reports.sortedTrainees().map(t=>{
       const attempt = DATA.examAttempts.find(a=>a.examId===exam.id && a.traineeId===t.id);
       return `<tr><td>${t.roll} — ${t.name}</td>
         <td>${attempt? attempt.score+' / '+maxScore : '<span class="muted">Not attempted</span>'}</td>
@@ -3070,9 +3070,19 @@ const Activities = {
 
 /* ===================== REPORTS / PRINT (legal-format PDFs via print) ===================== */
 const Reports = {
+  sortedTrainees(){
+    return (DATA.trainees||[]).slice().sort((a,b)=>{
+      const ar=String(a?.roll??'').trim(), br=String(b?.roll??'').trim();
+      const an=/^\d+$/.test(ar)?Number(ar):Number.POSITIVE_INFINITY;
+      const bn=/^\d+$/.test(br)?Number(br):Number.POSITIVE_INFINITY;
+      if(an!==bn) return an-bn;
+      const byRoll=ar.localeCompare(br,undefined,{numeric:true,sensitivity:'base'});
+      return byRoll || String(a?.name||'').localeCompare(String(b?.name||''),undefined,{sensitivity:'base'});
+    });
+  },
   populateSelects(){
     document.getElementById("reportEvalSelect").innerHTML = DATA.practicals.map(p=>`<option value="${p.no}">${p.no}. ${p.title}</option>`).join("");
-    document.getElementById("reportTraineeSelect").innerHTML = DATA.trainees.map(t=>`<option value="${t.id}">${t.roll} — ${t.name}</option>`).join("");
+    document.getElementById("reportTraineeSelect").innerHTML = Reports.sortedTrainees().map(t=>`<option value="${t.id}">${t.roll} — ${t.name}</option>`).join("");
     const now = new Date();
     document.getElementById("reportAttMonth").value = now.toISOString().slice(0,7);
   },
@@ -3154,7 +3164,7 @@ const Reports = {
     const daysInMonth = new Date(y,m,0).getDate();
     const dayCols = Array.from({length:daysInMonth},(_,i)=>i+1);
     const workingDaysInMonth = dayCols.filter(d=>!isHoliday(`${month}-${String(d).padStart(2,"0")}`)).length;
-    let rows = DATA.trainees.map(t=>{
+    let rows = Reports.sortedTrainees().map(t=>{
       let present=0;
       const cells = dayCols.map(d=>{
         const date = `${month}-${String(d).padStart(2,"0")}`;
@@ -3269,7 +3279,8 @@ const Reports = {
     const v = DATA.visits.find(x=>x.id===visitId);
     if(!v) return;
     const m = DATA.meta;
-    const targets = v.attendees.length ? DATA.trainees.filter(t=>v.attendees.includes(t.id)) : DATA.trainees;
+    const orderedTrainees = Reports.sortedTrainees();
+    const targets = v.attendees.length ? orderedTrainees.filter(t=>v.attendees.includes(t.id)) : orderedTrainees;
     if(!targets.length){ alert("No trainees to generate consent letters for. Add trainees first."); return; }
     const letters = targets.map(t=>`
       <div style="page-break-after:always">
@@ -3297,7 +3308,7 @@ const Reports = {
   printVisitAttendance(visitId){
     const v = DATA.visits.find(x=>x.id===visitId);
     if(!v) return;
-    const attendees = DATA.trainees.filter(t=>v.attendees.includes(t.id));
+    const attendees = Reports.sortedTrainees().filter(t=>v.attendees.includes(t.id));
     const rows = attendees.map(t=>`<tr><td>${t.roll}</td><td style="text-align:left">${t.name}</td><td></td></tr>`).join("");
     const html = `${Reports.header("Attendance — "+v.title)}
       <p><b>${v.type}</b> at <b>${v.organization}</b> on <b>${v.date}</b></p>
@@ -3310,7 +3321,7 @@ const Reports = {
     const v = DATA.visits.find(x=>x.id===visitId);
     if(!v) return;
     const m = DATA.meta;
-    const attendees = DATA.trainees.filter(t=>v.attendees.includes(t.id));
+    const attendees = Reports.sortedTrainees().filter(t=>v.attendees.includes(t.id));
     if(!attendees.length){ alert("No attendees marked for this visit yet."); return; }
     const certs = attendees.map(t=>`
       <div class="certificate">
@@ -3361,13 +3372,38 @@ const Reports = {
   printSplitUp(){
     const rows = Schedule.buildRows();
     if(!rows.length){ alert("No schedule yet — use 'Use Official 2026-27 Calendar' or Generate an alternate schedule first."); return; }
-    const trs = rows.map(r=>`<tr>
+    const trs = rows.map(r=>`<tr class="${r.holiday?'splitup-holiday':''}">
       <td>${r.date}</td><td>${r.day}</td><td>${r.week}</td>
-      <td>${r.holiday? 'HOLIDAY — '+r.label : (r.practical||'—')}</td>
-      <td>${r.holiday? 'HOLIDAY — '+r.label : (r.theory||'—')}</td></tr>`).join("");
-    const html = `${Reports.header("Split-up Syllabus (Week-wise)")}
-      <table class="print-table"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Trade Practical</th><th>Trade Theory</th></tr></thead>
-      <tbody>${trs}</tbody></table>${Reports.signBlock()}`;
+      <td class="splitup-practical">${r.holiday? '<b>HOLIDAY — '+r.label+'</b>' : (r.practical||'—')}</td>
+      <td class="splitup-theory">${r.holiday? '<b>HOLIDAY — '+r.label+'</b>' : (r.theory||'—')}</td></tr>`).join("");
+    const html = `<style>
+      @page{size:A4 landscape;margin:8mm}
+      @media print{
+        #printArea{padding:0!important;width:100%!important}
+        #printArea .splitup-print{width:100%;font-family:Arial,sans-serif}
+        #printArea .splitup-print .print-header{padding-bottom:5px;margin-bottom:6px}
+        #printArea .splitup-print .print-header img{width:42px!important;margin-bottom:3px!important}
+        #printArea .splitup-print .print-header h2{font-size:15px;margin:0 0 2px}
+        #printArea .splitup-print .print-header h3{font-size:13px;margin:3px 0}
+        #printArea .splitup-print .print-header p{font-size:9px;margin:1px 0}
+        #printArea .splitup-print .print-meta{font-size:8.5px;margin-bottom:5px}
+        #printArea .splitup-table{width:100%!important;table-layout:fixed;border-collapse:collapse;font-size:8.5px;line-height:1.2}
+        #printArea .splitup-table th,#printArea .splitup-table td{border:1px solid #333;padding:3px 4px;vertical-align:top}
+        #printArea .splitup-table th{background:#eee!important;font-size:8.5px;text-align:center}
+        #printArea .splitup-table th:nth-child(1),#printArea .splitup-table td:nth-child(1){width:10%;white-space:nowrap;text-align:center}
+        #printArea .splitup-table th:nth-child(2),#printArea .splitup-table td:nth-child(2){width:6%;text-align:center}
+        #printArea .splitup-table th:nth-child(3),#printArea .splitup-table td:nth-child(3){width:5%;text-align:center}
+        #printArea .splitup-table th:nth-child(4),#printArea .splitup-table td:nth-child(4){width:42%;text-align:left}
+        #printArea .splitup-table th:nth-child(5),#printArea .splitup-table td:nth-child(5){width:37%;text-align:left}
+        #printArea .splitup-holiday td{background:#f1f1f1!important}
+        #printArea .splitup-print .sign-block{font-size:8.5px;margin-top:28px}
+      }
+    </style>
+    <div class="splitup-print">
+      ${Reports.header("Split-up Syllabus (Week-wise)")}
+      <table class="print-table splitup-table"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Trade Practical</th><th>Trade Theory</th></tr></thead>
+      <tbody>${trs}</tbody></table>${Reports.signBlock()}
+    </div>`;
     Reports.markPending("Split-up Syllabus — generated "+todayISO());
     Reports.doPrint(html);
   },
@@ -3643,7 +3679,7 @@ const UniversalSyllabus = {
     if(!this.state.calendar.length){this.status('Generate the calendar first.','error');return;}
     const rows=this.state.calendar.map(r=>`<tr><td>${r.date}</td><td>${r.day}</td><td>${r.week}</td><td>${this.esc(r.practical||'—')}</td><td>${this.esc(r.theory||'—')}</td><td>${r.hours||'—'}</td></tr>`).join('');
     const html=`<div style="font-family:Arial;padding:24px"><h1>Split-up Syllabus — ${this.esc(this.state.trade)}</h1><p>Source: ${this.esc(this.state.sourceName)} · Generated: ${todayISO()}</p><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr><th style="border:1px solid #999;padding:5px">Date</th><th style="border:1px solid #999;padding:5px">Day</th><th style="border:1px solid #999;padding:5px">Week</th><th style="border:1px solid #999;padding:5px">Practical</th><th style="border:1px solid #999;padding:5px">Theory</th><th style="border:1px solid #999;padding:5px">Hours</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-    const w=window.open('','_blank');w.document.write('<html><head><title>Split-up Syllabus</title><style>body{margin:0}td,th{border:1px solid #999;padding:5px}th{background:#eee}</style></head><body>'+html+'</body></html>');w.document.close();w.focus();setTimeout(()=>w.print(),300);
+    const w=window.open('','_blank');w.document.write('<html><head><title>Split-up Syllabus</title><style>@page{size:A4 landscape;margin:8mm}body{margin:0;font-family:Arial,sans-serif}table{table-layout:fixed;width:100%}td,th{border:1px solid #777;padding:4px;vertical-align:top;font-size:9px;line-height:1.2}th{background:#eee}th:nth-child(1),td:nth-child(1){width:10%;white-space:nowrap}th:nth-child(2),td:nth-child(2){width:6%}th:nth-child(3),td:nth-child(3){width:5%}th:nth-child(4),td:nth-child(4){width:37%;text-align:left}th:nth-child(5),td:nth-child(5){width:36%;text-align:left}th:nth-child(6),td:nth-child(6){width:6%}@media print{h1{font-size:17px;margin:0 0 5px}p{font-size:9px;margin:0 0 6px}}</style></head><body>'+html+'</body></html>');w.document.close();w.focus();setTimeout(()=>w.print(),300);
   },
   loadDemo(){
     document.getElementById('uTrade').value='Electrician';
