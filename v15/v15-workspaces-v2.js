@@ -25,7 +25,8 @@ V.listTradeWorkspaces=async function(opts={}){
     if(r==='instructor'&&this.member?.owner&&this.workspaceId)ids=[this.workspaceId];
     for(const id of ids){try{const s=await M.getDoc(M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',id));if(s.exists())out.push({id:s.id,...s.data()});}catch(e){}}
   }
-  const filtered=opts.includeArchived?out:out.filter(x=>x.status!=='archived');
+  let filtered=opts.includeDeleted?out:out.filter(x=>x.status!=='deleted');
+  if(!opts.includeArchived)filtered=filtered.filter(x=>x.status!=='archived');
   filtered.sort((a,b)=>String(a.session||'').localeCompare(String(b.session||''))||String(a.trade||'').localeCompare(String(b.trade||''),undefined,{numeric:true,sensitivity:'base'})||String(a.batch||'').localeCompare(String(b.batch||'')));
   return filtered;
 };
