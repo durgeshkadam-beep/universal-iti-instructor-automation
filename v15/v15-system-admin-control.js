@@ -153,8 +153,8 @@ V.adminCreateEmployee=async function(){
     await mm.setDoc(V.access(email),{email,displayName:name,role:r,workspaceIds:ids,traineeId:null,active:true,createdAt:V.now(),createdBy:V.fb.user.uid,updatedAt:V.now()});
     await mm.setDoc(V.secret(email),{email,role:r,codeHash:hash,active:true,createdAt:V.now(),createdBy:V.fb.user.uid});
     await audit('admin.employee.invite',{email,displayName:name,role:r,workspaceIds:ids});
-    if(out){out.style.display='block';out.className='callout cloud-ok';out.innerHTML='<b>Account approved.</b><br>'+esc(email)+'<br>First-login code: <b>'+esc(code)+'</b>';}
-    await V.renderAdminPanel(false,{preserveResult:true});
+    if(out){out.style.display='block';out.className='callout cloud-ok';out.innerHTML='<b>Account approved.</b><br>'+esc(email)+'<br>First-login code: <b>'+esc(code)+'</b><br><small>Copy this code before refreshing. The pending account will appear after Refresh.</small>';}
+    const n=document.getElementById('admEmpName'),e=document.getElementById('admEmpEmail');if(n)n.value='';if(e)e.value='';
   }catch(e){if(out){out.style.display='block';out.className='callout cloud-error';out.textContent=e.message||String(e);}else alert(e.message||e);}
 };
 
