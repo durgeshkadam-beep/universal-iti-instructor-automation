@@ -103,7 +103,7 @@ service cloud.firestore {
         allow update: if
           (isOwner(inst) && resource.data.owner != true && request.resource.data.owner != true && validRole(request.resource.data.role))
           || (isPrincipal(inst) && resource.data.owner != true && resource.data.role in ['instructor','staff'] && request.resource.data.role in ['instructor','staff'] && request.resource.data.owner == resource.data.owner);
-        allow delete: if false;
+        allow delete: if isOwner(inst) && resource.data.owner != true;
       }
 
       // Institute-wide notices created by Principal/System Admin and visible to authenticated institute members.
@@ -141,7 +141,7 @@ service cloud.firestore {
         allow create: if isOwner(inst) || isPrincipal(inst);
         allow update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
         // Archive instead of permanent workspace deletion.
-        allow delete: if false;
+        allow delete: if isOwner(inst);
 
         match /trainees/{docId} {
           allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || (resource.data.data.id != null && ownTrainee(inst, resource.data.data.id)));
