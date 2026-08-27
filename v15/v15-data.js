@@ -5,8 +5,37 @@ Object.assign(V,{
  publicSections(){return new Set(['theory','practicals','notices','holidays','exams','modules','extraTopics','visits','activities']);},
  async arr(s,q=null){const M=this.fb.M;let r=this.col(s);if(q)r=M.query(r,M.where(q.field,'==',q.value));const z=await M.getDocs(r),a=[];z.forEach(d=>{const x=d.data();if(x.data!=null)a.push(x.data);});return a;},
  async map(s,tid=null){const M=this.fb.M,o={};let r=['attendance','marks','submissions'].includes(s)?this.col(s):this.col('map_'+s);if(tid&&['attendance','marks','submissions'].includes(s))r=M.query(r,M.where('traineeId','==',tid));const z=await M.getDocs(r);z.forEach(d=>{const x=d.data();if(['attendance','marks','submissions'].includes(s)){if(x.key!=null&&x.subKey!=null){o[x.key]=o[x.key]||{};o[x.key][x.subKey]=x.data;}}else if(x.key!=null)o[x.key]=x.data;});return o;},
- async load(role){const M=this.fb.M,z=await M.getDoc(this.ws());if(!z.exists())throw new Error('Shared workspace is missing.');const w=z.data(),g=Array.isArray(DATA?.gallery)?DATA.gallery:[],u=Array.isArray(DATA?.users)?DATA.users:[];DATA=DATA||{};DATA.meta={...(DATA.meta||{}),...w,schemaVersion:15,appVersion:'V15'};delete DATA.meta.ownerUid;delete DATA.meta.arraySections;delete DATA.meta.mapSections;DATA.gallery=g;DATA.users=u;this.arraySections=new Set(w.arraySections||[]);this.mapSections=new Set(w.mapSections||[]);if(role==='student')await this.loadStudent();else{for(const s of this.arraySections)if(s!=='gallery')DATA[s]=await this.arr(s);for(const s of this.mapSections)DATA[s]=await this.map(s);}this.suppressLocalSync=true;try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));}finally{this.suppressLocalSync=false;}},
- async loadStudent(){const M=this.fb.M,tid=this.member.traineeId;if(!tid)throw new Error('Student account is not linked to a trainee record.');try{const t=await M.getDoc(M.doc(this.col('trainees'),this.esc(tid)));DATA.trainees=t.exists()?[t.data().data]:[];}catch(e){DATA.trainees=[];}for(const s of this.publicSections())if(this.arraySections.has(s))try{DATA[s]=await this.arr(s);}catch(e){}for(const s of ['attendance','marks','submissions'])if(this.mapSections.has(s))DATA[s]=await this.map(s,tid);for(const s of ['leaves','examAttempts','projects'])if(this.arraySections.has(s))try{DATA[s]=await this.arr(s,{field:'data.traineeId',value:tid});}catch(e){DATA[s]=[];}},
+ async load(role){
+   const M=this.fb.M;
+   let z=null;
+   if(this._loginWorkspaceSeed&&this._loginWorkspaceSeed.id===this.workspaceId){
+     z={exists:()=>true,data:()=>this._loginWorkspaceSeed.data};
+     this._loginWorkspaceSeed=null;
+   }else z=await M.getDoc(this.ws());
+   if(!z.exists())throw new Error('Shared workspace is missing.');
+   const w=z.data(),g=Array.isArray(DATA?.gallery)?DATA.gallery:[],u=Array.isArray(DATA?.users)?DATA.users:[];
+   DATA=DATA||{};DATA.meta={...(DATA.meta||{}),...w,schemaVersion:15,appVersion:'V15'};delete DATA.meta.ownerUid;delete DATA.meta.arraySections;delete DATA.meta.mapSections;DATA.gallery=g;DATA.users=u;
+   this.arraySections=new Set(w.arraySections||[]);this.mapSections=new Set(w.mapSections||[]);
+   if(role==='student')await this.loadStudent();
+   else{
+     const jobs=[];
+     for(const s of this.arraySections)if(s!=='gallery')jobs.push(this.arr(s).then(v=>({s,v})));
+     for(const s of this.mapSections)jobs.push(this.map(s).then(v=>({s,v})));
+     const results=await Promise.all(jobs);
+     results.forEach(x=>{DATA[x.s]=x.v;});
+   }
+   this.suppressLocalSync=true;try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));}finally{this.suppressLocalSync=false;}
+ },
+ async loadStudent(){
+   const M=this.fb.M,tid=this.member.traineeId;if(!tid)throw new Error('Student account is not linked to a trainee record.');
+   const jobs=[
+     M.getDoc(M.doc(this.col('trainees'),this.esc(tid))).then(t=>({s:'trainees',v:t.exists()?[t.data().data]:[]})).catch(()=>({s:'trainees',v:[]}))
+   ];
+   for(const s of this.publicSections())if(this.arraySections.has(s))jobs.push(this.arr(s).then(v=>({s,v})).catch(()=>({s,v:[]})));
+   for(const s of ['attendance','marks','submissions'])if(this.mapSections.has(s))jobs.push(this.map(s,tid).then(v=>({s,v})).catch(()=>({s,v:{}})));
+   for(const s of ['leaves','examAttempts','projects'])if(this.arraySections.has(s))jobs.push(this.arr(s,{field:'data.traineeId',value:tid}).then(v=>({s,v})).catch(()=>({s,v:[]})));
+   const results=await Promise.all(jobs);results.forEach(x=>{DATA[x.s]=x.v;});
+ },
  realtime(role){this.unsubscribers.forEach(f=>{try{f();}catch(e){}});this.unsubscribers=[];if(role==='student'){const tid=this.member.traineeId;this.listenTrainee(tid);for(const s of this.publicSections())if(this.arraySections.has(s))this.listenArr(s);for(const s of ['attendance','marks','submissions'])if(this.mapSections.has(s))this.listenMap(s,tid);for(const s of ['leaves','examAttempts','projects'])if(this.arraySections.has(s))this.listenArr(s,{field:'data.traineeId',value:tid});}else{for(const s of this.arraySections)if(s!=='gallery')this.listenArr(s);for(const s of this.mapSections)this.listenMap(s);}const M=this.fb.M;this.unsubscribers.push(M.onSnapshot(this.ws(),x=>{if(!x.exists())return;DATA.meta={...(DATA.meta||{}),...x.data(),schemaVersion:15,appVersion:'V15'};delete DATA.meta.ownerUid;delete DATA.meta.arraySections;delete DATA.meta.mapSections;this.remote('meta');}));window.addEventListener('online',()=>this.schedule(100),{passive:true});},
  listenTrainee(tid){const M=this.fb.M;this.unsubscribers.push(M.onSnapshot(M.doc(this.col('trainees'),this.esc(tid)),x=>{DATA.trainees=x.exists()?[x.data().data]:[];this.remote('trainees');}));},
  listenArr(s,q=null){const M=this.fb.M;let r=this.col(s);if(q)r=M.query(r,M.where(q.field,'==',q.value));this.unsubscribers.push(M.onSnapshot(r,z=>{const a=[];z.forEach(d=>{const x=d.data();if(x.data!=null)a.push(x.data);});DATA[s]=a;this.remote(s);},e=>console.warn('V15 listener',s,e)));},
