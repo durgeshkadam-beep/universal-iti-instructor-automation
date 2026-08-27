@@ -1,0 +1,64 @@
+name: Build DK FitTrack APK
+
+on:
+  push:
+    branches:
+      - dk-fittrack-mobile
+    paths:
+      - "dk-fittrack/source/**"
+      - ".github/workflows/build-dk-fittrack-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reconstruct DK FitTrack source
+        run: |
+          cat dk-fittrack/source/chunk*.txt | base64 -d > /tmp/dkfit.zip
+          mkdir -p /tmp/dkfit
+          unzip -q /tmp/dkfit.zip -d /tmp/dkfit
+          cp -a /tmp/dkfit/DK_FitTrack_FULL/. .
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Copy web app into Android assets
+        run: |
+          mkdir -p android/app/src/main/assets
+          rm -rf android/app/src/main/assets/www
+          cp -r web android/app/src/main/assets/www
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle --no-daemon assembleDebug
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk DK-FitTrack-Durgesh-Kadam.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DK-FitTrack-APK
+          path: DK-FitTrack-Durgesh-Kadam.apk
+          if-no-files-found: error
