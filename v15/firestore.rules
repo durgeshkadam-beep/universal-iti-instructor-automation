@@ -50,7 +50,7 @@ service cloud.firestore {
         allow read: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || (signedIn() && memberId == request.auth.uid);
         allow create: if signedIn() && memberId == request.auth.uid && (isOwner(inst) || (request.auth.token.email != null && exists(accessPath(inst, request.auth.token.email)) && exists(secretPath(inst, request.auth.token.email)) && get(accessPath(inst, request.auth.token.email)).data.active == true && get(secretPath(inst, request.auth.token.email)).data.active == true && request.resource.data.email == request.auth.token.email && validRole(request.resource.data.role) && request.resource.data.role == get(accessPath(inst, request.auth.token.email)).data.role && request.resource.data.workspaceIds == get(accessPath(inst, request.auth.token.email)).data.workspaceIds && request.resource.data.traineeId == get(accessPath(inst, request.auth.token.email)).data.traineeId && request.resource.data.activationProof == get(secretPath(inst, request.auth.token.email)).data.codeHash));
         allow update: if (isOwner(inst) && resource.data.owner != true && request.resource.data.owner != true && validRole(request.resource.data.role)) || (isPrincipal(inst) && resource.data.owner != true && resource.data.role in ['instructor','staff'] && request.resource.data.role in ['instructor','staff'] && request.resource.data.owner == resource.data.owner);
-        allow delete: if false;
+        allow delete: if isOwner(inst) && resource.data.owner != true;
       }
 
       match /instituteNotices/{noticeId} { allow read: if isOwner(inst) || hasMember(inst); allow create, update, delete: if isOwner(inst) || isPrincipal(inst); }
@@ -62,7 +62,7 @@ service cloud.firestore {
         allow read: if workspaceAllowed(inst, wid);
         allow create: if isOwner(inst) || isPrincipal(inst);
         allow update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
-        allow delete: if false;
+        allow delete: if isOwner(inst);
 
         match /trainees/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || (resource.data.data.id != null && ownTrainee(inst, resource.data.data.id))); allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
         match /attendance/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId)); allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
