@@ -9,8 +9,9 @@ Object.assign(V,{
    const M=this.fb.M;
    let z=null;
    if(this._loginWorkspaceSeed&&this._loginWorkspaceSeed.id===this.workspaceId){
-     z={exists:()=>true,data:()=>this._loginWorkspaceSeed.data};
+     const seed=this._loginWorkspaceSeed;
      this._loginWorkspaceSeed=null;
+     z={exists:()=>true,data:()=>seed.data};
    }else z=await M.getDoc(this.ws());
    if(!z.exists())throw new Error('Shared workspace is missing.');
    const w=z.data(),g=Array.isArray(DATA?.gallery)?DATA.gallery:[],u=Array.isArray(DATA?.users)?DATA.users:[];
