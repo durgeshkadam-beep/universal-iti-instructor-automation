@@ -8,6 +8,13 @@ if(!V||!window.App)return;
 function currentRole(){
   try{return V.currentRole?.()||V.currentSession?.()?.role||window.__V15_SESSION?.role||window.SESSION?.role||V.sessionRole||'';}catch(e){return '';}
 }
+function syncSession(){
+  try{
+    const s=V.currentSession?.()||window.__V15_SESSION||window.SESSION||V.session||null;
+    if(s){window.SESSION=s;window.__V15_SESSION=s;V.session=s;V.sessionRole=s.role||V.sessionRole||'';}
+    return s;
+  }catch(e){return null;}
+}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function wsLabel(w){return [w?.trade||'Trade',w?.session||'',w?.batch||''].filter(Boolean).join(' • ');}
 const LABEL={instructor:'Instructor',staff:'Staff (read-only)'};
@@ -24,6 +31,7 @@ function exposeStaffPanel(){
 }
 
 V.renderPrincipalStaff=async function(){
+  syncSession();
   exposeStaffPanel();
   const p=document.getElementById('tab-users');
   if(!p||currentRole()!=='principal')return;
@@ -77,6 +85,7 @@ V.renderPrincipalStaff=async function(){
       if(!workspaceId)throw new Error('Select the correct Trade / Session / Batch.');
       if(typeof V.createOrUpdateAccount!=='function')throw new Error('Staff account service is not ready. Reload the app and try again.');
       btn.disabled=true;btn.textContent='Saving…';
+      syncSession();
       const r=await V.createOrUpdateAccount({name,email,accountRole,workspaceId});
       out.style.display='block';out.className='callout cloud-ok';
       out.innerHTML=r?.updated?'<b>Account updated.</b><br>Role and assigned Trade/Batch were saved.':`<b>Account approved.</b><br>First-login activation code: <b>${esc(r?.code||'')}</b>`;
