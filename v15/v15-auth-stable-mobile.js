@@ -43,10 +43,13 @@ V.googleAuthority=async function(interactive=false){
     await M.setPersistence(auth,M.browserLocalPersistence);
     const db=M.getFirestore(app);
 
-    // Always consume a pending redirect exactly once. This rescues users already
-    // caught in an older redirect build, but new mobile logins do not depend on it.
+    // Fast path: normal popup/saved sessions do not need the redirect-result round trip.
+    // Consume redirect only when an older/fallback redirect marker exists.
     let rr=null;
-    try{rr=await M.getRedirectResult(auth);}catch(e){clearRedirect();console.warn('FINAL redirect result',e);}
+    const hasRedirect=localStorage.getItem(K.redirect)==='1';
+    if(hasRedirect){
+      try{rr=await M.getRedirectResult(auth);}catch(e){clearRedirect();console.warn('FINAL redirect result',e);}
+    }
     await ready(M,auth);
     let user=rr?.user||auth.currentUser||null;
     if(user)return validateUser(this,user,M,auth,app,db);
