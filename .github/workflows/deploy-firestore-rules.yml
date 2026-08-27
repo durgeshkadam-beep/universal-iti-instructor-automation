@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - '.github/deploy-firestore.trigger'
+      - '.github/workflows/deploy-firestore-rules.yml'
 
 permissions:
   contents: read
