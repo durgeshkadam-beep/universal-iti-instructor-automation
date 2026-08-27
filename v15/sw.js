@@ -1,7 +1,7 @@
-const CACHE='iti-v15-final-clean11-20260827';
+const CACHE='iti-v15-final-clean12-20260827';
 const CORE=[
   './index.html','./manifest.json','./v15-core.js','./v15-data.js','./v15-access.js','./v15-ui.js',
-  './v15-auth-roles-v2.js','./v15-session-bridge.js','./v15-workspaces-v2.js','./v15-governance-v2.js','./v15-portals-v2.js','./v15-legacy-app-bridge.js','./v15-final-controller.js','./v15-final-polish.js','./v15-final-hotfix.js','./v15-mobile-android.js','./v15-auth-stable-mobile.js','./v15-adaptive-app-shell.js','./v15-staff-dialog-fix.js','./v15-system-admin-control.js','./v15-system-admin-master.js',
+  './v15-auth-roles-v2.js','./v15-session-bridge.js','./v15-workspaces-v2.js','./v15-governance-v2.js','./v15-portals-v2.js','./v15-legacy-app-bridge.js','./v15-final-controller.js','./v15-final-polish.js','./v15-final-hotfix.js','./v15-mobile-android.js','./v15-auth-stable-mobile.js','./v15-adaptive-app-shell.js','./v15-staff-dialog-fix.js','./v15-system-admin-control.js','./v15-system-admin-master.js','./v15-admin-universal-speed.js',
   '../index.html','../style.css','../app.js','../ai.js','../cloud.js','../security-patch.js','../admission-import.js',
   '../other-printable-records.js','../official-plans.js','../logo.png','../icon.svg'
 ];
