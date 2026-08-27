@@ -3187,7 +3187,7 @@ const Reports = {
     const no = document.getElementById("reportEvalSelect").value;
     const p = DATA.practicals.find(x=>x.no==no);
     const rec = DATA.marks[no] || {};
-    const rows = DATA.trainees.map(t=>{
+    const rows = Reports.sortedTrainees().map(t=>{
       const m = rec[t.id] || {};
       return `<tr><td>${t.roll}</td><td style="text-align:left">${t.name}</td>
         <td>${m.prep??''}</td><td>${m.process??''}</td><td>${m.accuracy??''}</td><td>${m.safety??''}</td><td>${m.time??''}</td><td>${m.finish??''}</td><td><b>${m.total??''}</b></td></tr>`;
