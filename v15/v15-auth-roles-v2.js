@@ -34,7 +34,59 @@ V.resolveRequestedRole=async function(m,want){if(!m||m.active===false)return nul
 V.chooseWorkspace=async function(m,want){const ids=Array.isArray(m?.workspaceIds)?m.workspaceIds.filter(Boolean):[],pref=localStorage.getItem('iti-v15-workspace-pref-'+this.fb.user.uid)||'';if(pref&&ids.includes(pref))return pref;if(ids.length)return ids[0];if(want==='principal'||want==='admin'){try{const z=await this.fb.M.getDocs(this.fb.M.collection(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces'));let first='';z.forEach(d=>{if(!first&&d.data()?.status!=='archived')first=d.id;});return first;}catch(e){}}return '';};
 V.startRoleLogin=async function(){const r=document.getElementById('loginRole')?.value||'',e=email(document.getElementById('v15ExpectedEmail')?.value||'');if(!LABEL[r])return setMsg('Select a login role.',true);if(!this.validEmail(e))return setMsg('Enter the approved Google/Gmail address.',true);localStorage.setItem(K.role,r);localStorage.setItem(K.email,e);setMsg('Opening Google verification…');return this.login({interactive:true});};
 
-V.login=async function(opts={}){if(loginRunning)return;loginRunning=true;const interactive=!!opts.interactive,want=selectedRole()||'instructor';setMsg(interactive?'Verifying Google account…':'Restoring secure session…');try{await this.googleAuthority(interactive);if(!this.fb.user)throw new Error('Google sign-in did not return an account.');let legacy=null,m=await this.readMember(),inst=await this.instituteInfo();if(!m&&!inst){legacy=await this.legacy();if(!(legacy||this.localRecords()))throw new Error('No existing institute setup was found for this Google account.');await this.bootstrap(want,legacy);m=this.member;}else if(!m){if(want==='admin')throw new Error('System Admin is restricted to the original creator account.');m=await this.activateApprovedAccount(want);}const resolved=await this.resolveRequestedRole(m,want);if(!resolved)throw new Error(m?.owner?'Creator account may enter only System Admin, Principal or Instructor.':`This Gmail is registered as ${LABEL[m?.role]||m?.role||'another role'}, not ${LABEL[want]||want}.`);this.member=m;this.workspaceId=await this.chooseWorkspace(m,resolved);if(!this.workspaceId&&resolved!=='admin')throw new Error('No Trade / Session / Batch workspace is assigned to this account.');if(this.workspaceId){let shared=(await this.fb.M.getDoc(this.ws())).exists();if(!shared){if(!legacy)legacy=await this.legacy();if(legacy){await this.migrate(legacy,'V14');shared=true;}else if(m.owner&&window.DATA){await this.migrate(DATA,'local');shared=true;}else throw new Error('Shared workspace is not ready.');}await this.load(resolved==='admin'?'instructor':resolved);}SESSION={role:resolved,name:m.displayName||this.fb.user.displayName||this.fb.user.email,userId:this.fb.user.uid,username:email(this.fb.user.email),traineeId:m.traineeId||null,googleEmail:email(this.fb.user.email)};this.ready=true;this.shadow=this.clone(DATA||{});this.disableLegacy?.();this.unsubscribers?.forEach?.(f=>{try{f();}catch(e){}});this.unsubscribers=[];if(this.workspaceId)this.realtime(resolved==='admin'?'instructor':resolved);App.enter();const cp=document.getElementById('changePinBtn');if(cp)cp.style.display='none';this.refresh?.();this.cloudUI?.();await this.applyRolePortal?.();localStorage.setItem(K.role,resolved);localStorage.setItem(K.email,email(this.fb.user.email));clearRedirect();setMsg('');const last=localStorage.getItem(K.tab);if(last)setTimeout(()=>{const b=document.querySelector(`.tab[data-tab="${CSS.escape(last)}"]`);if(b&&b.offsetParent!==null)App.switchTab(last);},80);}catch(e){console.error('V15 login',e);setMsg(e?.code==='auth/popup-closed-by-user'?'Google sign-in was cancelled.':(e.message||String(e)),true);this.showRoleLogin();}finally{loginRunning=false;}};
+V.login=async function(opts={}){
+  if(loginRunning)return;loginRunning=true;
+  const interactive=!!opts.interactive,want=selectedRole()||'instructor',started=performance.now();
+  setMsg(interactive?'Verifying Google account…':'Restoring secure session…');
+  try{
+    await this.googleAuthority(interactive);
+    if(!this.fb.user)throw new Error('Google sign-in did not return an account.');
+    setMsg('Loading institute access…');
+    let legacy=null;
+    const [memberResult,inst]=await Promise.all([this.readMember(),this.instituteInfo()]);
+    let m=memberResult;
+    if(!m&&!inst){
+      legacy=await this.legacy();
+      if(!(legacy||this.localRecords()))throw new Error('No existing institute setup was found for this Google account.');
+      await this.bootstrap(want,legacy);m=this.member;
+    }else if(!m){
+      if(want==='admin')throw new Error('System Admin is restricted to the original creator account.');
+      m=await this.activateApprovedAccount(want);
+    }
+    const resolved=await this.resolveRequestedRole(m,want);
+    if(!resolved)throw new Error(m?.owner?'Creator account may enter only System Admin, Principal or Instructor.':`This Gmail is registered as ${LABEL[m?.role]||m?.role||'another role'}, not ${LABEL[want]||want}.`);
+    this.member=m;
+    this.workspaceId=await this.chooseWorkspace(m,resolved);
+    if(!this.workspaceId&&resolved!=='admin')throw new Error('No Trade / Session / Batch workspace is assigned to this account.');
+    if(this.workspaceId){
+      setMsg('Loading Trade workspace…');
+      const wsSnap=await this.fb.M.getDoc(this.ws());
+      let shared=wsSnap.exists();
+      if(shared)this._loginWorkspaceSeed={id:this.workspaceId,data:wsSnap.data()};
+      if(!shared){
+        if(!legacy)legacy=await this.legacy();
+        if(legacy){await this.migrate(legacy,'V14');shared=true;}
+        else if(m.owner&&window.DATA){await this.migrate(DATA,'local');shared=true;}
+        else throw new Error('Shared workspace is not ready.');
+      }
+      await this.load(resolved==='admin'?'instructor':resolved);
+    }
+    SESSION={role:resolved,name:m.displayName||this.fb.user.displayName||this.fb.user.email,userId:this.fb.user.uid,username:email(this.fb.user.email),traineeId:m.traineeId||null,googleEmail:email(this.fb.user.email)};
+    this.ready=true;this.shadow=this.clone(DATA||{});this.disableLegacy?.();
+    this.unsubscribers?.forEach?.(f=>{try{f();}catch(e){}});this.unsubscribers=[];
+    if(this.workspaceId)this.realtime(resolved==='admin'?'instructor':resolved);
+    App.enter();
+    const cp=document.getElementById('changePinBtn');if(cp)cp.style.display='none';
+    this.refresh?.();this.cloudUI?.();
+    await this.applyRolePortal?.();
+    localStorage.setItem(K.role,resolved);localStorage.setItem(K.email,email(this.fb.user.email));clearRedirect();setMsg('');
+    const elapsed=Math.round(performance.now()-started);try{sessionStorage.setItem('iti-v15-last-login-ms',String(elapsed));}catch(e){}
+    const last=localStorage.getItem(K.tab);
+    if(last)setTimeout(()=>{const b=document.querySelector(`.tab[data-tab="${CSS.escape(last)}"]`);if(b&&b.offsetParent!==null)App.switchTab(last);},80);
+  }catch(e){
+    console.error('V15 login',e);setMsg(e?.code==='auth/popup-closed-by-user'?'Google sign-in was cancelled.':(e.message||String(e)),true);this.showRoleLogin();
+  }finally{loginRunning=false;}
+};
 V.logout=async function(){this.unsubscribers?.forEach?.(f=>{try{f();}catch(e){}});this.unsubscribers=[];try{if(this.fb.auth)await this.fb.M.signOut(this.fb.auth);}catch(e){}SESSION=null;this.ready=false;this.member=null;this.workspaceId=null;localStorage.removeItem(K.role);localStorage.removeItem(K.tab);clearRedirect();location.reload();};
 document.addEventListener('click',e=>{const b=e.target?.closest?.('[data-tab]');if(b?.dataset?.tab)localStorage.setItem(K.tab,b.dataset.tab);},{capture:true});
 
