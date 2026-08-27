@@ -18,7 +18,7 @@ async function ready(M,auth){
     let done=false,un=null;
     try{un=M.onAuthStateChanged(auth,()=>{if(done)return;done=true;try{un?.();}catch(e){}resolve();});}
     catch(e){resolve();return;}
-    setTimeout(()=>{if(done)return;done=true;try{un?.();}catch(e){}resolve();},2200);
+    setTimeout(()=>{if(done)return;done=true;try{un?.();}catch(e){}resolve();},850);
   });
 }
 async function validateUser(ctx,user,M,auth,app,db){
@@ -50,7 +50,7 @@ V.googleAuthority=async function(interactive=false){
     if(hasRedirect){
       try{rr=await M.getRedirectResult(auth);}catch(e){clearRedirect();console.warn('FINAL redirect result',e);}
     }
-    await ready(M,auth);
+    if(!auth.currentUser&&!rr?.user)await ready(M,auth);
     let user=rr?.user||auth.currentUser||null;
     if(user)return validateUser(this,user,M,auth,app,db);
 
