@@ -321,6 +321,7 @@ V.renderAdminPanel=async function(showLoading=true,opts={}){
   if(showLoading)panel.innerHTML='<div class="card"><h2>⚙️ System Admin</h2><p class="muted">Loading control center…</p></div>';
   try{state=await V.adminDirectory();}catch(e){panel.innerHTML='<div class="card"><h2>⚙️ System Admin</h2><div class="callout cloud-error">'+esc(e.message||e)+'</div><button class="btn primary" id="admRetry">Retry</button></div>';panel.querySelector('#admRetry').onclick=()=>V.renderAdminPanel();return;}
   const h=health(),active=state.workspaces.filter(w=>w.status==='active'||!w.status);
+  const loginMs=Number(sessionStorage.getItem('iti-v15-last-login-ms')||0),loginSec=loginMs?Math.round(loginMs/100)/10:null;
   panel.innerHTML=`
     <div class="hero"><div class="hero-content"><div><span class="showcase-kicker">MASTER CONTROL</span><h2>⚙️ System Admin Control Center</h2><p>Technical administration, workspace lifecycle, employee access, recovery and audit. Principal remains the operational institute authority.</p></div><div><button class="btn ghost" id="admRefresh">↻ Refresh</button> <button class="btn secondary" id="admExport">Export Config</button></div></div></div>
     <div class="cards adm-health">
@@ -328,6 +329,7 @@ V.renderAdminPanel=async function(showLoading=true,opts={}){
       <div class="card"><div class="stat">${h.activeEmp}</div><div class="stat-label">Active Employees</div></div>
       <div class="card"><div class="stat ${h.orphan?'bad':''}">${h.orphan}</div><div class="stat-label">Orphan Assignments</div></div>
       <div class="card"><div class="stat">${state.access.filter(a=>!new Set(state.members.map(m=>V.email(m.email))).has(V.email(a.email))).length}</div><div class="stat-label">Pending First Login</div></div>
+      <div class="card"><div class="stat ${loginSec&&loginSec>10?'bad':''}">${loginSec?loginSec+'s':'—'}</div><div class="stat-label">This Login <small>target &lt;10s</small></div></div>
     </div>
     <div class="callout ${h.orphan?'cloud-error':'cloud-ok'}"><b>System integrity:</b> ${h.orphan? h.orphan+' employee workspace assignment(s) point to deleted/missing workspaces. Edit those employees to repair assignments.':'No broken employee/workspace assignments detected.'} <span class="muted">Archived: ${h.archivedWs} • Deleted workspaces: ${h.deletedWs} • Disabled employees: ${h.disabledEmp} • Deleted employees: ${h.deletedEmp}</span></div>
 
@@ -358,7 +360,7 @@ V.renderAdminPanel=async function(showLoading=true,opts={}){
   `;
 
   const style=document.getElementById('admControlStyle')||document.createElement('style');style.id='admControlStyle';style.textContent=`
-    .adm-health{grid-template-columns:repeat(4,minmax(150px,1fr))!important}.adm-create-grid{grid-template-columns:1fr 1fr!important}.adm-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}.adm-actions{white-space:nowrap}.adm-actions .btn{margin:2px}.adm-workspace-checks{max-height:220px;overflow:auto;border:1px solid #e2e7ec;border-radius:12px;padding:8px}.adm-check{display:flex;gap:8px;align-items:flex-start;padding:8px;border-bottom:1px solid #eef1f3}.adm-check:last-child{border-bottom:0}.adm-check input{width:auto!important;min-height:auto!important;margin-top:3px}
+    .adm-health{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))!important}.adm-create-grid{grid-template-columns:1fr 1fr!important}.adm-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}.adm-actions{white-space:nowrap}.adm-actions .btn{margin:2px}.adm-workspace-checks{max-height:220px;overflow:auto;border:1px solid #e2e7ec;border-radius:12px;padding:8px}.adm-check{display:flex;gap:8px;align-items:flex-start;padding:8px;border-bottom:1px solid #eef1f3}.adm-check:last-child{border-bottom:0}.adm-check input{width:auto!important;min-height:auto!important;margin-top:3px}
     @media(max-width:900px){.adm-health{grid-template-columns:1fr 1fr!important}.adm-create-grid{grid-template-columns:1fr!important}}
     @media(max-width:760px){.adm-health{grid-template-columns:1fr 1fr!important;gap:8px!important}.adm-health .card{padding:12px!important}.adm-health .stat{font-size:1.45rem!important}.adm-section-head{align-items:center}.adm-actions{white-space:normal;min-width:190px}.adm-actions .btn{min-height:36px!important;padding:6px 9px!important}}
   `;if(!style.parentNode)document.head.appendChild(style);
