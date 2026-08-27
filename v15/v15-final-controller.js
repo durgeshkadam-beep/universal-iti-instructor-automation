@@ -197,7 +197,7 @@ V.finalOpenTab=async function(name){
   if(!mount(r))return false;
   updateVisuals(r);activate(name);
   try{await renderRole(r,name);}catch(e){console.error('FINAL page',r,name,e);pageError(name,e);}
-  if(r==='instructor')await V.finalEnsureWorkspaceSwitcher().catch(()=>{});else removeOldTradeSwitchers();
+  if(r==='instructor')V.finalEnsureWorkspaceSwitcher().catch(()=>{});else removeOldTradeSwitchers();
   try{App.buildMobileNav?.();}catch(e){}
   localStorage.setItem('iti-v15-tab-v2',name);return true;
 };
@@ -205,7 +205,7 @@ V.finalOpenTab=async function(name){
 V.applyRolePortal=async function(){
   const r=role();if(!V.ready||!r)return false;
   mount(r);updateVisuals(r);
-  if(r==='instructor')await V.finalEnsureWorkspaceSwitcher().catch(()=>{});else removeOldTradeSwitchers();
+  if(r!=='instructor')removeOldTradeSwitchers();
   const saved=localStorage.getItem('iti-v15-tab-v2');
   return V.finalOpenTab(saved&&allowed(r,saved)?saved:defaultTab(r));
 };
