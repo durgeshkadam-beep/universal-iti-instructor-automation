@@ -27,7 +27,7 @@ service cloud.firestore {
     function ownTrainee(inst, traineeId) { return isStudent(inst) && member(inst).traineeId == traineeId; }
     function attendanceUnlocked(inst, wid, record) {
       let dateKey = record.get('key', '');
-      let month = dateKey.size() >= 7 ? dateKey.substring(0, 7) : '';
+      let month = dateKey.size() >= 7 ? dateKey[0:7] : '';
       let lock = /databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid)/attendanceLocks/$(month);
       return dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}
     function publicStudentSection(section) {
