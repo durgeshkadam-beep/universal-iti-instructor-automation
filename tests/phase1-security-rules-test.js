@@ -31,3 +31,14 @@ assert.match(skill,/self-assessment, not an official certificate/,'skill self-re
 assert.match(loader,/v15\/v15-skill-passport\.js/,'skill module included in loader');
 assert.doesNotMatch(gov,/a\.slice\(-3000\)/,'offline queue must not drop oldest unsynced operations');
 console.log('Phase 1 exam, attendance, privacy and skills static checks: PASS.');
+
+
+const v15rules=fs.readFileSync(path.join(root,'v15/firestore.rules'),'utf8');
+assert.equal(v15rules,rules,'V15 rules snapshot must match active rules byte-for-byte');
+assert.equal((rules.match(/rules_version\s*=/g)||[]).length,1,'exactly one ruleset header permitted');
+assert.equal((rules.match(/service cloud\.firestore/g)||[]).length,1,'exactly one Firestore service permitted');
+assert.equal((rules.match(/match \/databases\/\{database\}\/documents/g)||[]).length,1,'duplicate ruleset must never be concatenated');
+assert.equal((rules.match(/function attendanceUnlocked/g)||[]).length,1,'attendance month helper must be unique');
+assert.ok(rules.trim().endsWith('}\n  }\n}'),'ruleset must close normally');
+assert.ok(rules.split('\n').length<260,'unexpectedly long Firestore rules source (possible duplicate append)');
+console.log('Phase 1 Firestore rules integrity invariants: PASS (static checks only).');
