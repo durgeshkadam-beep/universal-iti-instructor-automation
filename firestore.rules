@@ -45,7 +45,9 @@ service cloud.firestore {
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.legacyWorkspaceId is string
         && exists(legacyManifestPath(request.auth.uid, request.resource.data.legacyWorkspaceId));
-      allow update: if isOwner(inst) || isPrincipal(inst);
+      allow update: if (isOwner(inst) || isPrincipal(inst))
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.schemaVersion == resource.data.schemaVersion;
       allow delete: if false;
 
       match /access/{email} {
@@ -178,7 +180,15 @@ service cloud.firestore {
         // Monthly attendance submit/approve/reopen governance.
         match /attendanceLocks/{month} {
           allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
-          allow create, update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
+          allow create: if isOwner(inst) || isPrincipal(inst)
+            || (workspaceAllowed(inst, wid) && isInstructor(inst)
+                && request.resource.data.status == 'submitted'
+                && request.resource.data.submittedBy == request.auth.uid);
+          allow update: if isOwner(inst) || isPrincipal(inst)
+            || (workspaceAllowed(inst, wid) && isInstructor(inst)
+                && resource.data.status == 'reopened'
+                && request.resource.data.status == 'submitted'
+                && request.resource.data.submittedBy == request.auth.uid);
           allow delete: if false;
         }
 
