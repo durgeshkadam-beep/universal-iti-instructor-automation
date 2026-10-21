@@ -174,6 +174,17 @@ async function renderStaff(name){
 }
 
 async function renderStudent(name){
+  if(name==='exams'){
+    const p=panel('exams');
+    if(p){
+      p.replaceChildren();
+      const c=document.createElement('div');c.className='card';
+      const h=document.createElement('h2');h.textContent='Class Tests — Temporarily Unavailable';
+      const msg=document.createElement('p');msg.textContent='Online student tests are paused while secure server-side answer protection and grading are being implemented. Ask your instructor about supervised assessments.';
+      c.append(h,msg);p.append(c);
+    }
+    return;
+  }
   if(name==='skills')return V.renderSkillPassport?.();
   if(name==='dashboard')V.renderStudentDashboard?.();
   else renderLegacyInstructor(name);
