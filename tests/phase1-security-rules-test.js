@@ -11,3 +11,23 @@ assert.match(lock,/resource\.data\.status == 'reopened'/,'instructor may only re
 assert.match(lock,/request\.resource\.data\.status == 'submitted'/,'instructor cannot self-approve attendance');
 assert.match(lock,/request\.resource\.data\.submittedBy == request\.auth\.uid/,'instructor cannot impersonate submitter');
 console.log('Phase 1 security rule invariants: PASS (static checks only).');
+
+const data=fs.readFileSync(path.join(root,'v15/v15-data.js'),'utf8');
+const controller=fs.readFileSync(path.join(root,'v15/v15-final-controller.js'),'utf8');
+const skill=fs.readFileSync(path.join(root,'v15/v15-skill-passport.js'),'utf8');
+const loader=fs.readFileSync(path.join(root,'v15/index.html'),'utf8');
+const gov=fs.readFileSync(path.join(root,'v15/v15-governance-v2.js'),'utf8');
+const attend=rules.match(/match \/attendance\/\{docId\} \{([\s\S]*?)\n\s*\}/)?.[1]||'';
+const exam=rules.match(/match \/examAttempts\/\{docId\} \{([\s\S]*?)\n\s*\}/)?.[1]||'';
+assert.match(attend,/attendanceUnlocked\(inst, wid, request\.resource\.data\)/,'attendance creates require open month');
+assert.match(attend,/attendanceUnlocked\(inst, wid, resource\.data\)/,'attendance updates and deletes require open month');
+assert.match(exam,/allow create, update, delete: if workspaceAllowed\(inst, wid\) && isStaff\(inst\)/,'student cannot submit self-scored official exam attempts');
+assert.match(rules,/section != 'exams'/,'student cannot read legacy exam answer-key collections');
+assert.doesNotMatch(data,/\['theory','practicals','notices','holidays','exams'/,'student public loader must not fetch exam keys');
+assert.match(data,/if\(role==='student'\)\{/,'student loader clears previous account records');
+assert.match(controller,/\['skills','🧩 My Skills'\]/,'student tab registered');
+assert.match(controller,/name==='skills'/,'student skills route registered');
+assert.match(skill,/self-assessment, not an official certificate/,'skill self-report cannot be mistaken as verified');
+assert.match(loader,/v15\/v15-skill-passport\.js/,'skill module included in loader');
+assert.doesNotMatch(gov,/a\.slice\(-3000\)/,'offline queue must not drop oldest unsynced operations');
+console.log('Phase 1 exam, attendance, privacy and skills static checks: PASS.');
