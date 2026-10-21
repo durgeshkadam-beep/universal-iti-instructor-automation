@@ -100,11 +100,14 @@ function removeOldTradeSwitchers(){
   [...who.children].forEach(x=>{if(x.id==='whoName'||x.id==='changePinBtn'||x.tagName==='BUTTON')return;const txt=(x.textContent||'').trim();if(x.querySelector?.('select')&&/^trade\s*:/i.test(txt))x.remove();});
 }
 
+let tradeBuildSerial=0;
 V.finalEnsureWorkspaceSwitcher=async function(){
-  removeOldTradeSwitchers();
-  if(role()!=='instructor')return;
+  const ticket=++tradeBuildSerial;
+  if(role()!=='instructor'){removeOldTradeSwitchers();return;}
   const who=document.querySelector('.topbar .who');if(!who)return;
   const list=await V.listTradeWorkspaces?.({includeArchived:false})||[];
+  if(ticket!==tradeBuildSerial||role()!=='instructor')return;
+  removeOldTradeSwitchers();
   if(!list.length)return;
   const d=document.createElement('div');d.id='v15FinalWorkspaceSwitcher';d.dataset.v15TradeSwitcher='1';
   if(list.length===1){d.innerHTML=`<label>Trade:</label><span class="badge">${esc(wsLabel(list[0]))}</span>`;}
