@@ -38,6 +38,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Setup Java for Firestore Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Validate Firestore security rules with emulator
+        run: npx --yes firebase-tools@14.23.0 emulators:exec --only firestore --project demo-universal-iti --non-interactive "node tests/phase1-security-rules-test.js"
       - name: Run static and syntax tests
         run: node tests/v15-production-test.js
       - name: Run Phase 1 security rules regression checks
