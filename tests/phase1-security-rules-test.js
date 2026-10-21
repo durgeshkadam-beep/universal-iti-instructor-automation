@@ -1,0 +1,13 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'..');
+const rules=fs.readFileSync(path.join(root,'firestore.rules'),'utf8');
+const inst=rules.match(/match \/institutes\/\{inst\} \{([\s\S]*?)match \/access\/\{email\}/)?.[1]||'';
+assert.match(inst,/request\.resource\.data\.ownerUid == resource\.data\.ownerUid/,'institute owner cannot change through client writes');
+const lock=rules.match(/match \/attendanceLocks\/\{month\} \{([\s\S]*?)\n\s*\}/)?.[1]||'';
+assert.match(lock,/resource\.data\.status == 'reopened'/,'instructor may only resubmit reopened attendance');
+assert.match(lock,/request\.resource\.data\.status == 'submitted'/,'instructor cannot self-approve attendance');
+assert.match(lock,/request\.resource\.data\.submittedBy == request\.auth\.uid/,'instructor cannot impersonate submitter');
+console.log('Phase 1 security rule invariants: PASS (static checks only).');
