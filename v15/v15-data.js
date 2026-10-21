@@ -2,7 +2,7 @@
 (function(V){
 'use strict';
 Object.assign(V,{
- publicSections(){return new Set(['theory','practicals','notices','holidays','exams','modules','extraTopics','visits','activities']);},
+ publicSections(){return new Set(['theory','practicals','notices','holidays','modules','extraTopics','visits','activities']);},
  async arr(s,q=null){const M=this.fb.M;let r=this.col(s);if(q)r=M.query(r,M.where(q.field,'==',q.value));const z=await M.getDocs(r),a=[];z.forEach(d=>{const x=d.data();if(x.data!=null)a.push(x.data);});return a;},
  async map(s,tid=null){const M=this.fb.M,o={};let r=['attendance','marks','submissions'].includes(s)?this.col(s):this.col('map_'+s);if(tid&&['attendance','marks','submissions'].includes(s))r=M.query(r,M.where('traineeId','==',tid));const z=await M.getDocs(r);z.forEach(d=>{const x=d.data();if(['attendance','marks','submissions'].includes(s)){if(x.key!=null&&x.subKey!=null){o[x.key]=o[x.key]||{};o[x.key][x.subKey]=x.data;}}else if(x.key!=null)o[x.key]=x.data;});return o;},
  async load(role){
@@ -14,7 +14,18 @@ Object.assign(V,{
      z={exists:()=>true,data:()=>seed.data};
    }else z=await M.getDoc(this.ws());
    if(!z.exists())throw new Error('Shared workspace is missing.');
-   const w=z.data(),g=Array.isArray(DATA?.gallery)?DATA.gallery:[],u=Array.isArray(DATA?.users)?DATA.users:[];
+   const w=z.data(),g=role==='student'?[]:(Array.isArray(DATA?.gallery)?DATA.gallery:[]),u=role==='student'?[]:(Array.isArray(DATA?.users)?DATA.users:[]);
+   // Discard the previously signed-in user's local record contents before student reads.
+   if(role==='student'){
+     const clean={};
+     for(const [key,value] of Object.entries(DATA||{})){
+       if(key==='meta')continue;
+       clean[key]=Array.isArray(value)?[]:(value&&typeof value==='object'?{}:null);
+     }
+     DATA=clean;
+     for(const section of ['trainees','theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams','examAttempts','leaves','projects','gallery','users'])if(!Array.isArray(DATA[section]))DATA[section]=[];
+     for(const section of ['attendance','marks','submissions'])if(!DATA[section]||typeof DATA[section]!=='object')DATA[section]={};
+   }
    DATA=DATA||{};DATA.meta={...(DATA.meta||{}),...w,schemaVersion:15,appVersion:'V15'};delete DATA.meta.ownerUid;delete DATA.meta.arraySections;delete DATA.meta.mapSections;DATA.gallery=g;DATA.users=u;
    this.arraySections=new Set(w.arraySections||[]);this.mapSections=new Set(w.mapSections||[]);
    if(role==='student')await this.loadStudent();
