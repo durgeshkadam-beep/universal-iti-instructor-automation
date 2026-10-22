@@ -12,6 +12,7 @@ on:
       - 'tests/phase1-security-rules-test.js'
       - 'tests/phase1-skill-firestore-emulator-test.js'
       - 'tests/phase1-skill-gap-test.js'
+      - 'tests/phase1-market-test.js'
       - 'tests/phase1-skill-gap-dom-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
@@ -26,6 +27,7 @@ on:
       - 'tests/phase1-security-rules-test.js'
       - 'tests/phase1-skill-firestore-emulator-test.js'
       - 'tests/phase1-skill-gap-test.js'
+      - 'tests/phase1-market-test.js'
       - 'tests/phase1-skill-gap-dom-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
@@ -54,11 +56,13 @@ jobs:
       - name: Validate Firestore security rules with emulator
         run: npx --yes firebase-tools@14.23.0 emulators:exec --only firestore --project demo-universal-iti --non-interactive "node tests/phase1-skill-firestore-emulator-test.js"
       - name: Run static and syntax tests
-        run: node tests/v15-production-test.js && node --check v15/v15-skill-verification.js
+        run: node tests/v15-production-test.js && node --check v15/v15-skill-verification.js && node --check v15/v15-local-market.js
       - name: Run Phase 1 security rules regression checks
         run: node tests/phase1-security-rules-test.js
       - name: Run Student Skill Gap calculation tests
         run: node tests/phase1-skill-gap-test.js
+      - name: Run Local Market evidence calculations
+        run: node tests/phase1-market-test.js
       - name: Run lexical App bridge regression test
         run: node tests/v15-lexical-app-bridge-test.js
       - name: Run role/menu DOM smoke tests
