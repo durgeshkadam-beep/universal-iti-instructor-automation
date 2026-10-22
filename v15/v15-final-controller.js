@@ -50,7 +50,8 @@ function ensureStyle(){
     .v15-final-page-error{max-width:980px;margin:18px auto}
     #v15QuickStart{margin-bottom:18px}
     #v15QuickStart .v15-start-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-    #v15QuickStart button{display:flex;flex-direction:column;align-items:flex-start;gap:6px;white-space:normal;text-align:left;padding:16px;min-height:96px;min-width:0;overflow-wrap:anywhere}
+    #v15QuickStart button{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;white-space:normal;text-align:left;padding:16px!important;min-height:96px!important;height:auto;min-width:0;overflow-wrap:anywhere;line-height:1.4}
+    #v15QuickStart button strong,#v15QuickStart button span{flex-shrink:0;font-family:inherit;line-height:1.4}
     #v15QuickStart button span{font-weight:400;font-size:.9rem}
     @media(max-width:650px){#v15QuickStart .v15-start-grid{grid-template-columns:1fr}}
     @media(max-width:1100px){.topbar{flex-wrap:wrap}.topbar .who{width:100%;justify-content:flex-start}#v15FinalWorkspaceSwitcher{max-width:100%;flex:1}#v15FinalWorkspaceSwitcher select{max-width:100%;width:100%}}
@@ -217,7 +218,7 @@ function renderQuickStart(r){
   const host=panel('dashboard');if(!host||!START[r])return;
   host.querySelector('#v15QuickStart')?.remove();
   const card=document.createElement('section');card.id='v15QuickStart';card.className='card';card.setAttribute('aria-label','Main tasks');
-  card.innerHTML='<h2>Start here · मुख्य कामे</h2><p class="muted">Choose a main task below. All other tools remain in the menu.</p><div class="v15-start-grid"></div>';
+  card.innerHTML='<h2>Start here</h2><p class="muted">Choose a main task below. All other tools remain in the menu.</p><div class="v15-start-grid"></div>';
   for(const [target,title,description] of START[r]){
     if(!allowed(r,target))continue;
     const button=document.createElement('button');button.type='button';button.className='btn secondary';button.dataset.quickTab=target;

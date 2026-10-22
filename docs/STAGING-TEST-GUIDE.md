@@ -39,7 +39,7 @@ Operator fixture creation uses `scripts/seed-staging-demo.js` with `GCLOUD_PROJE
 
 ### Faster everyday workflow
 
-Open **Dashboard → Start here / मुख्य कामे**. Instructor shortcuts open Attendance, Verify Student Skills and Plan Training. Student shortcuts open My Attendance, My Skills and Career & Resume Practice. Principal and Staff dashboards similarly expose three main tasks; the full role menu remains available. The Admin portal keeps its existing technical administration screen.
+Open **Dashboard → Start here**. Instructor shortcuts open Attendance, Verify Student Skills and Plan Training. Student shortcuts open My Attendance, My Skills and Career & Resume Practice. Principal and Staff dashboards similarly expose three main tasks; the full role menu remains available. The Admin portal keeps its existing technical administration screen. Shortcut cards keep enough height for their titles and descriptions on mobile.
 
 On this backend-free staging configuration, Career Coach presents the ready-to-use multilingual guided practice without a disabled AI button or an irrelevant consent form. It explicitly identifies the output as structured templates, not generated AI. Online tests show a clear unavailable message and a working dashboard return button. They never grade in the browser.
 
