@@ -260,7 +260,8 @@ service cloud.firestore {
           // Legacy exams contain correctIndex; Firestore cannot hide individual fields.
           allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst)
             || (isStudent(inst) && section != 'exams' && publicStudentSection(section)));
-          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst)
+            && section != 'skillVerifications';
         }
       }
     }
