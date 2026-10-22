@@ -3,7 +3,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {initializeTestEnvironment,assertSucceeds,assertFails}=require('@firebase/rules-unit-testing');
-const {doc,setDoc,getDoc,getDocs,collection,serverTimestamp}=require('firebase/firestore');
+const {doc,setDoc,updateDoc,getDoc,getDocs,collection,query,where,serverTimestamp}=require('firebase/firestore');
 
 (async()=>{
   if(!process.env.FIRESTORE_EMULATOR_HOST)throw Error('Run under Firebase Firestore Emulator.');
@@ -63,6 +63,35 @@ const {doc,setDoc,getDoc,getDocs,collection,serverTimestamp}=require('firebase/f
     }));
     assert.equal((await getDoc(doc(student,profilePath('ws1','student-a')))).data().skills['practical-1'].status,'verified');
     console.log('PASS skill verification: instructor writes, own student reads, others denied, immutable identity.');
+    // Market sources are review-only writes. Students can search active listings,
+    // but may neither write nor retrieve withdrawn job adverts.
+    const market='workspaces/ws1/careerOpportunities';
+    const record=doc(ins,base+'/'+market+'/entry-1');
+    const validated={
+      title:'Junior DTP Operator',employer:'Sample Press',city:'Mumbai',cityKey:'mumbai',
+      skills:['coreldraw','photoshop'],sourceUrl:'https://example.org/jobs/1',
+      expiresAt:'2026-12-30',status:'active',
+      reviewedBy:'instructor-1',reviewedAt:serverTimestamp(),
+      updatedBy:'instructor-1',updatedAt:serverTimestamp()
+    };
+    await assertSucceeds(setDoc(record,validated));
+    await assertSucceeds(getDoc(doc(student,base+'/'+market+'/entry-1')));
+    await assertSucceeds(getDocs(query(collection(student,base+'/'+market),where('status','==','active'))));
+    await assertFails(setDoc(doc(student,base+'/'+market+'/entry-2'),{
+      ...validated,reviewedBy:'student-a',updatedBy:'student-a'
+    }));
+    await assertFails(setDoc(doc(outside,base+'/'+market+'/entry-2'),{
+      ...validated,reviewedBy:'instructor-2',updatedBy:'instructor-2'
+    }));
+    await assertFails(setDoc(doc(ins,base+'/'+market+'/bad-url'),{
+      ...validated,sourceUrl:'http://unsafe.example'
+    }));
+    await assertFails(updateDoc(record,{title:'Altered after approval',updatedAt:serverTimestamp(),updatedBy:'instructor-1'}));
+    await assertSucceeds(updateDoc(record,{status:'withdrawn',updatedAt:serverTimestamp(),updatedBy:'instructor-1'}));
+    await assertFails(getDoc(doc(student,base+'/'+market+'/entry-1')));
+    await assertSucceeds(getDoc(record));
+    console.log('PASS Local Market rules: assigned students active-read, instructors reviewed-write, withdrawal secured.');
+
   }finally{
     await env.cleanup();
   }
