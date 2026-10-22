@@ -37,7 +37,15 @@ Operator fixture creation uses `scripts/seed-staging-demo.js` with `GCLOUD_PROJE
 
 ## Verification status
 
-Staging is deployed and available for manual testing. Local validation passed 17 regression scripts, 36 unit/HTTP/build/transport tests and **20 desktop/mobile browser scenarios**. The last two scenarios create a module through the actual form, confirm its Firestore write, sign in again and verify that the module survives reload. The async navigation regression also verifies that a slow page or shell refresh cannot replace a newer selected route.
+### Faster everyday workflow
+
+Open **Dashboard → Start here / मुख्य कामे**. Instructor shortcuts open Attendance, Verify Student Skills and Plan Training. Student shortcuts open My Attendance, My Skills and Career & Resume Practice. Principal and Staff dashboards similarly expose three main tasks; the full role menu remains available. The Admin portal keeps its existing technical administration screen.
+
+On this backend-free staging configuration, Career Coach presents the ready-to-use multilingual guided practice without a disabled AI button or an irrelevant consent form. It explicitly identifies the output as structured templates, not generated AI. Online tests show a clear unavailable message and a working dashboard return button. They never grade in the browser.
+
+Latest simplification validation: **17 regression scripts, 42 native tests and 22 desktop/mobile browser scenarios passed**. The browser checks click all three shortcuts for each applicable role and verify their destinations, exercise keyless Marathi/Hindi/English practice with the browser offline after login, and return from unavailable exams. A discovered late Staff & Access activation was fixed by removing its duplicate renderer/navigation handler; both the delayed-render DOM regression and actual Principal shortcut navigation pass.
+
+Staging is deployed and available for manual testing. The previously deployed baseline passed 17 regression scripts, 36 unit/HTTP/build/transport tests and **20 desktop/mobile browser scenarios**; the newer totals are above. Module scenarios create a module through the actual form, confirm its Firestore write, sign in again and verify that the module survives reload. The async navigation regression also verifies that a slow page or shell refresh cannot replace a newer selected route.
 
 Actual hosted browser checks passed for all five synthetic roles against the deployed app and real staging Auth/Firestore: Admin (1 route), Principal (6), Instructor (22), Staff (4), Student (15). Instructor skill verification was saved through the UI and its evidence was read by the linked Student. The Student saved a private learning plan, ran Marathi/Hindi/English guided practice, and was denied access to protected exam keys and another student's plan. Mobile containment passed and no request to the production project was observed. This is runtime testing, not a static-source-only check.
 

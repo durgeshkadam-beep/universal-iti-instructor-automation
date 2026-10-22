@@ -9,6 +9,12 @@ Baseline: `98a3d93bce4bcd58370234687a239c803c7985c4`
 
 ## Latest deployment preparation
 
+### Everyday workflow simplification
+
+Added three role-appropriate dashboard shortcuts for Instructor, Student, Principal and Staff while preserving their full permitted menus. Keyless Career Coach shows a direct guided-practice flow; the optional consent/AI controls appear only with an API URL. Unavailable secure exams offer a dashboard return instead of backend configuration instructions. No client answer keys/grading or generative-AI claims were introduced.
+
+The first real-browser shortcut run exposed a Principal race: `v15-staff-dialog-fix.js` rendered Staff & Access a second time after canonical routing and then reactivated it after the user left. Removed the duplicate rendering/activation and delayed click handler. Added its actual wrapper to the delayed-render DOM regression and asserted that Reports stays active. After the fix, `npm test` passed all 17 scripts and 42 native tests; the full emulator browser suite passed **22/22 scenarios**, including shortcut clicks for all applicable roles, mobile containment, offline-after-login guided practice in all three languages, existing HTTP MCQ grading and persisted module/plan/verification flows. The initial two Principal failures are resolved, not omitted from the run history. This revision does not change backend permissions, identity setup or production data.
+
 - Deployed frontend baseline CI run **206 / 39797131007 passed**, including the container, emulator suites, browser scenarios and production dependency audit.
 - Added `render.yaml`: Free Docker service, Singapore, development branch, manual deployments, isolated Firebase project and `AI_PROVIDER=none`. No Render resources, account, IAM policy or service-account key were created.
 - Added an opt-in `ITI_STAGING_ONLY=true` startup guard. The Render configuration rejects foreign projects/credentials, invalid RSA keys, non-staging origins, emulator/alternate Firebase settings and incomplete optional AI configuration before starting the listener. This is a configuration check, not a claim of database/IAM readiness.

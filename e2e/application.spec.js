@@ -22,6 +22,18 @@ async function login(page,role){
 for(const role of ['admin','principal','instructor','staff','student'])test(role+' actual login, every route and mobile containment',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await login(page,role);
+ if(role!=='admin'){
+  await page.evaluate(()=>V15Sync.finalOpenTab('dashboard'));
+  await expect(page.locator('#v15QuickStart')).toHaveCount(1);
+  const targets=await page.locator('#v15QuickStart button').evaluateAll(nodes=>nodes.map(n=>n.dataset.quickTab));
+  expect(targets).toHaveLength(3);
+  for(const target of targets){
+   await page.locator('#v15QuickStart button[data-quick-tab="'+target+'"]').click();
+   await expect(page.locator('#tab-'+target)).toHaveClass(/active/);
+   await page.evaluate(()=>V15Sync.finalOpenTab('dashboard'));
+   await expect(page.locator('#v15QuickStart')).toHaveCount(1);
+  }
+ }
  const tabs=await page.locator('#tabs .tab').evaluateAll(nodes=>nodes.map(n=>n.dataset.tab));
  for(const tab of tabs){
   await page.evaluate(tab=>V15Sync.finalOpenTab(tab),tab);
@@ -34,6 +46,19 @@ for(const role of ['admin','principal','instructor','staff','student'])test(role
  if(test.info().project.name==='mobile')await page.screenshot({path:'.tmp/'+role+'-mobile.png',fullPage:true});
  // Visiting an unauthorized route returns the role's dashboard.
  if(role!=='admin'){await page.evaluate(()=>V15Sync.finalOpenTab('admin-console'));await expect(page.locator('#tab-dashboard')).toHaveClass(/active/);}
+});
+test('student guided practice stays usable offline without an online assistance service',async({page,context})=>{
+ await login(page,'student');
+ await page.evaluate(()=>{window.ITI_RUNTIME.apiUrl='';return V15Sync.finalOpenTab('career-coach');});
+ await expect(page.getByRole('button',{name:'Request optional AI draft'})).toHaveCount(0);
+ await expect(page.getByLabel('I consent')).toHaveCount(0);
+ await context.setOffline(true);
+ for(const lang of ['mr','hi','en']){await page.locator('#coach-language').selectOption(lang);await page.getByRole('button',{name:'Start free guided practice'}).click();await expect(page.locator('#coach-output')).not.toBeEmpty();}
+ await context.setOffline(false);
+ await page.evaluate(()=>V15Sync.finalOpenTab('exams'));
+ await expect(page.locator('#tab-exams')).toContainText('Online tests are not yet available');
+ await page.getByRole('button',{name:'Back to dashboard'}).click();
+ await expect(page.locator('#tab-dashboard')).toHaveClass(/active/);
 });
 test('student private skill plan, multilingual assistance and protected exam through HTTP',async({page})=>{
  await login(page,'student');

@@ -40,6 +40,7 @@ async function build(r){
   // A slow page render must not let shell refresh or an older completion replace a newer selection.
   {
     const {w,V}=await build('principal');await V.applyRolePortal();
+    w.eval(fs.readFileSync(path.join(root,'v15/v15-staff-dialog-fix.js'),'utf8'));
     let release;const delayed=new Promise(resolve=>{release=resolve;});V.renderPrincipalStaff=()=>delayed;
     const first=V.finalOpenTab('users');
     ok(w.localStorage.getItem('iti-v15-tab-v2')==='users','pending page immediately becomes the saved navigation target');
@@ -47,6 +48,7 @@ async function build(r){
     ok(w.document.getElementById('tab-users').classList.contains('active'),'shell refresh preserves the selected pending page');
     await V.finalOpenTab('reports');release();await Promise.all([first,refresh]);
     ok(w.localStorage.getItem('iti-v15-tab-v2')==='reports','older asynchronous page completion cannot overwrite the newer route');
+    ok(w.document.getElementById('tab-reports').classList.contains('active')&&!w.document.getElementById('tab-users').classList.contains('active'),'late Staff & Access completion cannot reactivate the page after leaving');
     w.close();
   }
   if(failures){console.error(`\n${failures} DOM smoke test(s) failed.`);process.exit(1);}console.log('\nAll Universal ITI FINAL DOM smoke tests passed.');
