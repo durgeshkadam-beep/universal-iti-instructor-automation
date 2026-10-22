@@ -188,6 +188,44 @@ service cloud.firestore {
           allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
         }
 
+        // Instructor-verified skills: one private profile per activated student UID.
+        // Students may read ONLY their own verified skill profile, never write it.
+        match /skillVerifications/{studentUid} {
+          allow get: if workspaceAllowed(inst, wid)
+            && (isStaff(inst) || (isStudent(inst) && request.auth.uid == studentUid));
+          allow list: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow create: if workspaceAllowed(inst, wid) && isStaff(inst)
+            && exists(memberPath(inst, studentUid))
+            && get(memberPath(inst, studentUid)).data.active == true
+            && get(memberPath(inst, studentUid)).data.role == 'student'
+            && wid in get(memberPath(inst, studentUid)).data.workspaceIds
+            && request.resource.data.keys().hasOnly(['studentUid','traineeId','workspaceId','skills','updatedAt','updatedBy'])
+            && request.resource.data.keys().hasAll(['studentUid','traineeId','workspaceId','skills','updatedAt','updatedBy'])
+            && request.resource.data.studentUid == studentUid
+            && request.resource.data.traineeId == get(memberPath(inst, studentUid)).data.traineeId
+            && request.resource.data.workspaceId == wid
+            && request.resource.data.skills is map
+            && request.resource.data.skills.size() <= 200
+            && request.resource.data.updatedBy == request.auth.uid
+            && request.resource.data.updatedAt is string;
+          allow update: if workspaceAllowed(inst, wid) && isStaff(inst)
+            && exists(memberPath(inst, studentUid))
+            && get(memberPath(inst, studentUid)).data.active == true
+            && get(memberPath(inst, studentUid)).data.role == 'student'
+            && wid in get(memberPath(inst, studentUid)).data.workspaceIds
+            && resource.data.studentUid == studentUid
+            && request.resource.data.studentUid == resource.data.studentUid
+            && request.resource.data.traineeId == resource.data.traineeId
+            && request.resource.data.workspaceId == resource.data.workspaceId
+            && request.resource.data.traineeId == get(memberPath(inst, studentUid)).data.traineeId
+            && request.resource.data.skills is map
+            && request.resource.data.skills.size() <= 200
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['skills','updatedAt','updatedBy'])
+            && request.resource.data.updatedBy == request.auth.uid
+            && request.resource.data.updatedAt is string;
+          allow delete: if false;
+        }
+
         // Monthly attendance submit/approve/reopen governance.
         match /attendanceLocks/{month} {
           allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
