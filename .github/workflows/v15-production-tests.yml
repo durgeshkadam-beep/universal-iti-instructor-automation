@@ -26,6 +26,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium
       - run: npm test
+      - run: npm run build:web
+      - run: node scripts/container-smoke.js
       - run: npm run test:rules
       - run: npm run test:e2e
       - run: npm run audit:production

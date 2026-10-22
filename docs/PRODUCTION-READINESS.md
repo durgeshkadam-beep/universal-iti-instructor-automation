@@ -1,12 +1,12 @@
 # Staging readiness and release procedure
 
-Status: implemented changes under review on `phase1/security-student-career-20261021`, Draft PR #16. **Not approved for production.** No main-branch merge, deployment or production record changes are part of this work.
+Status: implemented changes under review on `phase1/security-student-career-20261021`, Draft PR #16. **Owner approval received; release is still blocked on connected Firebase access, an explicit release target and staging acceptance.** No main-branch merge, deployment or production record changes have occurred.
 
 ## Architecture
 
 The root entry redirects to `/final/`, which redirects to `/v15/`; the fetched legacy HTML serves only as its shell. Its canonical controller supplies five role portals. Google/Firebase Auth verifies identity; Firestore rules authorize each read/write. The institute's `ownerUid` controls System Admin capability. A client-selected role never grants backend privileges. Principal and owner have institute-wide access; instructors, staff and students require assigned workspaces. Staff cannot write official records; students can access only their own protected records and the published syllabus/notices.
 
-Use `config/runtime.js` for **public** deployment settings (`apiUrl`). The standalone `server/index.js` runs on loopback behind an HTTPS reverse proxy. Its Firebase Admin SDK uses workload identity or Application Default Credentials from the hosting environment. The browser sends a Firebase ID token; the API verifies revocation and re-reads active membership and workspace assignment on every call. Never host the repository root with an unrestricted static server: server code, environment files, tests, package metadata and credentials must not be published. `firebase.json` excludes backend and test files from Hosting; equivalent exclusions are required on other hosts.
+Use `config/runtime.js` for **public** deployment settings (`apiUrl`). The standalone `server/index.js` runs on loopback behind an HTTPS reverse proxy. Its Firebase Admin SDK uses workload identity or Application Default Credentials from the hosting environment. The browser sends a Firebase ID token; the API verifies revocation and re-reads active membership and workspace assignment on every call. Never host the repository root with an unrestricted static server: server code, environment files, tests, package metadata and credentials must not be published. `npm run build:web` creates an allowlisted `dist/web` containing only browser assets and a SHA-256 build manifest. Firebase Hosting serves that directory. Backend, tests, package metadata, environment files and repository metadata are excluded by construction. Browser tests run this bundle. Use this same output on other static hosts.
 
 ## Reproducible validation
 
@@ -16,6 +16,7 @@ Use Node 22 and Java 21. From the repository root:
 npm ci --ignore-scripts
 npx playwright install --with-deps chromium
 npm test
+npm run build:web
 npm run test:rules
 npm run test:e2e
 npm run audit:production
@@ -68,14 +69,37 @@ Offline mode supports changes to already-loaded data. A cold offline login canno
 
 ## Required owner actions before a release
 
-1. Review Draft PR #16; keep it unmerged until explicitly approved.
-2. Create/use a separate staging Firebase project; configure Google sign-in, authorized domains and synthetic accounts for all five roles. Supply public staging Firebase config to `config/runtime.js` (`firebaseConfig`) and staging ADC/workload identity to the backend. For a new empty staging project, sign in once with the intended owner, ensure that Auth user is verified, then set `GCLOUD_PROJECT` to a project ending in `-staging`, `BOOTSTRAP_OWNER_EMAIL`, and `ALLOW_STAGING_BOOTSTRAP=true` and run `node scripts/bootstrap-staging.js`. This one-time initializer refuses an existing institute and creates no trainees. Existing institutes use their existing owner/membership records. Never reuse a production service account in tests.
+1. Owner approval is recorded. Review Draft PR #16 and complete staging acceptance before merging the tested commit; approval alone does not provide Firebase credentials or a target project.
+2. Create/use a separate staging Firebase project; configure Google sign-in, authorized domains and synthetic accounts for all five roles. Supply an external JSON file through `ITI_PUBLIC_RUNTIME_FILE` with public staging Firebase config and HTTPS API URL, and staging ADC/workload identity to the backend. For a new empty staging project, sign in once with the intended owner, ensure that Auth user is verified, then set `GCLOUD_PROJECT` to a project ending in `-staging`, `BOOTSTRAP_OWNER_EMAIL`, and `ALLOW_STAGING_BOOTSTRAP=true` and run `node scripts/bootstrap-staging.js`. This one-time initializer refuses an existing institute and creates no trainees. Existing institutes use their existing owner/membership records. Never reuse a production service account in tests.
 3. Set up the HTTPS Node backend, exact origin allowlist and `config/runtime.js` URL. Keep `AI_PROVIDER=none` initially. Protect backend filesystem/environment and configure a process supervisor, TLS, monitoring and platform request limits. Use a least-privilege service identity and test revoked/disabled accounts.
-4. **After approval**, publish the tested rules to staging, test Google popup/redirect on real Android/iOS devices, PDF/Excel/Word imports, printing/Drive OAuth, real account onboarding, data migration/backup and restore, all institute-specific forms, slow/offline networks and recovery. Emulator coverage does not certify those external integrations.
+4. With approval recorded and the target project verified, publish the tested rules to staging, test Google popup/redirect on real Android/iOS devices, PDF/Excel/Word imports, printing/Drive OAuth, real account onboarding, data migration/backup and restore, all institute-specific forms, slow/offline networks and recovery. Emulator coverage does not certify those external integrations.
 5. If enabling AI, choose self-hosted or external provider and approve its data policy, quotas and spending configuration. Validate response quality in all three languages with instructors. Mock interviews are text-only; microphone/camera permissions are disabled.
 6. Configure a protected GitHub `production` environment with required reviewers. The rules-deployment workflow is restricted to `main` and that environment. Existing repository-level Pages settings are outside this branch's control and were not changed.
-7. Approve a rollout, migration, backup/rollback and exam outage policy. Only then explicitly authorize any main merge and production deployment. This work has not performed either.
+7. Approve a rollout, migration, backup/rollback and exam outage policy. The owner has approved proceeding, but these readiness gates still apply before executing a merge/deployment. This work has not performed either.
 
 Development tooling still has upstream dependency advisories; see the validation report for exact packages and severity. Production installs must use `npm ci --omit=dev --ignore-scripts`. Do not ship the Firebase CLI or emulator tooling with the backend.
 
 The production audit command retries only unavailable/malformed registry responses and fails on real findings or exhausted retries. Its JSON result is included in the CI validation artifact. Instructor invitation management is restricted to the student workspaces assigned to that instructor.
+
+
+## Deployment package and target guard
+
+Build and test the backend container with `docker build -t iti-api .` and `node scripts/container-smoke.js` (the latter builds its own test image). CI runs the smoke check without credentials or database writes. The image installs production dependencies only, runs as the unprivileged Node user, binds `0.0.0.0` on injected `PORT`, and defaults to no AI. `/healthz` returns only an availability flag; it does not certify database access. Restrict the hosting service identity to the selected Firebase project. Configure `GCLOUD_PROJECT`, `ALLOWED_ORIGINS` and workload identity in the hosting account; never bake credentials into the image. Container hosting may require an account and billing; no hosting resources or paid services are provisioned by this repository.
+
+For a release, create a public-only configuration file outside the checkout:
+
+```json
+{
+  "apiUrl": "https://YOUR-STAGING-API-HOST/api",
+  "firebaseConfig": {
+    "apiKey": "YOUR-PUBLIC-FIREBASE-WEB-KEY",
+    "projectId": "YOUR-STAGING-PROJECT",
+    "authDomain": "YOUR-STAGING-PROJECT.firebaseapp.com",
+    "appId": "YOUR-FIREBASE-WEB-APP-ID"
+  }
+}
+```
+
+Set `ITI_PUBLIC_RUNTIME_FILE` to its absolute path and run `npm run release:check`. The check rejects missing settings, backend/secret fields and non-HTTPS or credential-bearing API URLs. `firebase deploy --only hosting --project YOUR-STAGING-PROJECT` runs that guard before deployment. Rules are published separately using `firebase deploy --only firestore:rules --project YOUR-STAGING-PROJECT`, after reviewing the exact target. These commands require a connected, authorized Firebase account; they have not been executed. A normal `build:web` without explicit configuration is a test artifact, not a release candidate, because the historical Firebase fallback remains in source.
+
+The public configuration must select the same project as the authenticated backend and rules deployment. The build validates the shape, not account ownership, endpoint reachability or project equality; verify those in connected staging before release. Keep production promotion, data migration, backup and rollback separate from synthetic staging tests.

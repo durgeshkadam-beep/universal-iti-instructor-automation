@@ -11,3 +11,4 @@ test-results/
 .tmp/
 coverage/
 config/runtime.local.js
+dist/

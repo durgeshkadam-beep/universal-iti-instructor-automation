@@ -5,7 +5,7 @@ Development branch: `phase1/security-student-career-20261021`
 Review: Draft PR #16
 Baseline: `98a3d93bce4bcd58370234687a239c803c7985c4`
 
-**Release status: staging implementation, not production-approved.** This report does not certify that every legacy form, external integration or real-device scenario is production-ready. Main was not merged or modified; nothing was deployed, and no production Firebase records were accessed or changed. All runtime test records were synthetic in `demo-universal-iti`.
+**Release status: owner approval received; staging configuration and acceptance remain required.** This report does not certify that every legacy form, external integration or real-device scenario is production-ready. Main was not merged or modified; nothing was deployed, and no production Firebase records were accessed or changed. All runtime test records were synthetic in `demo-universal-iti`.
 
 ## Implemented
 
@@ -45,7 +45,7 @@ Local runtime: Node 24.19.0 and Temurin Java 21.0.12.1. CI specifies Node 22 and
 - Attendance and skill drafts survive temporary disconnects on an already-loaded session. Cold offline authentication is unsupported. Local drafts/pending operations are unencrypted; use separate browser profiles on shared devices. General multi-device merge/conflict UI is not implemented.
 - Secure exams have one attempt per published exam ID. There is no automatic expiry submission, proctoring, accommodations/retake workflow or migration of legacy questions. Define institute policy and complete staging acceptance before use.
 - The full historical app includes document imports, print/Drive workflows, Android WebView behavior and many institute-specific legacy forms. These have not all been exercised against real accounts/devices. Real Google onboarding, backup/migration/restore, external document helpers, accessibility with assistive technology and live AI language quality remain release gates. This work is not a full penetration-test certification.
-- CI never deploys. Configure required reviewers for the `production` environment. Neither main merge nor production deployment is authorized by this task.
+- CI never deploys. Configure required reviewers for the `production` environment. Approval to proceed has been received; main and production remain unchanged pending connected target configuration and acceptance.
 
 See the PR description for the final commit and remote-check status.
 
@@ -65,3 +65,16 @@ The previously pending PR run 196 completed with all functional tests passing, b
 - Added emulator attacks for foreign-workspace reads, enumeration, deletion, replacement and new-secret creation, plus allowed own-workspace creation/rotation/deletion.
 
 Follow-up local validation: 17 regression scripts and 19 unit tests passed; the three emulator suites passed; production audit reported zero vulnerabilities. All 14 desktop/mobile browser scenarios also passed. The current remote run is tracked in PR #16. No production configuration, data, deployment or main-branch change is included.
+
+
+## Approved-release preparation
+
+Owner approval was received after the initial implementation. Firebase access and the release project/backend URL are still unavailable. No merge, deployment or real-record changes have occurred.
+
+- Added an allowlisted public web build, SHA-256 asset manifest, release configuration guard and Hosting predeploy check. Hosting now serves `dist/web`, never the repository root. Release configuration must be explicit; missing config intentionally fails.
+- Added a production-only, non-root Node 22 backend container and CI container health/authentication smoke check. Docker is unavailable locally; the image check is delegated to CI.
+- Hardened the real HTTP boundary with exact origin validation, route/method checks, JSON-only bounded bodies, token requirement, generic unexpected errors and a data-free health endpoint.
+- Added 8 actual HTTP request tests and 4 deployment bundle/configuration tests. Browser scenarios now load the generated deployment bundle and verify that backend and repository files return 404.
+- The preceding commit `fc5838669fcc73fcb8a3e52b92211671a636012d` passed GitHub Actions run 39746292866 on Node 22/Java 21, including all functional/emulator/browser checks and a zero-vulnerability production audit. New preparation changes require their own CI result.
+
+Release preparation local validation: **17 regression scripts + 31 unit/HTTP/build tests passed; all 3 emulator suites passed; all 16 desktop/mobile E2E scenarios passed against the generated bundle; production audit reported zero vulnerabilities; diff integrity passed.** The missing-runtime release guard failed with the expected explicit configuration message. The protected rules workflow now uses Node 22 and the locked local Firebase CLI. Container validation and all Node 22 checks run in CI; see PR #16 for the resulting run.
