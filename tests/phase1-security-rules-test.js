@@ -40,5 +40,18 @@ assert.equal((rules.match(/service cloud\.firestore/g)||[]).length,1,'exactly on
 assert.equal((rules.match(/match \/databases\/\{database\}\/documents/g)||[]).length,1,'duplicate ruleset must never be concatenated');
 assert.equal((rules.match(/function attendanceUnlocked/g)||[]).length,1,'attendance month helper must be unique');
 assert.ok(rules.trim().endsWith('}\n  }\n}'),'ruleset must close normally');
-assert.ok(rules.split('\n').length<260,'unexpectedly long Firestore rules source (possible duplicate append)');
+assert.ok(rules.split('\n').length<360,'unexpectedly long Firestore rules source (possible duplicate append)');
 console.log('Phase 1 Firestore rules integrity invariants: PASS (static checks only).');
+
+
+const skillRules=rules.match(/match \/skillVerifications\/\{studentUid\} \{([\s\S]*?)\n\s*\}/)?.[1]||'';
+const verifyModule=fs.readFileSync(path.join(root,'v15/v15-skill-verification.js'),'utf8');
+assert.match(skillRules,/request\.auth\.uid == studentUid/,'student may read only own verified profile');
+assert.match(skillRules,/request\.resource\.data\.traineeId == get\(memberPath/,'instructor may write only linked trainee');
+assert.match(skillRules,/request\.resource\.data\.updatedAt == request\.time/,'instructor verification timestamp must be server time');
+assert.match(skillRules,/request\.resource\.data\.diff\(resource\.data\)\.affectedKeys\(\)\.hasOnly/,'student identity cannot be changed');
+assert.match(rules,/section != 'skillVerifications'/,'generic workspace writes cannot bypass verification rules');
+assert.match(verifyModule,/runTransaction/,'skill verification update is transactional');
+assert.match(loader,/v15\/v15-skill-verification\.js/,'new skill verification module loaded');
+assert.match(controller,/\['skill-review','✅ Verify Skills'\]/,'instructor skill verification navigation registered');
+console.log('PASS Firebase verified skills static access invariants.');
