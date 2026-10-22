@@ -12,6 +12,7 @@ on:
       - 'tests/phase1-security-rules-test.js'
       - 'tests/phase1-skill-firestore-emulator-test.js'
       - 'tests/phase1-skill-gap-test.js'
+      - 'tests/phase1-skill-gap-dom-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
       - 'tests/v15-final-polish-test.js'
@@ -25,6 +26,7 @@ on:
       - 'tests/phase1-security-rules-test.js'
       - 'tests/phase1-skill-firestore-emulator-test.js'
       - 'tests/phase1-skill-gap-test.js'
+      - 'tests/phase1-skill-gap-dom-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
       - 'tests/v15-final-polish-test.js'
@@ -61,5 +63,7 @@ jobs:
         run: node tests/v15-lexical-app-bridge-test.js
       - name: Run role/menu DOM smoke tests
         run: node tests/v15-final-dom-test.js
+      - name: Run Student Skill Gap DOM tests
+        run: node tests/phase1-skill-gap-dom-test.js
       - name: Run Principal/workspace final polish tests
         run: node tests/v15-final-polish-test.js
