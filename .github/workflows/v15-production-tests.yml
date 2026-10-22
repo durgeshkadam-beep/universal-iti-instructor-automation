@@ -10,6 +10,7 @@ on:
       - 'firestore.rules'
       - 'tests/v15-production-test.js'
       - 'tests/phase1-security-rules-test.js'
+      - 'tests/phase1-skill-firestore-emulator-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
       - 'tests/v15-final-polish-test.js'
@@ -21,6 +22,7 @@ on:
       - 'firestore.rules'
       - 'tests/v15-production-test.js'
       - 'tests/phase1-security-rules-test.js'
+      - 'tests/phase1-skill-firestore-emulator-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
       - 'tests/v15-final-polish-test.js'
@@ -43,16 +45,16 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Install browser and Firebase test dependencies
+        run: npm install --no-save --ignore-scripts jsdom@25 firebase@11.10.0 @firebase/rules-unit-testing@4.0.1
       - name: Validate Firestore security rules with emulator
-        run: npx --yes firebase-tools@14.23.0 emulators:exec --only firestore --project demo-universal-iti --non-interactive "node tests/phase1-security-rules-test.js"
+        run: npx --yes firebase-tools@14.23.0 emulators:exec --only firestore --project demo-universal-iti --non-interactive "node tests/phase1-skill-firestore-emulator-test.js"
       - name: Run static and syntax tests
-        run: node tests/v15-production-test.js
+        run: node tests/v15-production-test.js && node --check v15/v15-skill-verification.js
       - name: Run Phase 1 security rules regression checks
         run: node tests/phase1-security-rules-test.js
       - name: Run lexical App bridge regression test
         run: node tests/v15-lexical-app-bridge-test.js
-      - name: Install DOM test dependency
-        run: npm install --no-save --ignore-scripts jsdom@25
       - name: Run role/menu DOM smoke tests
         run: node tests/v15-final-dom-test.js
       - name: Run Principal/workspace final polish tests
