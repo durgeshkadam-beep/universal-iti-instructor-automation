@@ -5,7 +5,16 @@ Development branch: `phase1/security-student-career-20261021`
 Review: Draft PR #16
 Baseline: `98a3d93bce4bcd58370234687a239c803c7985c4`
 
-**Release status: owner approval received; staging configuration and acceptance remain required.** This report does not certify that every legacy form, external integration or real-device scenario is production-ready. Main was not merged or modified; nothing was deployed, and no production Firebase records were accessed or changed. All runtime test records were synthetic in `demo-universal-iti`.
+**Release status: isolated frontend staging deployed; hosted backend and remaining acceptance are still required.** This report does not certify that every legacy form, external integration or real-device scenario is production-ready. Main was not merged or modified; no production deployment or real-student record changes occurred. Runtime test records were synthetic in `demo-universal-iti` and the separate `universal-iti-dk-staging` project. Later sections preserve the sequence of findings and fixes.
+
+## Latest deployment preparation
+
+- Deployed frontend baseline CI run **206 / 39797131007 passed**, including the container, emulator suites, browser scenarios and production dependency audit.
+- Added `render.yaml`: Free Docker service, Singapore, development branch, manual deployments, isolated Firebase project and `AI_PROVIDER=none`. No Render resources, account, IAM policy or service-account key were created.
+- Added an opt-in `ITI_STAGING_ONLY=true` startup guard. The Render configuration rejects foreign projects/credentials, invalid RSA keys, non-staging origins, emulator/alternate Firebase settings and incomplete optional AI configuration before starting the listener. This is a configuration check, not a claim of database/IAM readiness.
+- Updated local `npm test`: **17 regression scripts + 42 native tests PASS**. Six new tests include actual child-process startup with an ephemeral synthetic RSA credential, live HTTP health/CORS/unauthenticated checks, and actual startup refusal for a foreign project. Generated synthetic key files are deleted after the test; no keys are checked in.
+- Render Blueprint YAML parses successfully. Docker is unavailable in this local workspace, so a new local container rebuild could not run; the branch CI supplies that check. The earlier deployed baseline container smoke passed in CI. Do not report the new revision's CI as passed until it completes.
+- Hosted MCQ publishing/grading and optional generation remain unavailable: `apiUrl` is empty and Render is not connected. Follow [the staging deployment and authenticated acceptance procedure](RENDER-STAGING.md). A green `/healthz` alone must never be presented as successful examination/AI acceptance.
 
 ## Implemented
 
@@ -27,9 +36,9 @@ Baseline: `98a3d93bce4bcd58370234687a239c803c7985c4`
 
 | Command/check | Result |
 |---|---|
-| `npm test` | PASS: 17 regression/DOM/functional scripts and 13 service unit tests. Includes guided languages, provider contracts/consent/failure redaction and offline queue race/denial/isolation tests. |
+| `npm test` | PASS: latest run has 17 regression/DOM/functional scripts and 42 native tests. Includes guidance/provider contracts, HTTP/build/transport/bootstrap/navigation coverage and the staging startup boundary described above. |
 | `npm run test:rules` | PASS: 3 emulator suites: verified skills/market permissions, six-identity security attack matrix, and actual Firestore-backed exam service. Expected PERMISSION_DENIED logs are successful negative assertions. |
-| `npm run test:e2e` | PASS: 14 Chromium scenarios across 1440px desktop and 390px mobile. Actual app scripts, Auth/Firestore emulators and HTTP backend; saved-role login, every navigation route, private plan save, three-language practice, optional no-AI backend response, MCQ result, instructor verification visible to student, offline attendance replay. |
+| `npm run test:e2e` | PASS: latest frontend baseline has 20 Chromium scenarios across 1440px desktop and 390px mobile. Actual app scripts, Auth/Firestore emulators and HTTP backend; saved-role login, every navigation route, private plan save, three-language practice, optional no-AI backend response, MCQ result, instructor verification visible to student, offline attendance replay, module save/relogin persistence. |
 | Calendar timezone regression | PASS in both `TZ=UTC` and `TZ=Asia/Kolkata`. |
 | Mobile visual review | Inspected rendered student market screenshots; fixed inline label/input layout and heading fallback, then reran browser checks. |
 | Production dependency audit | PASS: zero reported vulnerabilities after Firebase Admin update and gRPC override. Development-only advisories are documented below. |

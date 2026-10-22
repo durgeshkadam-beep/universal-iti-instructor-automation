@@ -104,6 +104,8 @@ Set `ITI_PUBLIC_RUNTIME_FILE` to its absolute path and run `npm run release:chec
 
 The public configuration must select the same project as the authenticated backend and rules deployment. The build validates the shape, not account ownership, endpoint reachability or project equality; verify those in connected staging before release. Keep production promotion, data migration, backup and rollback separate from synthetic staging tests.
 
+The optional [Render staging recipe](RENDER-STAGING.md) supplies a Free/manual-deploy Blueprint pinned to the development branch. With `ITI_STAGING_ONLY=true`, backend startup rejects a foreign project/credential, non-staging origins, emulator overrides and invalid AI configuration before listening. This guard is deliberately specific to the isolated staging service-account secret-file deployment; it does not change ordinary workload-identity hosting. A successful startup/health response does not prove IAM permissions or authenticated examination functionality. Render is not connected or deployed yet, and hosted secure MCQ/generative AI remain unavailable until that setup and acceptance testing are completed.
+
 
 ## Staging site created
 

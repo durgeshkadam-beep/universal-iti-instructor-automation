@@ -1,4 +1,5 @@
 'use strict';
+if(process.env.ITI_STAGING_ONLY==='true')require('./staging-runtime').validateStagingRuntime();
 const http=require('node:http');
 const {initializeApp,getApps}=require('firebase-admin/app');
 const {getAuth}=require('firebase-admin/auth');
