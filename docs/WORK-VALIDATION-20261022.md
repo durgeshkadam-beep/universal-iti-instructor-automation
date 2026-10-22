@@ -85,3 +85,13 @@ Release preparation local validation: **17 regression scripts + 31 unit/HTTP/bui
 On explicit request, created `universal-iti-dk-staging`, its web app, Standard Firestore database in Mumbai, email/password and Google sign-in providers, and deployed tested rules/indexes plus the allowlisted frontend. Billing is disabled. Seeded five synthetic Auth/membership identities and a small DTP dataset. No production project access or main merge occurred. Public test URL, current live-test blockers and backend limitations are in [the staging guide](STAGING-TEST-GUIDE.md). Public Firebase SDK configuration is versioned; passwords/operator tokens are excluded. Added staging-only password UI, wrong-password/wrong-role tests, and a narrowly scoped backend-free staging release exception.
 
 Staging follow-up local checks: 17 regression scripts + 34 unit/HTTP/build/transport tests, and 18 desktop/mobile scenarios passed. The staging account form rejects incorrect passwords and wrong roles, and permits retry with the assigned role. A live unauthenticated transport comparison isolated the environment proxy issue; staging now initializes long polling while ordinary releases retain default transport. Renewed operator authentication is needed to deploy that final transport/login-label refinement and rotate synthetic account passwords after a workspace restart.
+
+
+### Staging access recovery and published refinement
+
+Operator authentication was renewed. Approved the owner's verified Google identity as an Instructor in the isolated staging workspace, preserving the synthetic Admin owner; restored five private synthetic passwords without modifying Firestore fixture records. Deployed final staging transport/login refinements and verified delivered asset hashes and private-file 404 responses. GitHub CI run 202 passed on Node 22/Java 21. Live browser Auth succeeded, but authenticated Firestore reads still reported offline in the automated proxy environment, so hosted role E2E/plan-save checks are explicitly not passed. See the updated staging guide; manual Google login/device acceptance and backend hosting remain outstanding.
+
+
+### Slow startup read recovery
+
+Added fresh server-only membership/institute bootstrap reads with bounded transient-connection retry; permission denials and known offline state do not retry. Local validation: 17 regression scripts, 36 unit/HTTP/build/transport tests and all 18 desktop/mobile scenarios passed. Deployed this refinement to staging. A real-host Student probe passed its 15 routes, actual private-plan save, three-language guidance and protected-read denial checks with zero production requests. Full hosted five-role retest follows; the earlier live failures are retained above as prior results, not counted as passes.
