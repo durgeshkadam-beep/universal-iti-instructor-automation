@@ -13,6 +13,7 @@ on:
       - 'tests/phase1-skill-firestore-emulator-test.js'
       - 'tests/phase1-skill-gap-test.js'
       - 'tests/phase1-market-test.js'
+      - 'tests/phase1-market-dom-test.js'
       - 'tests/phase1-skill-gap-dom-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
@@ -28,6 +29,7 @@ on:
       - 'tests/phase1-skill-firestore-emulator-test.js'
       - 'tests/phase1-skill-gap-test.js'
       - 'tests/phase1-market-test.js'
+      - 'tests/phase1-market-dom-test.js'
       - 'tests/phase1-skill-gap-dom-test.js'
       - 'tests/v15-final-dom-test.js'
       - 'tests/v15-lexical-app-bridge-test.js'
@@ -63,6 +65,8 @@ jobs:
         run: node tests/phase1-skill-gap-test.js
       - name: Run Local Market evidence calculations
         run: node tests/phase1-market-test.js
+      - name: Run Local Market browser interactions
+        run: node tests/phase1-market-dom-test.js
       - name: Run lexical App bridge regression test
         run: node tests/v15-lexical-app-bridge-test.js
       - name: Run role/menu DOM smoke tests
