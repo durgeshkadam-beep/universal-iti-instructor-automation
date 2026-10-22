@@ -26,6 +26,8 @@ Help an ITI trainee choose a city, explore recorded employers and vacancies, see
 
 **Student** sees Job Market. Student manually selects city/district and preferred skill. Dashboard shows number of distinct tracked employers, tracked active listings, skill mention frequencies, sample size warnings and original job source links. There is an external link to the National Career Service portal `https://ncs.gov.in/`, but listings are **not** imported or mirrored from NCS.
 
+**Added on 22 Oct 2026:** After selecting a city and optional skill, Students can open a Google Maps company search via a URL with `api=1` and URL-encoded terms. Google confirms Maps URLs require **no Google API key**. Search results remain on Google Maps, not collected or counted in the app; a business listing does **not** imply recruitment. This does not request GPS permission or incur Places API usage.
+
 **Not yet offered**: precise GPS distance, all registered companies nearby, real-time vacancy count for an entire city, market-wide popularity ranking, salary forecast, job applications, scraping, automatic NCS API.
 
 **Data integrity**: Count among reviewed listings only, deduplicate repeated skill tags within each posting, ignore expired/withdrawn/invalid-URL entries, compute per-city frequencies, never silently turn missing evidence into a positive assessment. No fake seed listings in production.
