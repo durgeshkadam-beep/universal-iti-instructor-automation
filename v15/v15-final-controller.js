@@ -186,6 +186,7 @@ async function renderStudent(name){
     return;
   }
   if(name==='skills')return V.renderSkillPassport?.();
+  if(name==='skill-gap')return V.renderStudentSkillGap?.();
   if(name==='dashboard')V.renderStudentDashboard?.();
   else renderLegacyInstructor(name);
   if(name==='notices')await V.injectInstituteNotices?.();
