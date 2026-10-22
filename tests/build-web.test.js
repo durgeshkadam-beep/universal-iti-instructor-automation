@@ -9,3 +9,9 @@ test('public bundle includes executable app assets but no backend/test/env/repos
 test('release configuration cannot silently fall back to production Firebase',()=>{assert.throws(()=>validateRuntime(null,{required:true}),/Explicit staging/);assert.throws(()=>validateRuntime({apiUrl:''},{required:true}),/Explicit staging/);assert.doesNotThrow(()=>validateRuntime(runtime,{required:true}));});
 test('backend keys and service account fields cannot enter public configuration',()=>{for(const extra of [{AI_API_KEY:'synthetic'}, {private_key:'synthetic'}])assert.throws(()=>validateRuntime({...runtime,...extra}),/Only public/);assert.throws(()=>validateRuntime({...runtime,firebaseConfig:{...runtime.firebaseConfig,private_key:'synthetic'}}),/Only public/);});
 test('API URLs cannot contain credentials or insecure transport',()=>{for(const apiUrl of ['http://api.example.test/api','https://user:password@example.test/api','https://api.example.test/api#secret'])assert.throws(()=>validateRuntime({...runtime,apiUrl}));});
+test('backend-free staging release requires an isolated staging project',()=>{
+ assert.doesNotThrow(()=>validateRuntime({...runtime,staging:true,apiUrl:''},{required:true}));
+ assert.throws(()=>validateRuntime({...runtime,staging:true,firebaseConfig:{...runtime.firebaseConfig,projectId:'real-production'}},{required:true}),/isolated/);
+ assert.throws(()=>validateRuntime({...runtime,staging:'true'},{required:true}),/isolated/);
+ assert.throws(()=>validateRuntime({...runtime,apiUrl:''},{required:true}),/Explicit staging/);
+});

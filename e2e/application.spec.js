@@ -76,3 +76,26 @@ test('instructor assessment is visible to student; offline queue flush preserves
 
 // Verify the actual deployment bundle, not the source checkout.
 test('hosting bundle keeps backend and repository files private',async({request})=>{for(const file of ['/server/service.js','/server/.env','/package.json','/firestore.rules','/.git/config'])expect((await request.get(file)).status()).toBe(404);expect((await request.get('/build-manifest.json')).status()).toBe(200);});
+test('staging password form rejects bad credentials and authenticates assigned student',async({page})=>{
+ await page.route(/https:\/\/.*/,r=>r.abort());await page.goto('/v15/index.html');
+ await page.waitForFunction(()=>window.V15Sync?.renderSecureExams);await page.addScriptTag({url:'/.tmp/test-sdk.js'});
+ await page.evaluate(()=>{
+  const V=V15Sync,M=ITITestFirebase,cfg={apiKey:'test-api-key',projectId:'demo-universal-iti',authDomain:'localhost',appId:'test-app'};
+  V.modules=async()=>M;V.config=()=>cfg;V.fb.M=M;
+  const app=M.initializeApp(cfg,'iti-v15'),auth=M.getAuth(app),db=M.getFirestore(app);
+  M.connectAuthEmulator(auth,'http://127.0.0.1:9099',{disableWarnings:true});M.connectFirestoreEmulator(db,'127.0.0.1',8080);
+  window.ITI_RUNTIME={staging:true,firebaseConfig:{projectId:'demo-iti-staging'},apiUrl:''};
+ });
+ await page.addScriptTag({url:'/v15/v15-staging-login.js'});
+ await expect(page.locator('#stagingNotice')).toContainText('Synthetic test data');
+ await page.locator('#loginRole').selectOption('student');await page.locator('#v15ExpectedEmail').fill('student@example.test');
+ await page.locator('#stagingPassword').fill('incorrect-test-password');await page.locator('#stagingSignIn').click();
+ await expect(page.locator('#v15LoginStatus')).toContainText('Staging sign-in failed');
+ expect(await page.evaluate(()=>V15Sync.ready)).toBeFalsy();
+ await page.locator('#loginRole').selectOption('admin');await page.locator('#stagingPassword').fill('Synthetic-Test-Password-49!');await page.locator('#stagingSignIn').click();
+ await expect(page.locator('#v15LoginStatus')).toContainText('registered as Student');expect(await page.evaluate(()=>V15Sync.ready)).toBeFalsy();
+ await page.locator('#loginRole').selectOption('student');
+ await page.locator('#stagingPassword').fill('Synthetic-Test-Password-49!');await page.locator('#stagingSignIn').click();
+ await expect(page.locator('#appShell')).toBeVisible();expect(await page.evaluate(()=>V15Sync.currentRole())).toBe('student');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
+});

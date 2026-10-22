@@ -1,6 +1,6 @@
 # Staging readiness and release procedure
 
-Status: implemented changes under review on `phase1/security-student-career-20261021`, Draft PR #16. **Owner approval received; release is still blocked on connected Firebase access, an explicit release target and staging acceptance.** No main-branch merge, deployment or production record changes have occurred.
+Status: implemented changes under review on `phase1/security-student-career-20261021`, Draft PR #16. **Owner approval received; an isolated staging project/site now exists; production release remains blocked on backend hosting and staging acceptance.** No main-branch merge, deployment or production record changes have occurred.
 
 ## Architecture
 
@@ -103,3 +103,8 @@ For a release, create a public-only configuration file outside the checkout:
 Set `ITI_PUBLIC_RUNTIME_FILE` to its absolute path and run `npm run release:check`. The check rejects missing settings, backend/secret fields and non-HTTPS or credential-bearing API URLs. `firebase deploy --only hosting --project YOUR-STAGING-PROJECT` runs that guard before deployment. Rules are published separately using `firebase deploy --only firestore:rules --project YOUR-STAGING-PROJECT`, after reviewing the exact target. These commands require a connected, authorized Firebase account; they have not been executed. A normal `build:web` without explicit configuration is a test artifact, not a release candidate, because the historical Firebase fallback remains in source.
 
 The public configuration must select the same project as the authenticated backend and rules deployment. The build validates the shape, not account ownership, endpoint reachability or project equality; verify those in connected staging before release. Keep production promotion, data migration, backup and rollback separate from synthetic staging tests.
+
+
+## Staging site created
+
+The owner selected a new isolated staging project. See [staging test guide](STAGING-TEST-GUIDE.md) for the deployed URL, account provisioning, explicit no-backend limitations and live verification status. This staging deployment does not promote main or deploy production.

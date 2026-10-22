@@ -5,8 +5,9 @@ const ROOT_ASSETS=['index.html','start.html','style.css','app.js','ai.js','cloud
 function validateRuntime(runtime,{required=false}={}){
  if(!runtime&&required)throw Error('Explicit staging Firebase config and HTTPS API URL are required before release');
  if(!runtime||typeof runtime!=='object'||Array.isArray(runtime))throw Error('Public runtime must be an object');
- if(Object.keys(runtime).some(k=>!['apiUrl','firebaseConfig'].includes(k)))throw Error('Only public API URL and Firebase web config are accepted; never supply secrets');
- if(required&&(!runtime.apiUrl||!runtime.firebaseConfig))throw Error('Explicit staging Firebase config and HTTPS API URL are required before release');
+ if(Object.keys(runtime).some(k=>!['apiUrl','firebaseConfig','staging'].includes(k)))throw Error('Only public API URL, Firebase web config and staging flag are accepted; never supply secrets');
+ if(runtime.staging!==undefined&&(runtime.staging!==true||!runtime.firebaseConfig?.projectId?.endsWith('-staging')))throw Error('Staging mode requires an explicitly isolated *-staging project');
+ if(required&&(!runtime.firebaseConfig||(!runtime.apiUrl&&runtime.staging!==true)))throw Error('Explicit staging Firebase config and HTTPS API URL are required before release');
  if(runtime.apiUrl){const u=new URL(runtime.apiUrl);if(u.protocol!=='https:'||u.username||u.password||u.hash)throw Error('API URL must be HTTPS without credentials or a fragment');}
  if(runtime.firebaseConfig){
   const cfg=runtime.firebaseConfig,keys=['apiKey','authDomain','projectId','appId','storageBucket','messagingSenderId','measurementId'];
@@ -36,6 +37,6 @@ function buildWeb({sourceDir=ROOT,outputDir=path.join(ROOT,'dist','web'),runtime
   fs.rmSync(outputDir,{recursive:true,force:true});fs.renameSync(staging,outputDir);return manifest;
  }catch(e){fs.rmSync(staging,{recursive:true,force:true});throw e;}
 }
-function runtimeFromEnv(){return process.env.ITI_PUBLIC_RUNTIME_FILE?JSON.parse(fs.readFileSync(process.env.ITI_PUBLIC_RUNTIME_FILE,'utf8')):null;}
+function runtimeFromEnv(){const option=process.argv.indexOf('--runtime');const file=(option>=0?process.argv[option+1]:null)||process.env.ITI_PUBLIC_RUNTIME_FILE;return file?JSON.parse(fs.readFileSync(file,'utf8')):null;}
 if(require.main===module){try{const runtime=runtimeFromEnv();if(process.argv.includes('--require-runtime'))validateRuntime(runtime,{required:true});const result=buildWeb({runtime});console.log('Built '+result.files.length+' public files in dist/web; backend, tests, credentials and repository metadata excluded.');}catch(e){console.error(e.message);process.exitCode=1;}}
 module.exports={buildWeb,validateRuntime};
