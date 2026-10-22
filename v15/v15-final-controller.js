@@ -207,10 +207,12 @@ V.finalOpenTab=async function(name){
   if(!allowed(r,name))name=defaultTab(r);
   if(!mount(r))return false;
   updateVisuals(r);activate(name);
+  // Record selection before asynchronous rendering so shell refreshes follow the latest route.
+  localStorage.setItem('iti-v15-tab-v2',name);
   try{await renderRole(r,name);}catch(e){console.error('FINAL page',r,name,e);pageError(name,e);}
   if(r==='instructor')V.finalEnsureWorkspaceSwitcher().catch(()=>{});else removeOldTradeSwitchers();
   try{App.buildMobileNav?.();}catch(e){}
-  localStorage.setItem('iti-v15-tab-v2',name);return true;
+  return true;
 };
 
 V.applyRolePortal=async function(){

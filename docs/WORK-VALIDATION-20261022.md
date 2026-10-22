@@ -95,3 +95,8 @@ Operator authentication was renewed. Approved the owner's verified Google identi
 ### Slow startup read recovery
 
 Added fresh server-only membership/institute bootstrap reads with bounded transient-connection retry; permission denials and known offline state do not retry. Local validation: 17 regression scripts, 36 unit/HTTP/build/transport tests and all 18 desktop/mobile scenarios passed. Deployed this refinement to staging. A real-host Student probe passed its 15 routes, actual private-plan save, three-language guidance and protected-read denial checks with zero production requests. Full hosted five-role retest follows; the earlier live failures are retained above as prior results, not counted as passes.
+
+
+### Hosted staging retest complete
+
+The final deployed browser retest passed all five synthetic roles and their 48 routes: Admin1, Principal6, Instructor22, Staff4, Student15. Instructor verification saved through the UI was visible to the linked Student; the Student's private plan saved in cloud, protected-key/other-plan reads were denied, guided mr/hi/en practice worked, mobile containment passed and no production request was observed. Earlier live offline failures were resolved by bounded fresh startup reads. A later Instructor navigation race was fixed by saving the selected route before async rendering and removing redundant delayed login navigation. A deterministic DOM regression passes. A new module-form save/fresh-login regression passes on desktop and mobile: latest local total is 17 script suites, 36 native tests, 20 browser scenarios. Follow-up remote CI status is tracked in PR #16. Hosted MCQs/generative AI remain disabled pending a trusted backend; this staging deployment does not certify production.

@@ -37,5 +37,17 @@ async function build(r){
     }else ok(w.document.querySelectorAll('#v15FinalWorkspaceSwitcher').length===0,`${r}: no Instructor Trade selector`);
     w.close();
   }
+  // A slow page render must not let shell refresh or an older completion replace a newer selection.
+  {
+    const {w,V}=await build('principal');await V.applyRolePortal();
+    let release;const delayed=new Promise(resolve=>{release=resolve;});V.renderPrincipalStaff=()=>delayed;
+    const first=V.finalOpenTab('users');
+    ok(w.localStorage.getItem('iti-v15-tab-v2')==='users','pending page immediately becomes the saved navigation target');
+    const refresh=V.applyRolePortal();
+    ok(w.document.getElementById('tab-users').classList.contains('active'),'shell refresh preserves the selected pending page');
+    await V.finalOpenTab('reports');release();await Promise.all([first,refresh]);
+    ok(w.localStorage.getItem('iti-v15-tab-v2')==='reports','older asynchronous page completion cannot overwrite the newer route');
+    w.close();
+  }
   if(failures){console.error(`\n${failures} DOM smoke test(s) failed.`);process.exit(1);}console.log('\nAll Universal ITI FINAL DOM smoke tests passed.');
 })().catch(e=>{console.error(e);process.exit(1);});

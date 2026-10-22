@@ -99,3 +99,13 @@ test('staging password form rejects bad credentials and authenticates assigned s
  await expect(page.locator('#appShell')).toBeVisible();expect(await page.evaluate(()=>V15Sync.currentRole())).toBe('student');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
 });
+test('a newly created module survives cloud sync and a fresh login',async({page})=>{
+ await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('modules'));
+ const name='Synthetic persisted module '+test.info().project.name;
+ await page.locator('#moduleName').fill(name);await page.locator('#moduleCode').fill('SYNC-'+test.info().project.name);
+ await page.getByRole('button',{name:'Create Module'}).click();
+ await expect(page.locator('#moduleManagerBody')).toContainText(name);
+ await expect.poll(()=>page.evaluate(async name=>{const V=V15Sync,M=V.fb.M;const records=await M.getDocs(V.col('modules'));return records.docs.some(d=>d.data().data?.name===name);},name)).toBeTruthy();
+ await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('modules'));
+ await expect(page.locator('#moduleManagerBody')).toContainText(name);
+});

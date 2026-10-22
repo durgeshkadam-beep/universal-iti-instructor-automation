@@ -81,8 +81,7 @@ V.login=async function(opts={}){
     await this.applyRolePortal?.();
     localStorage.setItem(K.role,resolved);localStorage.setItem(K.email,email(this.fb.user.email));clearRedirect();setMsg('');
     const elapsed=Math.round(performance.now()-started);try{sessionStorage.setItem('iti-v15-last-login-ms',String(elapsed));}catch(e){}
-    const last=localStorage.getItem(K.tab);
-    if(last)setTimeout(()=>{const b=document.querySelector(`.tab[data-tab="${CSS.escape(last)}"]`);if(b&&b.offsetParent!==null)App.switchTab(last);},80);
+    // The canonical role portal already restores the selected route; no delayed second navigation.
   }catch(e){
     console.error('V15 login',e);setMsg(e?.code==='auth/popup-closed-by-user'?'Google sign-in was cancelled.':(e.message||String(e)),true);this.showRoleLogin();
   }finally{loginRunning=false;}
