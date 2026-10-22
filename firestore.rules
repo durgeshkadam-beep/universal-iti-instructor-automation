@@ -228,6 +228,120 @@ service cloud.firestore {
           allow delete: if false;
         }
 
+        // Reviewed job sources, scoped by institute workspace. Counts are only tracked records.
+        match /careerOpportunities/{postingId} {
+          allow get, list: if workspaceAllowed(inst, wid)
+            && (isStaff(inst) || (isStudent(inst) && resource.data.status == 'active'));
+          allow create: if workspaceAllowed(inst, wid) && isInstructor(inst)
+            && request.resource.data.keys().hasOnly(['title','employer','city','cityKey','skills','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
+            && request.resource.data.keys().hasAll(['title','employer','city','cityKey','skills','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
+            && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140
+            && request.resource.data.employer is string && request.resource.data.employer.size() > 0 && request.resource.data.employer.size() <= 140
+            && request.resource.data.city is string && request.resource.data.city.size() > 0 && request.resource.data.city.size() <= 80
+            && request.resource.data.cityKey is string && request.resource.data.cityKey.size() > 0 && request.resource.data.cityKey.size() <= 80
+            && request.resource.data.skills is list && request.resource.data.skills.size() > 0 && request.resource.data.skills.size() <= 16
+            && request.resource.data.sourceUrl is string
+            && request.resource.data.sourceUrl.matches('^https://[^ ]+
+        match /attendanceLocks/{month} {
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow create: if (isOwner(inst) || isPrincipal(inst))
+            || (workspaceAllowed(inst, wid) && isInstructor(inst)
+                && request.resource.data.status == 'submitted'
+                && request.resource.data.submittedBy == request.auth.uid);
+          allow update: if (isOwner(inst) || isPrincipal(inst))
+            || (workspaceAllowed(inst, wid) && isInstructor(inst)
+                && resource.data.status == 'reopened'
+                && request.resource.data.status == 'submitted'
+                && request.resource.data.submittedBy == request.auth.uid
+                && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['status','submittedBy','submittedByEmail','submittedAt','month']));
+          allow delete: if false;
+        }
+
+        // Shared metadata for photos archived to Google Drive.
+        match /galleryCloud/{galleryId} {
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow create, update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
+          allow delete: if false;
+        }
+
+        match /state/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow write: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
+        }
+        match /{section}/{docId} {
+          // Legacy exams contain correctIndex; Firestore cannot hide individual fields.
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst)
+            || (isStudent(inst) && section != 'exams' && publicStudentSection(section)));
+          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst)
+            && section != 'skillVerifications'
+            && section != 'careerOpportunities';
+        }
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+) && request.resource.data.sourceUrl.size() <= 500
+            && request.resource.data.expiresAt is string && request.resource.data.expiresAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}
+        match /attendanceLocks/{month} {
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow create: if (isOwner(inst) || isPrincipal(inst))
+            || (workspaceAllowed(inst, wid) && isInstructor(inst)
+                && request.resource.data.status == 'submitted'
+                && request.resource.data.submittedBy == request.auth.uid);
+          allow update: if (isOwner(inst) || isPrincipal(inst))
+            || (workspaceAllowed(inst, wid) && isInstructor(inst)
+                && resource.data.status == 'reopened'
+                && request.resource.data.status == 'submitted'
+                && request.resource.data.submittedBy == request.auth.uid
+                && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['status','submittedBy','submittedByEmail','submittedAt','month']));
+          allow delete: if false;
+        }
+
+        // Shared metadata for photos archived to Google Drive.
+        match /galleryCloud/{galleryId} {
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow create, update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
+          allow delete: if false;
+        }
+
+        match /state/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow write: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
+        }
+        match /{section}/{docId} {
+          // Legacy exams contain correctIndex; Firestore cannot hide individual fields.
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst)
+            || (isStudent(inst) && section != 'exams' && publicStudentSection(section)));
+          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst)
+            && section != 'skillVerifications';
+        }
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+)
+            && request.resource.data.status == 'active'
+            && request.resource.data.reviewedBy == request.auth.uid
+            && request.resource.data.updatedBy == request.auth.uid
+            && request.resource.data.reviewedAt == request.time
+            && request.resource.data.updatedAt == request.time;
+          allow update: if workspaceAllowed(inst, wid) && isInstructor(inst)
+            && resource.data.status == 'active' && request.resource.data.status == 'withdrawn'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedBy','updatedAt'])
+            && request.resource.data.updatedBy == request.auth.uid && request.resource.data.updatedAt == request.time;
+          allow delete: if false;
+        }
+
         // Monthly attendance submit/approve/reopen governance.
         match /attendanceLocks/{month} {
           allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
