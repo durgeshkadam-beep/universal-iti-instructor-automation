@@ -13,32 +13,22 @@ const InstructorAI = {
     this.refreshStatus(); this.refreshTopicPicker(); this.renderToday();
   },
   esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));},
-  getKey(){try{return sessionStorage.getItem(this.keyName)||'';}catch(e){return'';}},
-  setKey(){
-    const input=document.getElementById('aiApiKey'); if(!input)return;
-    const key=input.value.trim(); if(!key){alert('Paste your Gemini API key first.');return;}
-    try{sessionStorage.setItem(this.keyName,key);}catch(e){}
-    input.value=''; this.refreshStatus(); alert('Gemini connected for this browser session only. The key is not saved in the app database.');
-  },
-  disconnect(){try{sessionStorage.removeItem(this.keyName);}catch(e){} this.refreshStatus();},
+  getKey(){return !!window.ITI_RUNTIME?.apiUrl;},
+  setKey(){const input=document.getElementById('aiApiKey');if(input)input.value='';alert('AI keys are configured by the administrator on the secure backend only.');},
+  disconnect(){try{sessionStorage.removeItem(this.keyName);}catch(e){}this.refreshStatus();},
   refreshStatus(){
-    const connected=!!this.getKey();
-    const badge=document.getElementById('aiConnectionBadge');
-    if(badge){badge.textContent=connected?'● Gemini connected':'○ Manual / no-key mode';badge.className='badge '+(connected?'success':'');}
-    const help=document.getElementById('aiConnectionHelp');
-    if(help)help.textContent=connected?'One-click AI generation is enabled for this session.':'No key is required: generate a prompt, use any free AI, then paste its JSON result back into this app.';
+    try{sessionStorage.removeItem(this.keyName);}catch(e){}
+    const field=document.getElementById('aiApiKey')?.closest('.field');if(field)field.style.display='none';
+    const badge=document.getElementById('aiConnectionBadge');if(badge)badge.textContent=this.getKey()?'Secure backend configured':'Manual / no-key mode';
+    const help=document.getElementById('aiConnectionHelp');if(help)help.textContent='Use manual prompts free, or ask the administrator to configure a secure AI backend. Never enter shared keys in this browser.';
   },
-  currentModel(){return (document.getElementById('aiModel')?.value||this.modelName).trim()||this.modelName;},
+  currentModel(){return 'backend-configured';},
   async geminiJSON(prompt,schema){
-    const key=this.getKey(); if(!key) throw new Error('NO_API_KEY');
-    const endpoint='https://generativelanguage.googleapis.com/v1beta/interactions';
-    const body={model:this.currentModel(),input:prompt,response_format:{type:'text',mime_type:'application/json',schema}};
-    const resp=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)});
-    if(!resp.ok){let detail='';try{detail=await resp.text();}catch(e){}throw new Error(`Gemini request failed (${resp.status}). ${detail.slice(0,500)}`);}
-    const data=await resp.json();
-    const text=(data.steps||[]).flatMap(s=>s.content||[]).filter(c=>c.type==='text').map(c=>c.text||'').join('')||data.output_text||'';
-    if(!text)throw new Error('Gemini returned no text output.');
-    try{return JSON.parse(text);}catch(e){throw new Error('Gemini returned invalid JSON.');}
+    if(!window.V15Sync?.backendRequest)throw new Error('Secure backend is not configured. Use manual mode.');
+    if(!confirm('Send this teaching text to the configured AI provider? Exclude personal student data.'))throw new Error('AI request cancelled.');
+    const out=await V15Sync.backendRequest({action:'ai',task:'teaching',language:'en',consent:true,input:(prompt+'\nSchema: '+JSON.stringify(schema)).slice(0,12000)});
+    if(out.mode!=='ai-draft')throw new Error('Generative AI is disabled on the backend. Use manual mode.');
+    return JSON.parse(out.text);
   },
   syllabusSchema(){return {type:'object',properties:{trade:{type:'string'},items:{type:'array',items:{type:'object',properties:{type:{type:'string',enum:['theory','practical']},module:{type:'string'},title:{type:'string'},hours:{type:'number',minimum:0.5},confidence:{type:'number',minimum:0,maximum:1}},required:['type','module','title','hours','confidence']}}},required:['trade','items']};},
   planSchema(type){

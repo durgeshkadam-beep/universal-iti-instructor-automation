@@ -144,7 +144,8 @@ V.renderStudentSkillGap=async function(){
     if(currentRole()!=='student'||identity()?.key!==id.key)return;
     try{
       localStorage.setItem(id.key,JSON.stringify({roleName:goal.value.trim().slice(0,80),requiredIds,updatedAt:new Date().toISOString()}));
-      message.textContent='Learning plan saved on this browser only. Verified status remains controlled by the instructor.';
+      message.textContent='Learning plan saved on this browser. Syncing private cloud copy…';
+      V.persistStudentPlan?.().then(()=>{message.textContent='Private learning plan synced. Verified status remains controlled by the instructor.';}).catch(()=>{message.textContent='Saved on this browser; cloud sync pending. Reconnect and reopen Skill Gap.';});
       redraw();
     }catch(e){message.textContent='This browser could not save your plan. Check storage permissions.';}
   });

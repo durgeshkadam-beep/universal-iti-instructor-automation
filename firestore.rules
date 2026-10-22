@@ -35,6 +35,7 @@ service cloud.firestore {
     function publicStudentSection(section) {
       return section in ['theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams'];
     }
+    function genericSection(section) { return section in ['theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams','warnings','undertakings'] || section.matches('^map_[A-Za-z0-9_-]+$'); }
     function validRole(role) { return role in ['principal','instructor','staff','student']; }
     function ownerCanCreateRole(inst, role) { return isOwner(inst) && validRole(role); }
     function principalCanCreateRole(inst, role) { return isPrincipal(inst) && role in ['instructor','staff']; }
@@ -60,22 +61,27 @@ service cloud.firestore {
       match /access/{email} {
         allow get: if signedIn() && (isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || request.auth.token.email == email);
         allow list: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst);
-        allow create, update: if ownerCanCreateRole(inst, request.resource.data.role)
+        allow create: if ownerCanCreateRole(inst, request.resource.data.role)
           || principalCanCreateRole(inst, request.resource.data.role)
-          || instructorCanCreateRole(inst, request.resource.data.role);
+          || (instructorCanCreateRole(inst, request.resource.data.role) && request.resource.data.workspaceIds.hasOnly(member(inst).workspaceIds));
+        allow update: if (ownerCanCreateRole(inst, resource.data.role) && ownerCanCreateRole(inst, request.resource.data.role))
+          || (principalCanCreateRole(inst, resource.data.role) && principalCanCreateRole(inst, request.resource.data.role))
+          || (instructorCanCreateRole(inst, resource.data.role) && instructorCanCreateRole(inst, request.resource.data.role)
+            && resource.data.workspaceIds.hasOnly(member(inst).workspaceIds) && request.resource.data.workspaceIds.hasOnly(member(inst).workspaceIds));
         allow delete: if isOwner(inst)
           || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
           || (isInstructor(inst) && resource.data.role == 'student');
       }
 
       match /inviteSecrets/{email} {
-        allow read: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst);
+        allow read: if isOwner(inst) || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
+          || (isInstructor(inst) && resource.data.role == 'student');
         allow create: if ownerCanCreateRole(inst, request.resource.data.role)
           || principalCanCreateRole(inst, request.resource.data.role)
           || instructorCanCreateRole(inst, request.resource.data.role);
-        allow update: if ownerCanCreateRole(inst, request.resource.data.role)
-          || principalCanCreateRole(inst, request.resource.data.role)
-          || instructorCanCreateRole(inst, request.resource.data.role)
+        allow update: if (ownerCanCreateRole(inst, resource.data.role) && ownerCanCreateRole(inst, request.resource.data.role))
+          || (principalCanCreateRole(inst, resource.data.role) && principalCanCreateRole(inst, request.resource.data.role))
+          || (instructorCanCreateRole(inst, resource.data.role) && instructorCanCreateRole(inst, request.resource.data.role))
           || (
             signedIn()
             && request.auth.token.email == email
@@ -97,6 +103,10 @@ service cloud.firestore {
           isOwner(inst)
           || (
             request.auth.token.email != null
+            && request.auth.token.email_verified == true
+            && request.resource.data.owner == false
+            && request.resource.data.active == true
+            && request.resource.data.uid == request.auth.uid
             && exists(accessPath(inst, request.auth.token.email))
             && exists(secretPath(inst, request.auth.token.email))
             && get(accessPath(inst, request.auth.token.email)).data.active == true
@@ -161,6 +171,8 @@ service cloud.firestore {
           allow create: if workspaceAllowed(inst, wid) && isStaff(inst) && attendanceUnlocked(inst, wid, request.resource.data);
           allow update: if workspaceAllowed(inst, wid) && isStaff(inst)
             && request.resource.data.key == resource.data.key
+            && request.resource.data.traineeId == resource.data.traineeId
+            && request.resource.data.subKey == resource.data.subKey
             && attendanceUnlocked(inst, wid, resource.data);
           allow delete: if workspaceAllowed(inst, wid) && isStaff(inst) && attendanceUnlocked(inst, wid, resource.data);
         }
@@ -170,7 +182,10 @@ service cloud.firestore {
         }
         match /submissions/{docId} {
           allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId));
-          allow create, update: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.traineeId));
+          allow create: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.traineeId));
+          allow update: if workspaceAllowed(inst, wid) && (isStaff(inst) ||
+            (ownTrainee(inst, resource.data.traineeId) && request.resource.data.traineeId == resource.data.traineeId
+             && request.resource.data.key == resource.data.key && request.resource.data.subKey == resource.data.subKey));
           allow delete: if workspaceAllowed(inst, wid) && isStaff(inst);
         }
         match /leaves/{docId} {
@@ -186,6 +201,25 @@ service cloud.firestore {
         match /projects/{docId} {
           allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId));
           allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+        }
+
+        match /studentPlans/{studentUid} {
+          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || (isStudent(inst) && request.auth.uid == studentUid));
+          allow create, update: if workspaceAllowed(inst, wid) && isStudent(inst) && request.auth.uid == studentUid
+            && request.resource.data.keys().hasOnly(['selfRatings','plan','updatedAt'])
+            && request.resource.data.selfRatings is map && request.resource.data.selfRatings.size() <= 200
+            && request.resource.data.plan is map && request.resource.data.updatedAt == request.time;
+          allow delete: if false;
+        }
+        match /examKeys/{id} { allow read, write: if false; }
+        match /examSessions/{id} { allow read, write: if false; }
+        match /secureExams/{id} {
+          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || (isStudent(inst) && resource.data.published == true));
+          allow write: if false;
+        }
+        match /secureResults/{id} {
+          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || (isStudent(inst) && resource.data.studentUid == request.auth.uid));
+          allow write: if false;
         }
 
         // Instructor-verified skills: one private profile per activated student UID.
@@ -233,8 +267,9 @@ service cloud.firestore {
           allow get, list: if workspaceAllowed(inst, wid)
             && (isStaff(inst) || (isStudent(inst) && resource.data.status == 'active'));
           allow create: if workspaceAllowed(inst, wid) && isInstructor(inst)
-            && request.resource.data.keys().hasOnly(['title','employer','city','cityKey','skills','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
+            && request.resource.data.keys().hasOnly(['kind','title','employer','city','cityKey','skills','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
             && request.resource.data.keys().hasAll(['title','employer','city','cityKey','skills','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
+            && request.resource.data.get('kind','job') in ['job','apprenticeship']
             && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140
             && request.resource.data.employer is string && request.resource.data.employer.size() > 0 && request.resource.data.employer.size() <= 140
             && request.resource.data.city is string && request.resource.data.city.size() > 0 && request.resource.data.city.size() <= 80
@@ -269,7 +304,7 @@ service cloud.firestore {
                 && request.resource.data.status == 'submitted'
                 && request.resource.data.submittedBy == request.auth.uid
                 && request.resource.data.diff(resource.data).affectedKeys()
-                   .hasOnly(['status','submittedBy','submittedByEmail','submittedAt','month']));
+                   .hasOnly(['status','submittedBy','submittedByEmail','submittedAt','month','updatedAt']));
           allow delete: if false;
         }
 
@@ -286,9 +321,9 @@ service cloud.firestore {
         }
         match /{section}/{docId} {
           // Legacy exams contain correctIndex; Firestore cannot hide individual fields.
-          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst)
+          allow read: if genericSection(section) && workspaceAllowed(inst, wid) && (canReadInstitute(inst)
             || (isStudent(inst) && section != 'exams' && publicStudentSection(section)));
-          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst)
+          allow create, update, delete: if genericSection(section) && workspaceAllowed(inst, wid) && isStaff(inst)
             && section != 'skillVerifications'
             && section != 'careerOpportunities';
         }

@@ -15,17 +15,19 @@ const allowedURL=x=>{try{const u=new URL(x);return u.protocol==='https:'&&!!u.ho
 function role(){return V.currentRole?.()||window.SESSION?.role||'';}
 function el(tag,label,cls){const v=document.createElement(tag);if(label!=null)v.textContent=String(label);if(cls)v.className=cls;return v;}
 function col(){return V.fb.M.collection(V.fb.db,'institutes',V.INSTITUTE_ID,'workspaces',V.workspaceId,COLLECTION);}
-function validDate(x){return /^\d{4}-\d{2}-\d{2}$/.test(String(x||''))&&!Number.isNaN(Date.parse(x+'T00:00:00Z'));}
+function validDate(x){return /^\d{4}-\d{2}-\d{2}$/.test(String(x||''))&&!Number.isNaN(Date.parse(x+'T00:00:00Z'))&&new Date(x+'T00:00:00Z').toISOString().slice(0,10)===x;}
 function uniqueSkills(items){return [...new Set((Array.isArray(items)?items:[]).map(canonical).filter(Boolean))].slice(0,16);}
 function normalizedOpportunity(raw){
   if(!raw||raw.status!=='active'||!raw.title||!raw.employer||!raw.city||!validDate(raw.expiresAt)||!allowedURL(raw.sourceUrl))return null;
-  return {...raw,skills:uniqueSkills(raw.skills),cityKey:canonical(raw.city)};
+  return {...raw,kind:raw.kind==='apprenticeship'?'apprenticeship':'job',skills:uniqueSkills(raw.skills),cityKey:canonical(raw.city)};
 }
 V.analyzeLocalSkillMarket=function(rawPostings,selectedCity='',likedSkill='',today=TODAY()){
   const all=(Array.isArray(rawPostings)?rawPostings:[]).map(normalizedOpportunity).filter(Boolean)
     .filter(x=>x.expiresAt>=today);
+  const seen=new Set();
+  const unique=all.filter(p=>{const key=new URL(p.sourceUrl).href;if(seen.has(key))return false;seen.add(key);return true;});
   const cityKey=canonical(selectedCity);
-  const tracked=all.filter(x=>!cityKey||x.cityKey===cityKey);
+  const tracked=unique.filter(x=>!cityKey||x.cityKey===cityKey);
   const employers=new Set(tracked.map(x=>canonical(x.employer)));
   const counts=new Map();
   for(const p of tracked)for(const skill of p.skills)counts.set(skill,(counts.get(skill)||0)+1);
@@ -87,7 +89,7 @@ function renderListings(host,entries,forInstructor=false){
     const block=el('div',null,'field-row');
     block.style.cssText='border-bottom:1px solid #e2e8f0;padding:11px 0';
     block.append(el('strong',p.title+' · '+p.employer));
-    block.append(el('p',p.city+' · Skills: '+(p.skills||[]).join(', '),'muted'));
+    block.append(el('p',(p.kind==='apprenticeship'?'Apprenticeship':'Job')+' · '+p.city+' · Skills: '+(p.skills||[]).join(', '),'muted'));
     block.append(el('p','Expires '+p.expiresAt+' · Source: Institute-reviewed link','muted'));
     if(allowedURL(p.sourceUrl)){
       const a=el('a','Open original job source ↗');
@@ -152,7 +154,9 @@ V.renderStudentLocalMarket=async function(){
       external.append(el('h3','Search more verified opportunities'));
       addNotice(external,'For wider live vacancies, continue to the official National Career Service portal and select your city there. This app does not import its listings automatically.');
       const link=el('a','Search on National Career Service (Government of India) ↗');
-      link.href='https://ncs.gov.in/';link.target='_blank';link.rel='noopener noreferrer';external.append(link);
+      link.href='https://www.ncs.gov.in/';link.target='_blank';link.rel='noopener noreferrer';external.append(link);
+      const apprentice=el('a','Search Apprenticeship India (official portal) ↗');apprentice.href='https://www.apprenticeshipindia.gov.in/';apprentice.target='_blank';apprentice.rel='noopener noreferrer';apprentice.style.display='block';external.append(apprentice);
+      addNotice(external,'Use the official portal city and trade filters. Application may require an account. These links are portals, not verified individual vacancies.');
       result.append(external);
     }catch(e){
       result.replaceChildren(el('p','Job source data cannot be loaded. No market counts are available: '+(e.message||e),'muted'));
@@ -173,6 +177,8 @@ V.renderInstructorMarketEditor=async function(){
     ['skills','Required skills (comma separated)','e.g. CorelDRAW, Photoshop'],
     ['sourceUrl','Original HTTPS job link','https://...']
   ];
+  const kindLabel=el('label','Opportunity type');form.append(kindLabel);
+  const kind=el('select');kind.setAttribute('aria-label','Opportunity type');for(const [value,label] of [['job','Job'],['apprenticeship','Apprenticeship']]){const o=el('option',label);o.value=value;kind.append(o);}form.append(kind);
   const inputs={};
   for(const [key,title,placeholder] of fields){
     const label=el('label',title);label.htmlFor='market-'+key;form.append(label);
@@ -196,7 +202,7 @@ V.renderInstructorMarketEditor=async function(){
     save.disabled=true;status.textContent='Saving reviewed source…';
     try{
       const M=this.fb.M,uid=this.fb.user.uid;
-      await M.addDoc(col(),{title,employer,city,cityKey:canonical(city),skills,sourceUrl,expiresAt,status:'active',reviewedBy:uid,
+      await M.addDoc(col(),{kind:kind.value,title,employer,city,cityKey:canonical(city),skills,sourceUrl,expiresAt,status:'active',reviewedBy:uid,
         reviewedAt:M.serverTimestamp(),updatedBy:uid,updatedAt:M.serverTimestamp()});
       status.textContent='Saved. This listing is now visible to students in this workspace.';
       Object.values(inputs).forEach(i=>{i.value='';});expiry.value='';

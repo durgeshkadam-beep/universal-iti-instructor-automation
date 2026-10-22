@@ -13,7 +13,7 @@ const NAV={
   principal:[['dashboard','📊 Principal Dashboard'],['users','👥 Staff & Access'],['notices','📰 Institute Notices'],['record-formats','🖨️ Record Formats'],['inspection','🛡️ Inspection & Compliance'],['reports','📄 Institute Reports']],
   instructor:[['dashboard','📊 Dashboard'],['ai-assistant','✨ AI Assistant'],['syllabus-ai','🤖 Syllabus AI'],['modules','🧩 Module Manager'],['skill-review','✅ Verify Skills'],['market-editor','💼 Job Sources'],['trainees','👥 Trainees'],['attendance','✅ Attendance'],['practicals','🖥️ Practicals'],['theory','📘 Theory'],['splitup','🗓️ Split-up Syllabus'],['evaluation','📝 Evaluation'],['notices','📰 Notice Board'],['leave','🩺 Leave & Discipline'],['exams','📝 Class Test'],['ojt','🏭 OJT & Projects'],['gallery','🖼️ Gallery'],['activities','🏆 Extra Activities'],['record-formats','🖨️ Record Formats'],['inspection','🛡️ Inspection File'],['cloud','☁️ Cloud & Drive'],['reports','📄 Reports']],
   staff:[['dashboard','📊 Staff Dashboard'],['notices','📰 Notices'],['record-formats','🖨️ Record Formats'],['reports','📄 Reports']],
-  student:[['dashboard','🏠 My Dashboard'],['trainees','👤 My Profile'],['attendance','✅ My Attendance'],['practicals','🖥️ My Practicals'],['theory','📘 Theory'],['splitup','🗓️ Training Calendar'],['evaluation','📝 My Marks'],['notices','📰 Notices'],['leave','🩺 My Leave'],['exams','📝 Class Tests'],['ojt','🏭 My OJT / Projects'],['skills','🧩 My Skills'],['skill-gap','🎯 Skill Gap'],['local-market','📍 Job Market']]
+  student:[['dashboard','🏠 My Dashboard'],['trainees','👤 My Profile'],['attendance','✅ My Attendance'],['practicals','🖥️ My Practicals'],['theory','📘 Theory'],['splitup','🗓️ Training Calendar'],['evaluation','📝 My Marks'],['notices','📰 Notices'],['leave','🩺 My Leave'],['exams','📝 Class Tests'],['ojt','🏭 My OJT / Projects'],['career-coach','💬 Career Coach'],['skills','🧩 My Skills'],['skill-gap','🎯 Skill Gap'],['local-market','📍 Job Market']]
 };
 const LABEL={admin:'System Admin',principal:'Principal',instructor:'Instructor',staff:'Staff',student:'Student / Trainee'};
 const FOOTER={admin:'Technical administration • V15 FINAL',principal:'Principal oversight • V15 FINAL',instructor:'Instructor workspace • V15 FINAL',staff:'Staff read-only • V15 FINAL',student:'Student workspace • V15 FINAL'};
@@ -174,17 +174,8 @@ async function renderStaff(name){
 }
 
 async function renderStudent(name){
-  if(name==='exams'){
-    const p=panel('exams');
-    if(p){
-      p.replaceChildren();
-      const c=document.createElement('div');c.className='card';
-      const h=document.createElement('h2');h.textContent='Class Tests — Temporarily Unavailable';
-      const msg=document.createElement('p');msg.textContent='Online student tests are paused while secure server-side answer protection and grading are being implemented. Ask your instructor about supervised assessments.';
-      c.append(h,msg);p.append(c);
-    }
-    return;
-  }
+  if(name==='exams')return V.renderSecureExams?.();
+  if(name==='career-coach')return V.renderCareerCoach?.();
   if(name==='skills')return V.renderSkillPassport?.();
   if(name==='skill-gap')return V.renderStudentSkillGap?.();
   if(name==='local-market')return V.renderStudentLocalMarket?.();
@@ -198,6 +189,7 @@ async function renderRole(r,name){
   if(r==='admin')return V.renderAdminPanel?.();
   if(r==='principal')return renderPrincipal(name);
   if(r==='instructor'){
+    if(name==='exams')return V.renderSecureExams?.();
     if(name==='skill-review')return V.renderInstructorSkillVerification?.();
     if(name==='market-editor')return V.renderInstructorMarketEditor?.();
     renderLegacyInstructor(name);

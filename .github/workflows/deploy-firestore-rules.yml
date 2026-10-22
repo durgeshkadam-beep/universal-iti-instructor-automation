@@ -8,6 +8,8 @@ permissions:
 
 jobs:
   deploy-rules:
+    if: github.ref == 'refs/heads/main'
+    environment: production
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

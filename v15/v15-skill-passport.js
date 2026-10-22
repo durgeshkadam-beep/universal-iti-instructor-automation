@@ -34,7 +34,7 @@ V.renderSkillPassport=function(){
   body.append(el('h2','🧩 My Skills / माझी कौशल्ये'));
   body.append(el('p','Track your own learning progress. This is a self-assessment, not an official certificate or instructor verification.'));
   hero.append(body);host.append(hero);
-  const notice=el('div','Instructor-verified skills will appear in a future release after secure assessment integration. Do not use this page as an official skills certificate.','callout');
+  const notice=el('div','Instructor-verified skills appear below when available. Do not use this page as an official skills certificate.','callout');
   host.append(notice);
   const saved=read(),list=el('div',null,'card');
   list.append(el('h3','Practical-based self assessment'));
@@ -56,7 +56,7 @@ V.renderSkillPassport=function(){
     const select=el('select');select.setAttribute('aria-label','Self assessment for practical '+String(item.no));
     for(const [value,title] of OPTIONS){const option=el('option',title);option.value=value;select.append(option);}
     select.value=OPTIONS.some(x=>x[0]===saved[id])?saved[id]:'not-started';
-    select.addEventListener('change',()=>{const all=read();all[id]=select.value;try{write(all);}catch(e){alert('Could not save on this device: '+e.message);}});
+    select.addEventListener('change',()=>{const all=read();all[id]=select.value;try{write(all);V.persistStudentPlan?.().catch(()=>alert('Saved on this browser; cloud sync pending. Reconnect and reopen My Skills.'));}catch(e){alert('Could not save on this device: '+e.message);}});
     row.append(label,select);entries.append(row);rows.push({row,labelText:(String(item.no)+' '+item.title).toLowerCase()});
   }
   function filter(){

@@ -44,3 +44,6 @@ assert.equal(V.marketEmployerSearchUrl('','Photoshop'),null,'no GPS fallback or 
 assert.equal(new URL(V.marketEmployerSearchUrl('Ratnagiri','Graphic Design')).searchParams.get('api'),'1');
 console.log('PASS market employer search URLs: city and skill encoded; no key, GPS or company-count claim.');
 console.log('PASS Local Market: accurate source-bound counts, popular skill ranking, city filter, expiry, and safe URLs.');
+
+assert.equal(V.analyzeLocalSkillMarket([...entries,entries[0]],'Mumbai','','2026-10-22').trackedPostings,3,'duplicate source links do not inflate market counts');
+assert.equal(V.analyzeLocalSkillMarket([{...entries[0],expiresAt:'2026-02-31'}],'Mumbai','','2026-01-01').trackedPostings,0,'invalid calendar dates are rejected');

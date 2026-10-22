@@ -904,18 +904,15 @@ function defaultData(){
       instructor:"Durgesh Kadam",
       designation:"Craft Instructor (DTP Trade)",
       authority:"Directorate of Vocational Education and Training (DVET), Maharashtra",
-      instructorPin:"1234",
-      principalPin:"5678",
+      instructorPin:null,
+      principalPin:null,
       attendanceThreshold:75,
       scheduleStartDate:null,
       scheduleMode:"real",
       hoursPerWorkingDay:7,
       theoryDaysPerTopic:1
     },
-    users:[
-      {id:"admin-principal", username:"principal", name:"Principal", role:"principal", pin:"5678", active:true},
-      {id:"inst-durgesh", username:"durgesh", name:"Durgesh Kadam", role:"instructor", pin:"1234", active:true}
-    ],
+    users:[],
     trainees:[],
     practicals: SEED_PRACTICALS.map(p=>({no:p[0],unit:p[1],title:p[2],status:"pending",doneDate:null,plannedDate:cal.pDates[p[0]]||null,
       sequence:p[0], hours: DEMO_HOURS[p[0]]||7,
@@ -949,7 +946,7 @@ let DATA = null;
 let SESSION = null;
 
 function loadData(){
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = window.__ITI_V15 ? null : localStorage.getItem(STORAGE_KEY);
   DATA = raw ? JSON.parse(raw) : defaultData();
   // migrate: ensure new top-level AND nested meta fields exist if an older backup loaded
   const d = defaultData();
@@ -961,12 +958,7 @@ function loadData(){
   }
   if(!Array.isArray(DATA.modules)) DATA.modules=[];
   DATA.modules.forEach((m,i)=>{ if(!m.id)m.id=uid(); if(!m.code)m.code=`M${String(i+1).padStart(2,"0")}`; if(!Array.isArray(m.topics))m.topics=[]; });
-  if(!Array.isArray(DATA.users) || !DATA.users.length){
-    DATA.users=[
-      {id:"admin-principal", username:"principal", name:"Principal", role:"principal", pin:DATA.meta.principalPin||"5678", active:true},
-      {id:"inst-durgesh", username:"durgesh", name:DATA.meta.instructor||"Durgesh Kadam", role:"instructor", pin:DATA.meta.instructorPin||"1234", active:true}
-    ];
-  }
+  if(!Array.isArray(DATA.users))DATA.users=[];
   DATA.users.forEach(u=>{ if(!u.id)u.id=uid(); if(u.active===undefined)u.active=true; });
   // V14 safe migration: preserve a pre-upgrade snapshot before changing schema.
   const oldSchema=Number(DATA.meta.schemaVersion||1);
@@ -1011,7 +1003,7 @@ function loadData(){
 }
 function saveData(){
   if(DATA && DATA.meta){ DATA.meta.schemaVersion=14; DATA.meta.appVersion="V14"; }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+  if(!window.__ITI_V15) localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
   if(window.CloudCenter) window.CloudCenter.scheduleSync();
 }
 
@@ -1417,7 +1409,7 @@ const Inspection = {
 const App = {
   init(){
     loadData();
-    const rawSession = localStorage.getItem(SESSION_KEY);
+    const rawSession = window.__ITI_V15 ? null : localStorage.getItem(SESSION_KEY);
     document.getElementById("loginRole").addEventListener("change", e=>{
       const isStudent = e.target.value === "student";
       document.getElementById("staffNameField").style.display = isStudent? "none":"block";
@@ -1435,29 +1427,8 @@ const App = {
     }
   },
   login(){
-    const role = document.getElementById("loginRole").value;
-    if(role==="instructor" || role==="principal"){
-      const username = document.getElementById("loginName").value.trim().toLowerCase();
-      const pin = document.getElementById("loginPin").value.trim();
-      const users = Array.isArray(DATA.users) ? DATA.users : [];
-      const user = users.find(u=>u.username.toLowerCase()===username && u.role===role && u.active!==false);
-      // V12 security fix: a matched staff account must also match its own PIN.
-      const legacyUserOk = role==="instructor" ? ["durgesh","instructor"].includes(username) : ["principal","admin"].includes(username);
-      const legacyMatch = !user && legacyUserOk && (role==="instructor" ? pin===DATA.meta.instructorPin : pin===DATA.meta.principalPin);
-      if((user && pin!==String(user.pin??"")) || (!user && !legacyMatch)){ alert("Invalid User ID or PIN."); return; }
-      const name = user ? user.name : (role==="principal"?"Principal":"Instructor");
-      SESSION = {role, name, userId:user?.id||("legacy-"+role), username:user?.username||username};
-    } else {
-      const roll = document.getElementById("loginRoll").value.trim();
-      const pin = document.getElementById("loginStudentPin").value.trim();
-      if(!roll){ alert("Enter your Roll No."); return; }
-      const t = DATA.trainees.find(x=>x.roll===roll);
-      if(!t){ alert("Roll No. not found. Ask your instructor to add you in Trainee Master first."); return; }
-      if(pin !== t.pin){ alert("Incorrect PIN. Ask your instructor if you don't know your PIN."); return; }
-      SESSION = {role:"student", name:t.name, traineeId:t.id, roll:t.roll};
-    }
-    localStorage.setItem(SESSION_KEY, JSON.stringify(SESSION));
-    App.enter();
+    alert('Local PIN login has been retired. Open the secure V15 Google login.');
+    location.replace(new URL('final/',location.href));
   },
   logout(){
     localStorage.removeItem(SESSION_KEY);
@@ -3598,8 +3569,8 @@ const UniversalSyllabus = {
       if(kind==='practical'){pi=idx;pRemain=remain;}else{ti=idx;tRemain=remain;}
       return {parts,used};
     };
-    while(date.toISOString().slice(0,10)<=end && safety++<5000){
-      const iso=date.toISOString().slice(0,10), dow=date.getDay();
+    while(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`<=end && safety++<5000){
+      const iso=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`, dow=date.getDay();
       let holidayLabel=holidayMap.get(iso)||'';
       if(!holidayLabel && altSat && this.isSecondOrFourthSaturday(date)) holidayLabel='2nd/4th Saturday';
       if(!holidayLabel && !workdays.includes(dow)) holidayLabel=dow===0?'Sunday':'Non-working day';

@@ -24,7 +24,7 @@ assert.match(attend,/attendanceUnlocked\(inst, wid, resource\.data\)/,'attendanc
 assert.match(exam,/allow create, update, delete: if workspaceAllowed\(inst, wid\) && isStaff\(inst\)/,'student cannot submit self-scored official exam attempts');
 assert.match(rules,/section != 'exams'/,'student cannot read legacy exam answer-key collections');
 assert.doesNotMatch(data,/\['theory','practicals','notices','holidays','exams'/,'student public loader must not fetch exam keys');
-assert.match(data,/if\(role==='student'\)\{/,'student loader clears previous account records');
+assert.match(data,/Clear every previously loaded section/,'loader clears previous account records for every role');
 assert.match(controller,/\['skills','🧩 My Skills'\]/,'student tab registered');
 assert.match(controller,/name==='skills'/,'student skills route registered');
 assert.match(skill,/self-assessment, not an official certificate/,'skill self-report cannot be mistaken as verified');
