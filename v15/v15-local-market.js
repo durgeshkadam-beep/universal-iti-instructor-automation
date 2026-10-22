@@ -37,6 +37,14 @@ V.analyzeLocalSkillMarket=function(rawPostings,selectedCity='',likedSkill='',tod
     sampleAdequate:tracked.length>=5,city:niceCity(selectedCity)};
 };
 V.marketIsValidSourceUrl=allowedURL;
+V.marketEmployerSearchUrl=function(city,skill=''){
+  const location=niceCity(city);
+  if(!location)return null; // Do not silently infer or request the student's GPS.
+  const topic=idText(skill).replace(/\\s+/g,' ').slice(0,80);
+  const query=(topic ? topic+' companies in ' : 'companies in ')+location+', India';
+  return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(query);
+};
+
 async function getRecords(onlyActive){
   if(!V.ready||!V.fb?.M||!V.workspaceId)throw Error('Approved account and workspace required.');
   const M=V.fb.M;
@@ -128,6 +136,18 @@ V.renderStudentLocalMarket=async function(){
       if(role()!=='student'||ws!==this.workspaceId||!host.isConnected)return;
       const signals=this.analyzeLocalSkillMarket(records,city.value,skill.value);
       result.replaceChildren();appendStats(result,signals);renderListings(result,signals.postings);
+      const searchURL=this.marketEmployerSearchUrl(city.value,skill.value);
+      const maps=el('section',null,'card');maps.style.marginTop='12px';
+      maps.append(el('h3','Find other companies in your selected city'));
+      if(searchURL){
+        addNotice(maps,'Open a Google Maps search for businesses connected with the chosen skill in '+niceCity(city.value)+'. Google Maps businesses are NOT verified job openings and are NOT counted above.');
+        const employerLink=el('a','Search companies on Google Maps ↗');
+        employerLink.href=searchURL;employerLink.target='_blank';employerLink.rel='noopener noreferrer';
+        maps.append(employerLink);
+      }else{
+        addNotice(maps,'Enter a city to search companies on Google Maps without giving GPS permission or an API key.');
+      }
+      result.append(maps);
       const external=el('section',null,'card');external.style.marginTop='12px';
       external.append(el('h3','Search more verified opportunities'));
       addNotice(external,'For wider live vacancies, continue to the official National Career Service portal and select your city there. This app does not import its listings automatically.');
