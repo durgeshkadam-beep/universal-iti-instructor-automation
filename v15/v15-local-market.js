@@ -40,7 +40,7 @@ V.marketIsValidSourceUrl=allowedURL;
 V.marketEmployerSearchUrl=function(city,skill=''){
   const location=niceCity(city);
   if(!location)return null; // Do not silently infer or request the student's GPS.
-  const topic=idText(skill).replace(/\\s+/g,' ').slice(0,80);
+  const topic=idText(skill).replace(/\s+/g,' ').slice(0,80);
   const query=(topic ? topic+' companies in ' : 'companies in ')+location+', India';
   return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(query);
 };
