@@ -199,6 +199,7 @@ async function renderRole(r,name){
   if(r==='principal')return renderPrincipal(name);
   if(r==='instructor'){
     if(name==='skill-review')return V.renderInstructorSkillVerification?.();
+    if(name==='market-editor')return V.renderInstructorMarketEditor?.();
     renderLegacyInstructor(name);
     if(name==='attendance')await V.finalAttendanceGovernance();
     if(name==='gallery')await V.injectGalleryCloud?.();
