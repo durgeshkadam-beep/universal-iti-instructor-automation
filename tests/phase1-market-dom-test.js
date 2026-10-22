@@ -46,7 +46,7 @@ const delay=()=>new Promise(done=>setTimeout(done,30));
   city.value='Ratnagiri';
   w.document.querySelector('#tab-local-market button').click();await delay();
   text=w.document.querySelector('#v15MarketResults').textContent;
-  assert.match(text,/does NOT mean that no companies or jobs exist here/);
+  assert.match(text,/does not mean that no companies or jobs exist here/i);
   assert.doesNotMatch(text,/Photoshop.*valuable everywhere/);
   currentRole='instructor';
   await V.renderInstructorMarketEditor();
