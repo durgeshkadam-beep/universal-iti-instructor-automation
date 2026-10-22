@@ -4,6 +4,9 @@ on:
   push:
     branches: ['phase1/security-student-career-20261021']
   pull_request:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -25,7 +28,7 @@ jobs:
       - run: npm test
       - run: npm run test:rules
       - run: npm run test:e2e
-      - run: npm audit --omit=dev --audit-level=moderate
+      - run: npm run audit:production
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -52,3 +52,16 @@ See the PR description for the final commit and remote-check status.
 ### Development dependency advisory detail
 
 The final full `npm audit` reports **7 development-only findings: 3 high, 4 moderate, 0 critical**. The high findings are `braces` and its dependent `chokidar`/`firebase-tools` chain (nested-pattern stack exhaustion). Moderate findings are `@opentelemetry/core`, `@google-cloud/pubsub`, `gaxios` and `uuid`. Firebase CLI was updated to 15.34.1; the registry still reported braces 3.0.3 as its latest release with the advisory applying through that version. These are not included in `npm ci --omit=dev` backend installs or published front-end assets. Do not supply untrusted patterns/configuration to development CLI tools. They remain a tracked security limitation; this report does not claim an all-dependency clean audit. The gRPC certificate/error-disclosure findings were resolved with an override to 1.14.6 and the emulator/browser suites reran successfully afterward.
+
+
+## Follow-up: CI registry failure and workspace invitation controls
+
+The previously pending PR run 196 completed with all functional tests passing, but the npm registry audit request failed after falling back to the retired quick-audit endpoint. This was an audit infrastructure error, not a reported application vulnerability.
+
+- Added `npm run audit:production`: bounded registry retries with per-attempt timeouts; actual moderate/high/critical findings fail immediately. Invalid, missing, timed-out or persistently unavailable audit responses also fail. The JSON result is retained in the validation artifact.
+- Added six unit tests for clean results, registry recovery, real findings, persistent errors, malformed responses and timeout handling.
+- Push/PR workflows now share a concurrency group so the newest validation cancels the redundant run.
+- Restricted instructor invitation reads, activation-secret management and invitation deletion to students whose assigned workspaces are entirely within that instructor's assignments. Institute-wide invitation enumeration is reserved for Principal/owner. Student self-activation and owner/Principal administration remain supported.
+- Added emulator attacks for foreign-workspace reads, enumeration, deletion, replacement and new-secret creation, plus allowed own-workspace creation/rotation/deletion.
+
+Follow-up local validation: 17 regression scripts and 19 unit tests passed; the three emulator suites passed; production audit reported zero vulnerabilities. All 14 desktop/mobile browser scenarios also passed. The current remote run is tracked in PR #16. No production configuration, data, deployment or main-branch change is included.

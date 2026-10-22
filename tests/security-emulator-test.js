@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const {initializeTestEnvironment,assertSucceeds:yes,assertFails:no}=require('@firebase/rules-unit-testing');
-const {doc,setDoc,getDoc,updateDoc,deleteDoc,serverTimestamp}=require('firebase/firestore');
+const {doc,setDoc,getDoc,updateDoc,deleteDoc,getDocs,collection,serverTimestamp}=require('firebase/firestore');
 (async()=>{
  const env=await initializeTestEnvironment({projectId:'demo-universal-iti',firestore:{rules:fs.readFileSync('firestore.rules','utf8')}}),base='institutes/security-test',ws=base+'/workspaces/w1';
  try{
@@ -19,6 +19,22 @@ const {doc,setDoc,getDoc,updateDoc,deleteDoc,serverTimestamp}=require('firebase/
  await yes(updateDoc(att,{data:'A'}));
  await yes(updateDoc(doc(teacher,ws+'/attendanceLocks/2026-10'),{status:'submitted',submittedBy:'teacher',updatedAt:'test'}));
  await no(updateDoc(doc(teacher,base+'/access/principal@example.test'),{role:'student',workspaceIds:['w1']}));
+ // Instructors must not inspect, delete, or replace another workspace's invitation.
+ await env.withSecurityRulesDisabled(async c=>{for(const [mail,ids] of [['own@example.test',['w1']],['foreign@example.test',['w2']]]){await setDoc(doc(c.firestore(),base+'/access/'+mail),{role:'student',workspaceIds:ids,active:true});await setDoc(doc(c.firestore(),base+'/inviteSecrets/'+mail),{role:'student',codeHash:'synthetic-proof',active:true});}});
+ for(const collection of ['access','inviteSecrets']){
+  const foreign=doc(teacher,base+'/'+collection+'/foreign@example.test');
+  await no(getDoc(foreign));await no(deleteDoc(foreign));await no(updateDoc(foreign,{active:false}));
+  await yes(getDoc(doc(teacher,base+'/'+collection+'/own@example.test')));
+ }
+ await no(setDoc(doc(teacher,base+'/inviteSecrets/foreign@example.test'),{role:'student',codeHash:'forged',active:true}));
+ await no(getDocs(collection(teacher,base+'/access')));
+ await yes(setDoc(doc(teacher,base+'/access/new-own@example.test'),{role:'student',workspaceIds:['w1'],active:true}));
+ await yes(setDoc(doc(teacher,base+'/inviteSecrets/new-own@example.test'),{role:'student',codeHash:'new-synthetic-proof',active:true}));
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),base+'/access/foreign-new@example.test'),{role:'student',workspaceIds:['w2'],active:true}));
+ await no(setDoc(doc(teacher,base+'/inviteSecrets/foreign-new@example.test'),{role:'student',codeHash:'forged',active:true}));
+ await yes(updateDoc(doc(teacher,base+'/inviteSecrets/own@example.test'),{codeHash:'rotated-synthetic-proof'}));
+ await yes(deleteDoc(doc(teacher,base+'/inviteSecrets/own@example.test')));
+ await yes(deleteDoc(doc(teacher,base+'/access/own@example.test')));
  await no(updateDoc(doc(student,ws+'/submissions/private'),{traineeId:'s1',data:'stolen'}));
  await no(setDoc(doc(db('staff'),ws+'/notices/new'),{data:{text:'forged'}}));
  await no(setDoc(doc(db('other'),ws+'/notices/new'),{data:{text:'forged'}}));

@@ -18,7 +18,7 @@ npx playwright install --with-deps chromium
 npm test
 npm run test:rules
 npm run test:e2e
-npm audit --omit=dev --audit-level=moderate
+npm run audit:production
 ```
 
 The emulator commands explicitly target **demo-universal-iti**. Tests create synthetic records only. The browser suite signs in through the real Auth emulator (email/password fixtures), loads the real app, queries the real Firestore emulator, and calls the real HTTP API. It does not exercise Google's interactive account-selection popup or access production. All HTTPS browser requests are blocked in that suite, including production Firebase and optional CDN libraries. Emulator expected-denial messages are assertions, not failing tests. CI runs on this development branch and PRs and never deploys.
@@ -77,3 +77,5 @@ Offline mode supports changes to already-loaded data. A cold offline login canno
 7. Approve a rollout, migration, backup/rollback and exam outage policy. Only then explicitly authorize any main merge and production deployment. This work has not performed either.
 
 Development tooling still has upstream dependency advisories; see the validation report for exact packages and severity. Production installs must use `npm ci --omit=dev --ignore-scripts`. Do not ship the Firebase CLI or emulator tooling with the backend.
+
+The production audit command retries only unavailable/malformed registry responses and fails on real findings or exhausted retries. Its JSON result is included in the CI validation artifact. Instructor invitation management is restricted to the student workspaces assigned to that instructor.

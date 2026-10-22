@@ -41,6 +41,13 @@ service cloud.firestore {
     function principalCanCreateRole(inst, role) { return isPrincipal(inst) && role in ['instructor','staff']; }
     function instructorCanCreateRole(inst, role) { return isInstructor(inst) && role == 'student'; }
 
+    function instructorManagesAccess(inst, email) {
+      let path = accessPath(inst, email);
+      return isInstructor(inst) && exists(path) && get(path).data.role == 'student'
+        && get(path).data.workspaceIds is list && get(path).data.workspaceIds.size() > 0
+        && get(path).data.workspaceIds.hasOnly(member(inst).workspaceIds);
+    }
+
     // Preserve V14 private cloud for rollback/migration.
     match /itiInstructorUsers/{userId}/{document=**} {
       allow read, write: if signedIn() && request.auth.uid == userId;
@@ -59,8 +66,8 @@ service cloud.firestore {
       allow delete: if false;
 
       match /access/{email} {
-        allow get: if signedIn() && (isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || request.auth.token.email == email);
-        allow list: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst);
+        allow get: if signedIn() && (isOwner(inst) || isPrincipal(inst) || instructorManagesAccess(inst, email) || request.auth.token.email == email);
+        allow list: if isOwner(inst) || isPrincipal(inst);
         allow create: if ownerCanCreateRole(inst, request.resource.data.role)
           || principalCanCreateRole(inst, request.resource.data.role)
           || (instructorCanCreateRole(inst, request.resource.data.role) && request.resource.data.workspaceIds.hasOnly(member(inst).workspaceIds));
@@ -70,18 +77,18 @@ service cloud.firestore {
             && resource.data.workspaceIds.hasOnly(member(inst).workspaceIds) && request.resource.data.workspaceIds.hasOnly(member(inst).workspaceIds));
         allow delete: if isOwner(inst)
           || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
-          || (isInstructor(inst) && resource.data.role == 'student');
+          || (isInstructor(inst) && resource.data.role == 'student' && instructorManagesAccess(inst, email));
       }
 
       match /inviteSecrets/{email} {
         allow read: if isOwner(inst) || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
-          || (isInstructor(inst) && resource.data.role == 'student');
+          || (isInstructor(inst) && resource.data.role == 'student' && instructorManagesAccess(inst, email));
         allow create: if ownerCanCreateRole(inst, request.resource.data.role)
           || principalCanCreateRole(inst, request.resource.data.role)
-          || instructorCanCreateRole(inst, request.resource.data.role);
+          || (instructorCanCreateRole(inst, request.resource.data.role) && instructorManagesAccess(inst, email));
         allow update: if (ownerCanCreateRole(inst, resource.data.role) && ownerCanCreateRole(inst, request.resource.data.role))
           || (principalCanCreateRole(inst, resource.data.role) && principalCanCreateRole(inst, request.resource.data.role))
-          || (instructorCanCreateRole(inst, resource.data.role) && instructorCanCreateRole(inst, request.resource.data.role))
+          || (instructorCanCreateRole(inst, resource.data.role) && instructorCanCreateRole(inst, request.resource.data.role) && instructorManagesAccess(inst, email))
           || (
             signedIn()
             && request.auth.token.email == email
@@ -94,7 +101,7 @@ service cloud.firestore {
           );
         allow delete: if isOwner(inst)
           || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
-          || (isInstructor(inst) && resource.data.role == 'student');
+          || (isInstructor(inst) && resource.data.role == 'student' && instructorManagesAccess(inst, email));
       }
 
       match /members/{memberId} {
