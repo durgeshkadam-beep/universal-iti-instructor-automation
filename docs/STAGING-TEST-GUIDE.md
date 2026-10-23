@@ -41,7 +41,7 @@ Operator fixture creation uses `scripts/seed-staging-demo.js` with `GCLOUD_PROJE
 
 Open **Dashboard → Start here**. Instructor shortcuts open Attendance, Verify Student Skills and Plan Training. Student shortcuts open My Attendance, My Skills and Career & Resume Practice. Principal and Staff dashboards similarly expose three main tasks; the full role menu remains available. The Admin portal keeps its existing technical administration screen. Shortcut cards keep enough height for their titles and descriptions on mobile.
 
-The current staging frontend connects to the Free Render HTTPS backend. Career Coach still offers keyless Marathi/Hindi/English structured practice; AI_PROVIDER=none means an optional server request returns an explicitly labelled guided response, not generated AI. Online tests now use server-side publishing, attempts and grading. An installation without apiUrl retains the unavailable message and dashboard return; it never grades in the browser.
+The current staging frontend connects to the Free Render HTTPS backend. Career Coach offers keyless Marathi/Hindi/English structured practice immediately. It checks authenticated backend configuration without sending the typed goal or answer. With AI_PROVIDER=none it hides the optional AI request/consent controls and explains that generated drafts are not enabled. If status lookup fails, guided practice remains usable. Online tests now use server-side publishing, attempts and grading. An installation without apiUrl retains the unavailable message and dashboard return; it never grades in the browser.
 
 Earlier simplification validation: **17 regression scripts, 42 native tests and 22 desktop/mobile browser scenarios passed**. The browser checks click all three shortcuts for each applicable role and verify their destinations, exercise keyless Marathi/Hindi/English practice with the browser offline after login, and return from unavailable exams. A discovered late Staff & Access activation was fixed by removing its duplicate renderer/navigation handler; both the delayed-render DOM regression and actual Principal shortcut navigation pass.
 
@@ -117,3 +117,11 @@ when no other workspace metadata changes. A module must finish synchronizing
 both its record and section registration before a fresh-login acceptance check.
 Current local coverage is 48 native tests, 17 regression scripts and 24 desktop/
 mobile scenarios; final CI/hosted follow-up is linked from PR16.
+
+
+AI status follow-up: the capability response contains only `aiConfigured`, requires
+active workspace authorization, and does not probe/call the model provider. Keys,
+model names and private URLs stay on the backend. Provider configuration is not a
+health/quality/quota guarantee. Marathi/Hindi/English guided practice is available
+while the lookup runs and after a lookup failure. Generative AI remains disabled
+on this staging service; no external provider key or paid account was configured.

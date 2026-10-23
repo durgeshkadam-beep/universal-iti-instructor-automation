@@ -76,7 +76,8 @@ test('student private skill plan, multilingual assistance and protected exam thr
  await expect(page.locator('#tab-skill-gap')).toContainText('Private learning plan synced');
  await page.evaluate(()=>V15Sync.finalOpenTab('career-coach'));
  for(const lang of ['mr','hi','en']){await page.locator('#coach-language').selectOption(lang);await page.getByRole('button',{name:'Start free guided practice'}).click();await expect(page.locator('#coach-output')).not.toBeEmpty();}
- await page.getByLabel('I consent').check();await page.getByRole('button',{name:'Request optional AI draft'}).click();await expect(page.locator('#coach-output')).toContainText('Guided mode');
+ await expect(page.locator('#coach-ai-status')).toContainText('AI-generated drafts are not enabled');
+ await expect(page.getByLabel('I consent')).toHaveCount(0);await expect(page.getByRole('button',{name:'Request optional AI draft'})).toHaveCount(0);
  await page.evaluate(()=>V15Sync.finalOpenTab('exams'));
  const originalExam=page.locator('#tab-exams section').filter({has:page.getByRole('heading',{name:'Synthetic browser test',exact:true})});
  await originalExam.getByRole('button',{name:'Start / resume test'}).click();

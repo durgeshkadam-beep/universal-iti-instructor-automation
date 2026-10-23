@@ -257,3 +257,31 @@ no fixed password value; repeated emulator fixtures are reset to the current
 run's value. No staging login or production credential is used by that runner.
 This removes the credential-like test literal flagged during automatic review.
 The replacement fixture flow is re-tested through real emulator sign-in.
+
+
+### Career Coach configuration follow-up
+
+A backend URL alone previously exposed an optional AI button even when the
+provider was disabled. Added an authenticated, read-only `capabilities` action
+that returns only a boolean for complete provider configuration. It performs no
+model request or quota write and reveals no key/model/private URL. Token,
+active-membership and workspace checks still apply.
+
+Career Coach renders local guided practice before the asynchronous lookup. AI
+controls and consent appear only after a positive configuration response. Disabled
+or unavailable configuration gives an honest status while guided practice stays
+usable. Late responses from another render/user/workspace cannot enable stale
+controls. Configuration status does not certify provider health, quota, cost or
+quality; actual generative-model acceptance still requires a configured account
+and instructor review.
+
+Eight new unit/DOM scenarios cover disabled/partial/configured providers, no
+secret disclosure or model calls, authorization, immediate guided practice,
+explicit AI consent, lookup failure and stale workspace responses. Local final
+validation: 17 regression scripts + 56 native tests + 24 desktop/mobile E2E PASS
+(browser suite 1.0m). The real emulator HTTP scenario now verifies that an
+unconfigured backend has no AI consent/button. Permission/backend emulator suites
+also exercise configuration lookup and inactive-member denial. Full CI and
+hosted deployment results are tracked in Draft PR16.
+
+The complete local permission/backend emulator rerun also passed all three suites after this change; expected denied-write logs are assertions. No external AI provider was configured or called.

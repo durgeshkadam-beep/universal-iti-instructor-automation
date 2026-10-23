@@ -54,6 +54,8 @@ Configure these **only in the backend environment**, using `server/.env.example`
 - `AI_PROVIDER=gemini`, `AI_API_KEY`, `AI_MODEL`: administrator-selected available model and key from a secret manager. Check current free quotas, eligibility, model availability, provider data terms and payment settings yourself; free availability is not guaranteed. Paid access uses the same adapter later.
 - `AI_DAILY_LIMIT`: per-user daily generation limit (default 20). Quota records use a hashed key and expiry timestamp; configure Firestore TTL for `apiLimits.expiresAt` or clean them administratively. A failed provider call still consumes quota.
 
+The authenticated capabilities action reports only whether a provider has complete configuration. It does not contact the model, test quota/health, return a model name/URL/key, or submit student text. Career Coach shows optional AI controls only after a positive response; disabled, missing or unreachable configuration leaves guided practice available immediately. A configured provider is not a guarantee of response quality, current quota or free access.
+
 Backend handles consent, role checks, input/output bounds, timeout, per-user quotas and redacted errors. Model text is rendered as plain text and labelled as a draft. No prompts or model responses are logged/stored by this app's backend. Provider retention policies remain external. Teaching-plan generation also uses this backend; the old browser API-key collection and direct provider request have been removed. Existing user-provided session keys are cleared.
 
 Gemini REST reference: https://ai.google.dev/api/generate-content

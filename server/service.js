@@ -23,6 +23,13 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
  return {async execute(token,body){
   const {action,instituteId,workspaceId}=body||{};
   const {u,member,owner,ws}=await authorize(token,instituteId,workspaceId);
+  if(action==='capabilities'){
+   const model=typeof config.model==='string'&&config.model.trim();
+   let aiConfigured=!!(model&&config.provider==='gemini'&&typeof config.apiKey==='string'&&config.apiKey.trim());
+   if(model&&config.provider==='ollama')try{const url=new URL(config.ollamaUrl);aiConfigured=['http:','https:'].includes(url.protocol)&&!url.username&&!url.password;}catch{}
+   // This is configuration status, not provider health, a quota check or an AI call.
+   return {aiConfigured};
+  }
   const teacher=owner||['principal','instructor'].includes(member?.role);
   if(action==='publishExam'){
    requireValue(teacher,'Instructor access required',403);await limit(u.uid,action);
