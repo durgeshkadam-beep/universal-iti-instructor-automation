@@ -293,7 +293,7 @@ test('Student cannot forge an already approved leave or another trainee identity
 });
 
 test('training backup downloads, previews and atomically restores only missing resources',async({page})=>{
- await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('reports'));
+ await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('reports'));await expect(page.locator('#storageStats')).toContainText('Pending changes are saved on this device');await expect(page.locator('#storageStats')).not.toContainText('5 MB');
  const id='backup-'+require('node:crypto').randomUUID(),title='Synthetic backup '+test.info().project.name;
  await page.evaluate(async({id,title})=>{const V=V15Sync;await V.fb.M.setDoc(V.fb.M.doc(V.col('notices'),id),{data:{id,title,body:'Synthetic restore acceptance'}});},{id,title});
  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Export training backup (.json)',exact:true}).click();const download=await downloadPromise;
@@ -303,7 +303,7 @@ test('training backup downloads, previews and atomically restores only missing r
  const file={...backup,sections:{notices:backup.sections.notices.filter(r=>r.id===id||r.id==='n1')}};
  const conflict=file.sections.notices.find(r=>r.id==='n1');if(conflict)conflict.data.title='Untrusted replacement must not overwrite';
  await page.locator('#importFile').setInputFiles({name:'synthetic-training.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(file))});
- const panel=page.locator('#v15TrainingBackup');await expect(panel).toContainText('No records have been restored yet');await expect(panel).toContainText('1 missing');
+ const panel=page.locator('#v15TrainingBackup');await expect(panel).toContainText('No records have been restored yet');await expect(panel).toContainText('1 missing');await page.evaluate(()=>{document.getElementById('reportEvalSelect').add(new Option('Synthetic long training report title '.repeat(20),'long'));});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await expect(page.locator('#importFile').locator('..')).toHaveText('Preview training backup');
  expect(await page.evaluate(async id=>{const V=V15Sync;return(await V.fb.M.getDocFromServer(V.fb.M.doc(V.col('notices'),id))).exists();},id)).toBe(false);
  await panel.getByRole('button',{name:'Restore missing training resources',exact:true}).click();await expect(panel).toContainText('Restore complete: 1 added');
  const saved=await page.evaluate(async id=>{const V=V15Sync,M=V.fb.M,a=await M.getDocFromServer(M.doc(V.col('notices'),id)),b=await M.getDocFromServer(M.doc(V.col('notices'),'n1'));return {restored:a.data().data.title,existing:b.data().data.title};},id);expect(saved.restored).toBe(title);expect(saved.existing).toBe('Synthetic notice');
@@ -314,6 +314,6 @@ test('backup rejects legacy or foreign files without changing workspace data; St
  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('reports'));const before=await page.evaluate(()=>JSON.stringify(DATA.trainees));
  await page.locator('#importFile').setInputFiles({name:'legacy.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({meta:{},trainees:[]}))});await expect(page.locator('#v15TrainingBackup')).toContainText('Legacy whole-data imports');expect(await page.evaluate(()=>JSON.stringify(DATA.trainees))).toBe(before);
  const foreign={backupFormat:'Universal ITI training backup',formatVersion:1,exportedAt:new Date().toISOString(),source:{instituteId:'brdbagiti-mumbai-01',workspaceId:'foreign'},sections:{notices:[]}};
- await page.locator('#importFile').setInputFiles({name:'foreign.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(foreign))});await expect(page.locator('#v15TrainingBackup')).toContainText('different institute or workspace');expect(await page.evaluate(()=>localStorage.getItem('iti-v14-pre-import-snapshot'))).toBe(null);
+ await page.locator('#importFile').setInputFiles({name:'foreign.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(foreign))});await expect(page.locator('#v15TrainingBackup')).toContainText('different institute or workspace');expect(await page.evaluate(()=>localStorage.getItem('iti-v14-pre-import-snapshot'))).toBe(null);await page.evaluate(()=>CloudCenter.createLocalSafetySnapshot());expect(await page.evaluate(()=>localStorage.getItem(CloudCenter.preUpgradeKey))).toBe(null);
  await login(page,'student');const denied=await page.evaluate(async()=>{const V=V15Sync,M=V.fb.M,old=M.getDocs;let reads=0;M.getDocs=async()=>{reads++;throw Error('Unexpected read');};try{await App.exportData();await App.importData({target:{files:[{size:10,text:async()=>'{"meta":{}}'}]}});return {reads,trainees:DATA.trainees.length};}finally{M.getDocs=old;}});expect(denied.reads).toBe(0);expect(denied.trainees).toBe(1);
 });
