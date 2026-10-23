@@ -25,3 +25,7 @@ test('unavailable server confirmation cannot acknowledge a denied operation',asy
 test('switching accounts during a server acknowledgement cannot clear the new account queue',async()=>{
  const f=fixture();try{f.V.fb.M.getDocFromServer=async()=>{f.V.fb.user.uid='other';f.V.queuePush({...f.op,docId:'other-record'});return {exists:()=>true,data:()=>({data:f.reviewed})};};await f.V.flushQueue();assert.equal(f.V.queueRead().length,1);f.V.fb.user.uid='student';assert.equal(f.V.queueRead().length,1,'original account retry retained for its next session');}finally{f.dom.window.close();}
 });
+
+test('a remote review updates the open leave table without login or navigation',()=>{
+ const f=fixture('rejected');try{let rendered;f.w.Leave={render:()=>{rendered=f.w.DATA.leaves[0].status;}};f.V.remote('leaves');assert.equal(rendered,'rejected');assert.equal(f.V.queueRead().length,1);}finally{f.dom.window.close();}
+});

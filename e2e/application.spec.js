@@ -266,7 +266,7 @@ test('Student leave approval is atomic across locked months and persists after P
   expect((await state()).status).toBe('pending'); // The open month must not receive a partial write.
   await principal.evaluate(()=>V15Sync.reviewAttendanceMonth('w1','2040-11','reopened','Synthetic leave approval test'));
   await row.getByRole('button',{name:'Approve',exact:true}).click();await expect(instructor.locator('#v15LeaveStatus')).toContainText('all requested attendance dates saved together');await expect.poll(state).toMatchObject({status:'approved',attendance:'L'});
-  await login(page,'student');await page.evaluate(()=>V15Sync.finalOpenTab('leave'));await expect(page.locator('#leaveTableBody tr').filter({hasText:reason})).toContainText('Approved');
+  await expect(page.locator('#leaveTableBody tr').filter({hasText:reason})).toContainText('Approved'); // Realtime update on the already-open Student screen.
   // Simulate a committed request whose local acknowledgement was interrupted before review.
   await page.context().setOffline(true);
   const nextId=await page.evaluate(reason=>{

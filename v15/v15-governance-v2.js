@@ -63,7 +63,8 @@ V.receiveSyllabusSnapshot=function(section,incoming){
  if(this.ready)try{this.refresh?.();}catch(e){}
 };
 V.applyAllQueued=function(){const sections=[...new Set(this.queueRead().filter(o=>o.workspaceId===this.workspaceId).map(o=>o.section).filter(Boolean))];sections.forEach(s=>this.applyQueuedToSection(s));};
-V.remote=function(section){if(!this.ready)return;this.shadow=this.shadow||{};this.shadow[section]=clone(DATA[section]);this.applyQueuedToSection(section);try{this.refresh?.();}catch(e){}if(section==='notices')setTimeout(()=>this.injectInstituteNotices?.().catch?.(()=>{}),0);};
+V.refreshLeave=function(){try{if(typeof Leave!=='undefined')Leave.render?.();}catch(e){}};
+V.remote=function(section){if(!this.ready)return;this.shadow=this.shadow||{};this.shadow[section]=clone(DATA[section]);this.applyQueuedToSection(section);try{this.refresh?.();}catch(e){}if(section==='leaves')this.refreshLeave();if(section==='notices')setTimeout(()=>this.injectInstituteNotices?.().catch?.(()=>{}),0);};
 const loadBase=V.load?.bind(V);if(loadBase)V.load=async function(...args){const r=await loadBase(...args);this.applyAllQueued();return r;};
 
 V.flushQueue=async function(){if(!this.ready||!navigator.onLine||this._queueFlushing)return;this._queueFlushing=true;let q=this.queueRead();try{while(q.length){const o=q[0],M=this.fb.M,actor=uid();try{if(o.actorUid&&o.actorUid!==uid())throw new Error('Pending operation belongs to a different signed-in account.');if(o.section==='attendance')await this.assertAttendanceWritable(o.key,o.workspaceId);if(o.section==='trainees'&&o.action==='set'&&o.value)await this.claimTraineeIdentity(o.value,o.workspaceId);let ref;if(o.kind==='array'||o.kind==='map')ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',o.workspaceId,o.section,o.docId);else if(o.kind==='genericMap')ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',o.workspaceId,'map_'+o.section,o.docId);else if(o.kind==='meta')ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',o.workspaceId);if(!ref)throw new Error('Invalid queued operation.');if(o.action==='delete'){await this.recycle(o);await M.deleteDoc(ref);}else{try{await M.setDoc(ref,o.data,{merge:o.kind==='meta'});}catch(error){
@@ -72,7 +73,7 @@ V.flushQueue=async function(){if(!this.ready||!navigator.onLine||this._queueFlus
  if(this.workspaceId===o.workspaceId&&Array.isArray(DATA.leaves)){
   DATA.leaves=DATA.leaves.map(x=>this.itemId('leaves',x)===o.docId?clone(server):x);
   if(Array.isArray(this.shadow?.leaves))this.shadow.leaves=this.shadow.leaves.map(x=>this.itemId('leaves',x)===o.docId?clone(server):x);
-  try{this.refresh?.();}catch(e){}
+  try{this.refresh?.();}catch(e){}this.refreshLeave();
  }
  }
  }if(uid()!==actor)throw new Error('Account changed during sync; original retry retained.');await this.audit(`${o.section}.${o.action}`,{docId:o.docId,before:o.before,after:o.value},o.workspaceId);if(uid()!==actor)throw new Error('Account changed during sync; original retry retained.');q=this.queueRead().filter(x=>x.id!==o.id);this.queueWrite(q);}catch(e){console.warn('V15 queued operation pending',o.section,o.docId,e?.code||e?.message||'Sync failed');this.badge?.('Sync pending');break;}}if(!q.length){try{await this.rebuildWorkspaceSummary?.();}catch(e){}this.badge?.('Synced');}}finally{this._queueFlushing=false;}};
