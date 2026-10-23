@@ -40,7 +40,8 @@ assert.equal((rules.match(/service cloud\.firestore/g)||[]).length,1,'exactly on
 assert.equal((rules.match(/match \/databases\/\{database\}\/documents/g)||[]).length,1,'duplicate ruleset must never be concatenated');
 assert.equal((rules.match(/function attendanceUnlocked/g)||[]).length,1,'attendance month helper must be unique');
 assert.ok(rules.trim().endsWith('}\n  }\n}'),'ruleset must close normally');
-assert.ok(rules.split('\n').length<360,'unexpectedly long Firestore rules source (possible duplicate append)');
+const helperNames=[...rules.matchAll(/\bfunction\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)].map(m=>m[1]);
+assert.equal(new Set(helperNames).size,helperNames.length,'rules helper declarations must be unique (no duplicated append)');
 console.log('Phase 1 Firestore rules integrity invariants: PASS (static checks only).');
 
 

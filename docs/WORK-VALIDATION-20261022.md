@@ -444,3 +444,12 @@ and all 38 desktop/mobile real Auth/Firestore/HTTP E2E scenarios PASS. The first
 mobile fixture replaced lock review metadata during re-submit; it was corrected
 to use the same merge semantics as the app, and the complete suite reran. Final
 hosted and CI evidence is tracked in Draft PR16.
+
+CI caught a missed V15 rules snapshot update; the prior local native-test count
+was correct, but the claimed complete regression pass was premature. The snapshot
+is now byte-identical to the active rules. The old 360-line heuristic also blocked
+legitimate validator growth, so integrity checks now explicitly reject duplicate
+helper declarations while retaining unique ruleset/database headers and snapshot
+identity. The full local command was rerun with checked exit status: all 17
+regression scripts and 90 native tests PASS (exit 0). Actual deployed rules and
+application behavior are unchanged by this snapshot/integrity-test correction.
