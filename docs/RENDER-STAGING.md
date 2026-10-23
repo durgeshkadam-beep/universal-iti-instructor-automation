@@ -1,25 +1,40 @@
 # Deploy the isolated staging API on Render
 
-Status (23 October 2026): Render is connected and a Free Docker service exists:
-https://dashboard.render.com/web/srv-dbdfciks728c73botalg
+Status (23 October 2026): Render is connected to DURGESH's confirmed workspace.
+The Free Docker staging API is live at:
+https://universal-iti-staging-api.onrender.com
 
-**The service is not live.** Initial deployment deliberately failed because the
-required backend credential was absent. Automatic approval review blocked sending
-a staging service-account key to Render without explicit credential-export
-authorization. No key was accepted by Render. Hosted MCQ/AI API remains disabled
-and frontend `apiUrl` remains empty. A dedicated staging service account was
-provisioned with only the two roles listed below. The unused key was revoked
-and its private local copy removed. A replacement requires explicit approval.
+[Service dashboard](https://dashboard.render.com/web/srv-dbdfciks728c73botalg).
+Source: `e09ada0c1f89bf92209dc127dc50cec2b3edd46c` (backend code unchanged
+from `b0038d3798d1c678d5ae93fabb7b61d23c82f7cf`). Deployment
+`dep-dbdfvkahv4oc73bocqgg` reached `live`.
 
-Backend source `b0038d3798d1c678d5ae93fabb7b61d23c82f7cf` passed local
-17 regression scripts and 44 native tests, including actual startup using both
-credential sources. Hosted authenticated acceptance has not run.
-The Render account is connected to DURGESH's workspace. Firebase Hosting serves the frontend
-at https://universal-iti-dk-staging.web.app/v15/.
+The owner explicitly authorized transfer of the replacement staging credential
+on 23 October. It is stored only in the Render backend environment, outside Git
+and public assets. The earlier unused credential was revoked. The dedicated
+staging identity has only the two roles below. Auto-deploy remains off.
+
+Local validation passed 17 regression scripts and 44 native tests, including
+actual HTTP startup with each supported credential source. Full CI run
+[39908590684](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/actions/runs/39908590684)
+passed. Hosted health, missing-token 401 and foreign-origin 403 checks passed.
+All five synthetic roles completed all three guided languages (15 authenticated
+calls). Hosted MCQ API acceptance passed: role-restricted publication, private
+answer-key denial, server-issued/resumable deadline, correct 2/2 grading despite
+a forged client score, and immutable retry. Temporary synthetic test documents
+were removed. The frontend has been deployed with this apiUrl; its public runtime
+bytes match the local build. All five roles/48 routes passed after connection. A real mobile browser flow
+also passed Instructor UI publishing, Student start/2-of-2 grading, visible offline
+submit failure, successful online retry, unchanged result after reload, guided
+practice in three languages and 390px containment. Zero production requests.
+Health alone must not be read as evidence of grading readiness.
+
+Firebase Hosting serves the frontend at
+https://universal-iti-dk-staging.web.app/v15/.
 
 ## Account and cost boundary
 
-Connect a Render account with access to this repository. Use `render.yaml` from
+For a new installation, connect a Render account with repository access. Use `render.yaml` from
 `phase1/security-student-career-20261021`, not `main`. The Blueprint selects the
 Free Docker web service in Singapore, manual deployment, and `AI_PROVIDER=none`.
 It provisions no additional database, disk, worker or AI subscription. Creating

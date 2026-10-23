@@ -20,7 +20,7 @@ Synthetic fixtures include one DTP workspace, one trainee, two practicals, a wel
 
 ## Backend limitations
 
-`apiUrl` is intentionally empty in `config/staging.public.json`. Static Hosting, Firebase Auth and Firestore can be tested. Secure online MCQ publishing/grading and optional generative AI require an authenticated HTTPS Node backend and are unavailable on this hosted preview. No answer keys are exposed and no client grading fallback is enabled. Marathi/Hindi/English structured guidance, resume outlines and interview practice remain available without an AI key. No paid hosting or provider account was enabled.
+`config/staging.public.json` now selects the deployed Render HTTPS API. Hosted MCQ publishing/grading passed authenticated API acceptance with synthetic data. Answer keys remain private and there is no client grading fallback. Marathi/Hindi/English structured guidance, resume outlines and interview practice remain available without an AI key. Generative AI is disabled until a provider/model is configured. No paid instance or AI subscription was enabled.
 
 ## Reproduce deployment
 
@@ -41,9 +41,9 @@ Operator fixture creation uses `scripts/seed-staging-demo.js` with `GCLOUD_PROJE
 
 Open **Dashboard → Start here**. Instructor shortcuts open Attendance, Verify Student Skills and Plan Training. Student shortcuts open My Attendance, My Skills and Career & Resume Practice. Principal and Staff dashboards similarly expose three main tasks; the full role menu remains available. The Admin portal keeps its existing technical administration screen. Shortcut cards keep enough height for their titles and descriptions on mobile.
 
-On this backend-free staging configuration, Career Coach presents the ready-to-use multilingual guided practice without a disabled AI button or an irrelevant consent form. It explicitly identifies the output as structured templates, not generated AI. Online tests show a clear unavailable message and a working dashboard return button. They never grade in the browser.
+The current staging frontend connects to the Free Render HTTPS backend. Career Coach still offers keyless Marathi/Hindi/English structured practice; AI_PROVIDER=none means an optional server request returns an explicitly labelled guided response, not generated AI. Online tests now use server-side publishing, attempts and grading. An installation without apiUrl retains the unavailable message and dashboard return; it never grades in the browser.
 
-Latest simplification validation: **17 regression scripts, 42 native tests and 22 desktop/mobile browser scenarios passed**. The browser checks click all three shortcuts for each applicable role and verify their destinations, exercise keyless Marathi/Hindi/English practice with the browser offline after login, and return from unavailable exams. A discovered late Staff & Access activation was fixed by removing its duplicate renderer/navigation handler; both the delayed-render DOM regression and actual Principal shortcut navigation pass.
+Earlier simplification validation: **17 regression scripts, 42 native tests and 22 desktop/mobile browser scenarios passed**. The browser checks click all three shortcuts for each applicable role and verify their destinations, exercise keyless Marathi/Hindi/English practice with the browser offline after login, and return from unavailable exams. A discovered late Staff & Access activation was fixed by removing its duplicate renderer/navigation handler; both the delayed-render DOM regression and actual Principal shortcut navigation pass.
 
 Staging is deployed and available for manual testing. The previously deployed baseline passed 17 regression scripts, 36 unit/HTTP/build/transport tests and **20 desktop/mobile browser scenarios**; the newer totals are above. Module scenarios create a module through the actual form, confirm its Firestore write, sign in again and verify that the module survives reload. The async navigation regression also verifies that a slow page or shell refresh cannot replace a newer selected route.
 
@@ -55,6 +55,31 @@ The first live browser attempt exposed a slow-connection startup failure. Member
 
 The operator renewed authentication and restored the five private synthetic passwords. No owner transfer, production membership change or real-student update occurred. Backend code and package metadata return HTTP 404. Billing remains disabled. GitHub CI run 206 (39797131007) passed for the deployed startup/navigation baseline, including tests, container smoke, permission tests, browser tests and the production audit. Later backend deployment-guard validation is recorded separately in the work report.
 
-The next backend deployment has a [Render staging recipe](RENDER-STAGING.md) and `render.yaml` pinned to the development branch, Free plan, manual deploys and no AI provider. It still needs a connected hosting account and private staging service identity. The startup guard refuses wrong-project credentials/origins and emulator overrides. No Render service has been provisioned by this source change.
+The [Render staging backend](RENDER-STAGING.md) is connected and deployed on the Free plan with automatic deploys off and no AI provider. The owner authorized its private staging identity. The startup guard refuses wrong-project credentials/origins and emulator overrides. The frontend now targets https://universal-iti-staging-api.onrender.com/api. Free instances can sleep and take time to wake; this is a synthetic demonstration, not dependable scheduled production-exam hosting.
 
-This is staging acceptance coverage, not a production-readiness certification. Hosted online exams and optional generative AI still require a trusted HTTPS backend. Real Google popup/device acceptance, external document imports/printing/Drive, migration/backup and all institute-specific legacy forms retain the release limitations described in the production-readiness guide.
+This is staging acceptance coverage, not a production-readiness certification. Hosted MCQs now use the deployed trusted HTTPS backend. Optional generative AI still needs a configured provider/model and backend secret; none is enabled. Real Google popup/device acceptance, external document imports/printing/Drive, migration/backup and all institute-specific legacy forms retain the release limitations described in the production-readiness guide.
+
+
+## Test the hosted MCQ flow
+
+1. Refresh https://universal-iti-dk-staging.web.app/v15/ so the public runtime points
+   at the Render API. Use only synthetic fixtures here; original student data has
+   not been migrated.
+2. Sign in as Instructor and open Class Test / Secure MCQ Examinations. Publish a
+   reviewed synthetic question set using the displayed JSON format, a unique ID,
+   and current epoch-millisecond open/close times. The present publishing editor
+   requires JSON; a graphical question authoring/import workflow is not supplied.
+3. In a separate browser profile, sign in with the synthetic Student account and
+   open Secure Class Tests. Start the published exam and submit before its deadline.
+4. Reload and reopen the attempt: the saved result must remain the same. A failed
+   network request must display an error; retry online rather than relying on a
+   browser-calculated score. Free-service wake-up may need a retry.
+5. Continue skills/career practice without an AI key. Generated AI responses are
+   not enabled on this staging service.
+
+
+23 October hosted MCQ/mobile acceptance passed through the real publisher and
+Student forms, including offline failure/online retry, 2/2 grading and unchanged
+result after reload. All five roles/48 routes were re-tested after the API was
+connected, with no production-project requests. Full CI39908590684 also passed
+all test/build/emulator/browser/container/audit steps for the backend source.

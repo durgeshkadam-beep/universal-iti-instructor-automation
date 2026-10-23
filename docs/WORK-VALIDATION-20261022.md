@@ -127,3 +127,62 @@ Added fresh server-only membership/institute bootstrap reads with bounded transi
 ### Hosted staging retest complete
 
 The final deployed browser retest passed all five synthetic roles and their 48 routes: Admin1, Principal6, Instructor22, Staff4, Student15. Instructor verification saved through the UI was visible to the linked Student; the Student's private plan saved in cloud, protected-key/other-plan reads were denied, guided mr/hi/en practice worked, mobile containment passed and no production request was observed. Earlier live offline failures were resolved by bounded fresh startup reads. A later Instructor navigation race was fixed by saving the selected route before async rendering and removing redundant delayed login navigation. A deterministic DOM regression passes. A new module-form save/fresh-login regression passes on desktop and mobile: latest local total is 17 script suites, 36 native tests, 20 browser scenarios. Follow-up remote CI status is tracked in PR #16. Hosted MCQs/generative AI remain disabled pending a trusted backend; this staging deployment does not certify production.
+
+### 23 October: Render staging backend connected
+
+The owner explicitly authorized placing a staging-only Firebase service-account
+credential in Render's private backend environment. The earlier unused credential
+was revoked before replacement. The dedicated identity belongs only to
+`universal-iti-dk-staging`, with `roles/datastore.user` and
+`roles/firebaseauth.viewer`. No operator OAuth login or production credential was
+transferred. No secret value appears in source, public assets or this report.
+
+Created Free Docker web service `universal-iti-staging-api` in Singapore, with
+manual deployments from the existing development branch. Deploy
+`dep-dbdfvkahv4oc73bocqgg` reached `live` on source
+`e09ada0c1f89bf92209dc127dc50cec2b3edd46c`. The initial deployment without the
+required credential deliberately failed before listening. The authorized
+replacement fixed configuration without bypassing the staging guard. The API is
+https://universal-iti-staging-api.onrender.com/api.
+
+Validation:
+- Local backend revision: 17 regression scripts and 44 native tests passed,
+  including real child-process HTTP startup with file and environment identities.
+- Full CI [39908590684](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/actions/runs/39908590684)
+  passed all steps: native/regression tests, public build, Docker smoke, all three
+  emulator suites, desktop/mobile E2E and production audit.
+- Actual hosted HTTP: health 200, missing token 401, foreign origin 403.
+- Actual Firebase Auth and API: all five synthetic roles × Marathi/Hindi/English
+  passed (15 guided responses). AI_PROVIDER=none; no generated AI is claimed.
+- Actual hosted MCQ: Instructor published a synthetic exam; Student/Staff publish
+  denied; Staff start denied; public questions contained no answer indices;
+  Student's direct answer-key read denied. Server start/resume preserved the
+  deadline. Submission with a forged score produced the correct 2/2. Changed
+  answers on retry returned the identical original result/timestamp. Temporary
+  synthetic API-test exam/key/session/result were removed successfully.
+- Staging-only Hosting deployment completed with the Render apiUrl. Delivered
+  public runtime bytes matched the local allowlisted build (SHA-256
+  `6fad9db767a77cad13ece8b3c2e525bdb6717fa2af6c3a119310974835397582`).
+- Re-tested the deployed frontend: all five roles and 48 routes passed, including
+  Instructor verification, Student private-plan cloud save, private-read denials
+  and three-language practice. Zero production-project requests observed.
+
+Main, production deployments and real-student records remain unchanged. The
+frontend still contains only synthetic staging records. Free Render idle sleep
+and quotas remain limitations for scheduled exams. Generative AI provider/model,
+Google popup/device acceptance, original-data migration and the previously
+listed release gates remain outstanding. The current instructor publisher uses
+reviewed JSON; a graphical question authoring workflow is not implemented.
+
+
+Final hosted mobile MCQ browser acceptance **PASS** (390×844): Instructor filled
+and submitted the actual publisher form; Student started the exam, selected
+answers, received a visible offline-submit failure, retried online, and saw 2/2.
+After reload and authenticated session restoration the same official result was
+shown with no new answering form. Three-language guided practice and mobile
+containment passed; zero production-project requests. The first uninstrumented
+attempt was interrupted before completion and is not counted as a pass. The
+completed rerun used bounded locator timeouts and observable login readiness;
+no app state, authentication or grading was mocked. Its synthetic browser exam
+and result are retained in staging for review, labelled as synthetic. No real
+student records were used.
