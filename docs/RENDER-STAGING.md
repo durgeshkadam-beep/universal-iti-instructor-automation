@@ -1,7 +1,19 @@
 # Deploy the isolated staging API on Render
 
-Status: the backend implementation, container and staging Blueprint are supplied.
-**No Render service has been created and the hosted MCQ/AI API is not yet enabled.**
+Status (23 October 2026): Render is connected and a Free Docker service exists:
+https://dashboard.render.com/web/srv-dbdfciks728c73botalg
+
+**The service is not live.** Initial deployment deliberately failed because the
+required backend credential was absent. Automatic approval review blocked sending
+a staging service-account key to Render without explicit credential-export
+authorization. No key was accepted by Render. Hosted MCQ/AI API remains disabled
+and frontend `apiUrl` remains empty. A dedicated staging service account was
+provisioned with only the two roles listed below. The unused key was revoked
+and its private local copy removed. A replacement requires explicit approval.
+
+Backend source `b0038d3798d1c678d5ae93fabb7b61d23c82f7cf` passed local
+17 regression scripts and 44 native tests, including actual startup using both
+credential sources. Hosted authenticated acceptance has not run.
 The Render account is connected to DURGESH's workspace. Firebase Hosting serves the frontend
 at https://universal-iti-dk-staging.web.app/v15/.
 
