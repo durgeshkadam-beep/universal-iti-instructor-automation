@@ -65,10 +65,12 @@ This is staging acceptance coverage, not a production-readiness certification. H
 1. Refresh https://universal-iti-dk-staging.web.app/v15/ so the public runtime points
    at the Render API. Use only synthetic fixtures here; original student data has
    not been migrated.
-2. Sign in as Instructor and open Class Test / Secure MCQ Examinations. Publish a
-   reviewed synthetic question set using the displayed JSON format, a unique ID,
-   and current epoch-millisecond open/close times. The present publishing editor
-   requires JSON; a graphical question authoring/import workflow is not supplied.
+2. Sign in as Instructor and open Class Test / Secure MCQ Examinations. Enter
+   the title, duration, opening/closing date and time, question text and four
+   options. Select the correct answer explicitly. Use Add question / Remove
+   question as needed, review the test, tick the review confirmation and publish.
+   Times use the device's local time zone; the test ID is generated automatically.
+   Advanced reviewed JSON remains available for question sets with 2–6 options.
 3. In a separate browser profile, sign in with the synthetic Student account and
    open Secure Class Tests. Start the published exam and submit before its deadline.
 4. Reload and reopen the attempt: the saved result must remain the same. A failed
@@ -83,3 +85,21 @@ Student forms, including offline failure/online retry, 2/2 grading and unchanged
 result after reload. All five roles/48 routes were re-tested after the API was
 connected, with no production-project requests. Full CI39908590684 also passed
 all test/build/emulator/browser/container/audit steps for the backend source.
+
+
+## Simplified question authoring — 23 October
+
+The default Instructor publisher is now a labelled form; technical JSON and epoch
+values are no longer required. Empty questions/options, unselected correct
+answers and missing review confirmation prevent submission. A closing time must
+be later than opening and still in the future. The form supports up to 100
+four-option questions. Successful publication freezes the form because published
+tests are immutable. On failure, current-page form contents remain available for
+retry; there is no persistent answer-key draft on shared-device storage. If the
+server published but its response was lost, check the test list before creating
+a replacement. Reviewed JSON remains a collapsed advanced option.
+
+Local verification: 17 regression scripts + 44 native tests + 24 desktop/mobile
+E2E scenarios passed. The new scenario exercises add/remove questions, mandatory
+answers/review, invalid schedule, actual network failure/retained input, retry
+through the real HTTP backend and Student grading with Auth/Firestore emulators.

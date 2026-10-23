@@ -186,3 +186,26 @@ completed rerun used bounded locator timeouts and observable login readiness;
 no app state, authentication or grading was mocked. Its synthetic browser exam
 and result are retained in staging for review, labelled as synthetic. No real
 student records were used.
+
+
+### 23 October follow-up: Instructor question form
+
+Replaced the default JSON publisher with a labelled form for title, duration,
+local opening/closing times, questions, four answer options and explicit correct
+answer selection. IDs are generated automatically. Questions can be added or
+removed up to the server's 100-question limit. Native required fields and review
+confirmation prevent accidental publication; schedule validation gives a visible
+error. Failed requests retain current-page input; successful publication freezes
+the form. No private answer drafts are stored in localStorage. Reviewed JSON
+remains available as a collapsed advanced publisher for 2–6 options.
+
+The first added E2E scenario exposed an implicit select-label association issue;
+explicit label/for IDs corrected it. Final complete rerun: **24/24 desktop/mobile
+scenarios PASS (1.1m)**, plus **17 regression scripts and 44 native tests PASS**.
+The new scenario validates actual form submission, add/remove, required review
+and correct answer, invalid schedule, network failure/retained fields, retry
+through the real backend and Student grading. The existing Student exam scenario
+now targets its own card so multiple published tests do not cause ambiguity.
+Backend role authorization, private keys, deadlines and grading were unchanged.
+The previous integration CI39914017155 passed in full; new-source CI and hosted
+verification are recorded on [Draft PR16](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/pull/16) as they complete.

@@ -76,12 +76,52 @@ test('student private skill plan, multilingual assistance and protected exam thr
  for(const lang of ['mr','hi','en']){await page.locator('#coach-language').selectOption(lang);await page.getByRole('button',{name:'Start free guided practice'}).click();await expect(page.locator('#coach-output')).not.toBeEmpty();}
  await page.getByLabel('I consent').check();await page.getByRole('button',{name:'Request optional AI draft'}).click();await expect(page.locator('#coach-output')).toContainText('Guided mode');
  await page.evaluate(()=>V15Sync.finalOpenTab('exams'));
- await page.getByRole('button',{name:'Start / resume test'}).click();
- const radio=page.getByLabel('Four',{exact:true});
+ const originalExam=page.locator('#tab-exams section').filter({has:page.getByRole('heading',{name:'Synthetic browser test',exact:true})});
+ await originalExam.getByRole('button',{name:'Start / resume test'}).click();
+ const radio=originalExam.getByLabel('Four',{exact:true});
  await expect.poll(async()=> (await radio.count()) || ((await page.locator('#tab-exams').textContent()).includes('Result:')?1:0)).toBe(1);
  if(await radio.count()){await radio.check();await page.getByRole('button',{name:'Submit answers for server grading'}).click();}
  await expect(page.locator('#tab-exams')).toContainText('Result: 1 / 1');
  expect(await page.evaluate(()=>localStorage.getItem('dtpoAppData_v1'))).toBeNull();
+});
+
+test('instructor creates a reviewed MCQ with the form and student receives server grading',async({page,browser})=>{
+ await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('exams'));
+ const form=page.locator('#exam-publisher'),publish=form.getByRole('button',{name:'Publish protected exam'});
+ // Required answers/review prevent an accidental publication. Bad schedules
+ // remain editable, and a failed HTTP request must retain the teacher's work.
+ await publish.click();await expect(page.locator('#tab-exams [role=status]')).toBeEmpty();
+ const title='Synthetic form exam '+test.info().project.name+' '+Date.now();
+ await form.getByLabel('Test title',{exact:true}).fill(title);
+ await form.getByRole('button',{name:'Add question'}).click();
+ await expect(form.locator('fieldset')).toHaveCount(2);
+ await form.locator('fieldset').nth(1).getByRole('button',{name:'Remove question'}).click();
+ await expect(form.locator('fieldset')).toHaveCount(1);
+ await expect(form.getByRole('button',{name:'Remove question'})).toBeDisabled();
+ const question=form.locator('fieldset');
+ await question.getByLabel('Question text',{exact:true}).fill('Synthetic layout question: which format preserves page layout for printing?');
+ for(const [i,option] of ['TXT','PDF','CSV','LOG'].entries())await question.getByLabel('Option '+(i+1),{exact:true}).fill(option);
+ await publish.click();await expect(page.locator('#tab-exams [role=status]')).toBeEmpty();
+ await question.getByLabel('Correct answer',{exact:true}).selectOption('1');
+ await form.getByLabel('I reviewed the questions').check();
+ const times=await page.evaluate(()=>{const local=t=>{const d=new Date(t);return new Date(t-d.getTimezoneOffset()*60000).toISOString().slice(0,16);};return {open:local(Date.now()-60000),close:local(Date.now()+3600000)};});
+ await form.getByLabel('Opens at',{exact:true}).fill(times.open);await form.getByLabel('Closes at',{exact:true}).fill(times.open);
+ await publish.click();await expect(page.locator('#tab-exams [role=status]')).toContainText('Closing time must be later');
+ await form.getByLabel('Closes at',{exact:true}).fill(times.close);
+ const endpoint='http://127.0.0.1:8787/api';await page.route(endpoint,r=>r.abort());
+ await publish.click();await expect(page.locator('#tab-exams [role=status]')).toContainText('Your form is retained');
+ await expect(form.getByLabel('Test title',{exact:true})).toHaveValue(title);await page.unroute(endpoint);
+ await publish.click();await expect(page.locator('#tab-exams [role=status]')).toContainText('Exam published with private answer key. Students can now open it');
+ await expect(publish).toBeDisabled();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
+ const studentContext=await browser.newContext({viewport:page.viewportSize(),serviceWorkers:'block'});
+ try{
+  const student=await studentContext.newPage();await login(student,'student');await student.evaluate(()=>V15Sync.finalOpenTab('exams'));
+  await expect(student.locator('#exam-publisher')).toHaveCount(0);
+  const card=student.locator('#tab-exams section').filter({has:student.getByRole('heading',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Start / resume test'}).click();await card.getByLabel('PDF',{exact:true}).check();
+  await card.getByRole('button',{name:'Submit answers for server grading'}).click();await expect(card).toContainText('Result: 1 / 1');
+ }finally{await studentContext.close();}
 });
 test('instructor assessment is visible to student; offline queue flush preserves concurrent work',async({page,context,browser})=>{
  await login(page,'instructor');
