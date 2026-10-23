@@ -306,3 +306,46 @@ Local final result: all 17 regression scripts, 60 native tests and 26 real
 Auth/Firestore/HTTP emulator desktop/mobile E2E scenarios passed (browser suite
 1.1m). The new browser case verifies markup stays inert and canceling the real
 confirmation retains the topic. No credentials or real records are test fixtures.
+
+### 23 October follow-up: practical/theory tables and stale syllabus dialogs
+
+Practical and Theory table fields previously flowed into HTML and inline event
+handlers. Both tables now use text nodes, property assignments and event
+listeners; titles, numbers, units, hours and dates cannot become markup or code.
+View/edit/reorder/date/delete/completion actions preserve the original identifier
+instead of interpolating it into JavaScript. Planned-date and reorder controls
+also have accessible names.
+
+Syllabus mutation handlers require Instructor role. Mark Complete captures the
+original record contents, DATA reference, workspace and authenticated user; confirming an
+old dialog cannot mark a replacement record or another workspace's same-numbered
+item. Completion/cancel clears pending state. Practical/Theory add/edit and bulk
+Theory dialogs likewise reject saves after identity/workspace changes. Missing
+edited records and unknown reorder IDs fail without throwing. Firestore rules
+remain the server authorization boundary; client checks alone confer no access.
+
+Nine native DOM scenarios exercise hostile markup/identifiers, working edit,
+planned date, reorder and confirmed deletion, read-only roles and stale dialogs.
+Two new real-browser scenarios cover inert markup/edit/completion dialogs and
+actual form-created Practical/Theory records: date changes, completion, server
+persistence and fresh-login restoration. Desktop and mobile run both scenarios.
+Final test, CI and hosted results are recorded in Draft PR16. This is a scoped
+legacy-table/dialog fix; other plan, dashboard and report renderers require
+separate acceptance and are not certified by this change.
+
+The first expanded browser run exposed a real race (28/30 passed): a remote
+syllabus echo could replace a locally edited date before the debounce queued it;
+queued application also clones records, so object identity is not a valid
+completion identity. Completion/edit dialogs now compare captured record contents
+and accept unchanged cloud clones. Changed records still require reopening.
+Practical/Theory snapshot handling overlays pending queued operations and newer
+local deltas onto remote records, while retaining the remote baseline for the next
+diff. Untouched remote records still update/delete normally. Four sync regressions
+cover these races. Array listeners also reject callbacks from an old user,
+workspace or replaced DATA object. This preserves existing whole-record local-write
+precedence; it is not a general multi-device conflict-resolution interface.
+
+Final local rerun after both fixes: all 17 regression scripts, 73 native tests
+and 30 desktop/mobile E2E scenarios PASS (browser suite 1.3m). The form/date/
+completion/server-persistence/fresh-login case passes in both viewports. Earlier
+interrupted or 28/30 runs are not counted as final passes.

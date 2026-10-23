@@ -35,6 +35,17 @@ V.listRecycle=async function(){const z=await this.fb.M.getDocs(this.fb.M.collect
 V.restoreRecycle=async function(id){if(!['principal','admin'].includes(role()))throw new Error('Principal/System Admin access required.');const M=this.fb.M,ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'recycleBin',id),z=await M.getDoc(ref);if(!z.exists())throw new Error('Recycle record not found.');const x=z.data();let target;if(x.kind==='array'||x.kind==='map')target=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',x.workspaceId,x.section,x.docId);else if(x.kind==='genericMap')target=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',x.workspaceId,'map_'+x.section,x.docId);else throw new Error('This recycle item cannot be restored automatically.');await M.setDoc(target,x.record,{merge:false});await M.setDoc(ref,{restored:true,restoredAt:this.now(),restoredBy:uid()},{merge:true});await this.audit('recycle.restore',{recycleId:id,section:x.section,docId:x.docId},x.workspaceId);};
 
 V.applyQueuedToSection=function(section){const ops=this.queueRead().filter(o=>o.workspaceId===this.workspaceId&&o.section===section);if(!ops.length)return;if(['attendance','marks','submissions'].includes(section)){DATA[section]=DATA[section]||{};for(const o of ops){const k=o.key,sk=o.subKey;if(!k||!sk)continue;DATA[section][k]=DATA[section][k]||{};if(o.action==='delete')delete DATA[section][k][sk];else DATA[section][k][sk]=clone(o.value);}}else if(Array.isArray(DATA[section])){const map=new Map(DATA[section].map((x,i)=>[this.itemId(section,x,i),x]));for(const o of ops){if(o.action==='delete')map.delete(o.docId);else map.set(o.docId,clone(o.value));}DATA[section]=[...map.values()];}else if(DATA[section]&&typeof DATA[section]==='object'){for(const o of ops){if(!o.key)continue;if(o.action==='delete')delete DATA[section][o.key];else DATA[section][o.key]=clone(o.value);}}};
+// Merge remote syllabus updates with local edits that have not reached the queue yet.
+V.receiveSyllabusSnapshot=function(section,incoming){
+ const previous=Array.isArray(this.shadow?.[section])?this.shadow[section]:[],current=Array.isArray(DATA[section])?DATA[section]:[];
+ const index=rows=>new Map(rows.map((item,i)=>[this.itemId(section,item,i),item]));
+ const before=index(previous),local=index(current),merged=index(incoming);
+ DATA[section]=[...merged.values()];this.applyQueuedToSection(section);
+ const result=index(DATA[section]);
+ for(const id of new Set([...before.keys(),...local.keys()]))if(!eq(before.get(id),local.get(id))){if(local.has(id))result.set(id,local.get(id));else result.delete(id);}
+ this.shadow=this.shadow||{};this.shadow[section]=clone(incoming);DATA[section]=[...result.values()];
+ if(this.ready)try{this.refresh?.();}catch(e){}
+};
 V.applyAllQueued=function(){const sections=[...new Set(this.queueRead().filter(o=>o.workspaceId===this.workspaceId).map(o=>o.section).filter(Boolean))];sections.forEach(s=>this.applyQueuedToSection(s));};
 V.remote=function(section){if(!this.ready)return;this.shadow=this.shadow||{};this.shadow[section]=clone(DATA[section]);this.applyQueuedToSection(section);try{this.refresh?.();}catch(e){}if(section==='notices')setTimeout(()=>this.injectInstituteNotices?.().catch?.(()=>{}),0);};
 const loadBase=V.load?.bind(V);if(loadBase)V.load=async function(...args){const r=await loadBase(...args);this.applyAllQueued();return r;};

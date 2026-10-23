@@ -2528,22 +2528,30 @@ const Holidays = {
 
 
 /* ===================== MARK COMPLETE (date-editable) ===================== */
+function syllabusRecordVersion(record){
+  const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+  return JSON.stringify(canonical(record));
+}
+function syllabusContext(){return {data:DATA,workspace:window.V15Sync?.workspaceId??null,uid:window.V15Sync?.fb?.user?.uid??null};}
+function syllabusContextCurrent(context){const current=syllabusContext();return !!context&&context.data===current.data&&context.workspace===current.workspace&&context.uid===current.uid;}
 const MarkComplete = {
   pending:null,
   open(type, no, label){
-    this.pending = {type, no};
+    if(SESSION?.role!=='instructor'||!['practical','theory'].includes(type))return;
+    const item=(type==='practical'?DATA.practicals:DATA.theory).find(x=>x.no===no);if(!item)return;
+    this.pending = {type,no,snapshot:syllabusRecordVersion(item),context:syllabusContext()};
     document.getElementById("markCompleteItemLabel").textContent = label;
     document.getElementById("markCompleteDate").value = todayISO();
     document.getElementById("markCompleteModal").style.display="flex";
   },
-  close(){ document.getElementById("markCompleteModal").style.display="none"; },
+  close(){ this.pending=null;document.getElementById("markCompleteModal").style.display="none"; },
   confirm(){
+    if(SESSION?.role!=='instructor'||!this.pending)return;
+    const {type,no,snapshot,context}=this.pending;
+    const list=type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>x.no===no);
+    if(!syllabusContextCurrent(context)||!item||syllabusRecordVersion(item)!==snapshot){this.close();alert('The syllabus changed. Reopen the topic before marking it complete.');return;}
     const date = document.getElementById("markCompleteDate").value;
     if(!date){ alert("Select a date."); return; }
-    const {type, no} = this.pending;
-    const list = type==="practical" ? DATA.practicals : DATA.theory;
-    const item = list.find(x=>x.no===no);
-    if(!item) return;
     item.status="completed"; item.doneDate=date;
     saveData();
     MarkComplete.close();
@@ -2799,34 +2807,41 @@ const ModuleManager = {
 };
 
 /* ===================== PRACTICALS ===================== */
+function renderSyllabusRows(type, records, manager){
+  const practical=type==='practical',body=document.getElementById(practical?'practicalTableBody':'theoryTableBody');if(!body)return;
+  const make=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;};
+  const sorted=records.slice().sort((a,b)=>a.sequence-b.sequence),instructor=SESSION?.role==='instructor';body.replaceChildren();
+  const button=(label,action)=>{const node=make('button',label,'btn ghost small');node.type='button';node.addEventListener('click',action);return node;};
+  for(const [i,item] of sorted.entries()){
+    const row=make('tr'),title=make('td',item.title),date=make('td'),status=make('td'),actions=make('td');row.append(make('td',item.no));
+    if(practical){row.append(make('td',item.unit));title.append(' ',make('span',`(${item.hours??''} hrs)`,'muted'));}row.append(title);
+    if(instructor){const input=make('input');input.type='date';input.value=item.plannedDate||'';input.style.width='130px';input.setAttribute('aria-label',`Planned date for ${practical?'Demo':'Lesson'} ${item.no}`);input.addEventListener('change',()=>manager.setPlanned(item.no,input.value));date.append(input);}else date.textContent=String(item.plannedDate||'—');
+    status.append(make('span',item.status==='completed'?`Done ${item.doneDate||''}`:'Pending',item.status==='completed'?'badge signed':'badge pending'));
+    actions.append(button(SESSION?.role==='student'?'View Notes':'View Plan',()=>PlanViewer.open(type,item.no)));
+    if(instructor){
+      if(item.status!=='completed')actions.append(button('Mark Complete',()=>MarkComplete.open(type,item.no,`${practical?'Demo':'Lesson'} ${item.no}: ${item.title??''}`)));
+      const up=button('↑',()=>manager.moveSeq(item.no,-1)),down=button('↓',()=>manager.moveSeq(item.no,1));up.disabled=i===0;down.disabled=i===sorted.length-1;up.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} up`);down.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} down`);
+      actions.append(up,down,button('Edit',()=>manager.openEdit(item.no)),button('Delete',()=>manager.remove(item.no)));
+    }
+    row.append(date,status,actions);body.append(row);
+  }
+  if(!sorted.length&&!practical){const row=make('tr'),cell=make('td','No theory topics added yet. Use "+ Add Theory Topics" to paste in your 58-topic list.','muted');cell.colSpan=5;row.append(cell);body.append(row);}
+}
 const Practicals = {
-  render(){
-    const sorted = DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence);
-    document.getElementById("practicalTableBody").innerHTML = sorted.map((p,i)=>`
-      <tr>
-        <td>${p.no}</td><td>${p.unit}</td><td>${p.title} <span class="muted">(${p.hours} hrs)</span></td>
-        <td>${SESSION.role==="instructor"
-          ? `<input type="date" value="${p.plannedDate||''}" style="width:130px" onchange="Practicals.setPlanned(${p.no},this.value)">`
-          : (p.plannedDate||'—')}</td>
-        <td>${p.status==="completed"? `<span class="badge signed">Done ${p.doneDate||''}</span>` : `<span class="badge pending">Pending</span>`}</td>
-        <td>
-          <button class="btn ghost small" onclick="PlanViewer.open('practical',${p.no})">${SESSION.role==="student"?"View Notes":"View Plan"}</button>
-          ${SESSION.role==="instructor" && p.status!=="completed" ? `<button class="btn ghost small" onclick="MarkComplete.open('practical',${p.no},'Demo ${p.no}: ${p.title.replace(/'/g,"\\'")}')">Mark Complete</button>`:""}
-          ${SESSION.role==="instructor" ? `<button class="btn ghost small" onclick="Practicals.moveSeq(${p.no},-1)" ${i===0?'disabled':''}>&uarr;</button><button class="btn ghost small" onclick="Practicals.moveSeq(${p.no},1)" ${i===sorted.length-1?'disabled':''}>&darr;</button>
-          <button class="btn ghost small" onclick="Practicals.openEdit(${p.no})">Edit</button>
-          <button class="btn ghost small" onclick="Practicals.remove(${p.no})">Delete</button>`:""}
-        </td>
-      </tr>`).join("");
+  render(){ renderSyllabusRows('practical',DATA.practicals,this);
   },
   openAdd(){
+    if(SESSION?.role!=='instructor')return;
     document.getElementById("practicalEditTitle").textContent = "Add Custom Practical";
     document.getElementById("pracEditUnit").value = "";
     document.getElementById("pracEditName").value = "";
     document.getElementById("pracEditHours").value = 7;
     Practicals._editingNo = null;
+    this._editContext={...syllabusContext(),snapshot:null};
     document.getElementById("practicalEditModal").style.display="flex";
   },
   openEdit(no){
+    if(SESSION?.role!=='instructor')return;
     const p = DATA.practicals.find(x=>x.no===no);
     if(!p) return;
     document.getElementById("practicalEditTitle").textContent = "Edit Demo "+p.no;
@@ -2834,10 +2849,13 @@ const Practicals = {
     document.getElementById("pracEditName").value = p.title;
     document.getElementById("pracEditHours").value = p.hours;
     Practicals._editingNo = no;
+    this._editContext={...syllabusContext(),snapshot:syllabusRecordVersion(p)};
     document.getElementById("practicalEditModal").style.display="flex";
   },
-  closeEdit(){ document.getElementById("practicalEditModal").style.display="none"; },
+  closeEdit(){ this._editContext=null;document.getElementById("practicalEditModal").style.display="none"; },
   saveEdit(){
+    if(SESSION?.role!=='instructor')return;
+    if(!syllabusContextCurrent(this._editContext)||(this._editingNo!=null&&syllabusRecordVersion(DATA.practicals.find(x=>x.no===this._editingNo))!==this._editContext.snapshot)){this.closeEdit();alert('The syllabus changed. Reopen the editor before saving.');return;}
     const unit = document.getElementById("pracEditUnit").value.trim() || "Custom";
     const title = document.getElementById("pracEditName").value.trim();
     const hours = Number(document.getElementById("pracEditHours").value)||7;
@@ -2849,18 +2867,22 @@ const Practicals = {
         sequence:nextSeq, plan:null, materials:{pdfLink:"",youtubeLink:"",updatedDate:null}});
     } else {
       const p = DATA.practicals.find(x=>x.no===Practicals._editingNo);
+      if(!p)return;
       p.unit = unit; p.title = title; p.hours = hours;
     }
     saveData(); Practicals.closeEdit(); Practicals.render(); Dashboard.render();
   },
   remove(no){
+    if(SESSION?.role!=='instructor')return;
     if(!confirm("Delete Demo "+no+"? This removes it permanently, including from any generated schedule. If this is one of the 119 official DVET practicals, make sure that's really what you want.")) return;
     DATA.practicals = DATA.practicals.filter(p=>p.no!==no);
     saveData(); Practicals.render(); Dashboard.render();
   },
   moveSeq(no, dir){
+    if(SESSION?.role!=='instructor')return;
     const sorted = DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence);
     const idx = sorted.findIndex(p=>p.no===no);
+    if(idx<0 || ![-1,1].includes(dir))return;
     const swapIdx = idx+dir;
     if(swapIdx<0 || swapIdx>=sorted.length) return;
     const a = sorted[idx], b = sorted[swapIdx];
@@ -2868,6 +2890,7 @@ const Practicals = {
     saveData(); Practicals.render();
   },
   setPlanned(no, date){
+    if(SESSION?.role!=='instructor')return;
     const p = DATA.practicals.find(x=>x.no===no);
     if(!p) return;
     p.plannedDate = date || null;
@@ -2878,11 +2901,15 @@ const Practicals = {
 /* ===================== THEORY ===================== */
 const Theory = {
   openBulkAdd(){
+    if(SESSION?.role!=='instructor')return;
+    this._bulkContext=syllabusContext();
     document.getElementById("theoryBulkText").value="";
     document.getElementById("theoryModal").style.display="flex";
   },
-  closeBulkAdd(){ document.getElementById("theoryModal").style.display="none"; },
+  closeBulkAdd(){ this._bulkContext=null;document.getElementById("theoryModal").style.display="none"; },
   saveBulkAdd(){
+    if(SESSION?.role!=='instructor')return;
+    if(!syllabusContextCurrent(this._bulkContext)){this.closeBulkAdd();alert('The workspace changed. Reopen the bulk editor before saving.');return;}
     const lines = document.getElementById("theoryBulkText").value.split("\n").map(l=>l.trim()).filter(Boolean);
     if(!lines.length){ Theory.closeBulkAdd(); return; }
     let nextNo = DATA.theory.length? Math.max(...DATA.theory.map(t=>t.no))+1 : 1;
@@ -2892,40 +2919,30 @@ const Theory = {
     });
     saveData(); Theory.closeBulkAdd(); Theory.render(); Dashboard.render();
   },
-  render(){
-    const sorted = DATA.theory.slice().sort((a,b)=>a.sequence-b.sequence);
-    document.getElementById("theoryTableBody").innerHTML = sorted.map((t,i)=>`
-      <tr>
-        <td>${t.no}</td><td>${t.title}</td>
-        <td>${SESSION.role==="instructor"
-          ? `<input type="date" value="${t.plannedDate||''}" style="width:130px" onchange="Theory.setPlanned(${t.no},this.value)">`
-          : (t.plannedDate||'—')}</td>
-        <td>${t.status==="completed"? `<span class="badge signed">Done ${t.doneDate||''}</span>` : `<span class="badge pending">Pending</span>`}</td>
-        <td>
-          <button class="btn ghost small" onclick="PlanViewer.open('theory',${t.no})">${SESSION.role==="student"?"View Notes":"View Plan"}</button>
-          ${SESSION.role==="instructor" && t.status!=="completed" ? `<button class="btn ghost small" onclick="MarkComplete.open('theory',${t.no},'Lesson ${t.no}: ${t.title.replace(/'/g,"\\'")}')">Mark Complete</button>`:""}
-          ${SESSION.role==="instructor" ? `<button class="btn ghost small" onclick="Theory.moveSeq(${t.no},-1)" ${i===0?'disabled':''}>&uarr;</button><button class="btn ghost small" onclick="Theory.moveSeq(${t.no},1)" ${i===sorted.length-1?'disabled':''}>&darr;</button>
-          <button class="btn ghost small" onclick="Theory.openEdit(${t.no})">Edit</button>
-          <button class="btn ghost small" onclick="Theory.remove(${t.no})">Delete</button>`:""}
-        </td>
-      </tr>`).join("") || `<tr><td colspan="5" class="muted">No theory topics added yet. Use "+ Add Theory Topics" to paste in your 58-topic list.</td></tr>`;
+  render(){ renderSyllabusRows('theory',DATA.theory,this);
   },
   openAdd(){
+    if(SESSION?.role!=='instructor')return;
     document.getElementById("theoryEditTitle").textContent = "Add Theory Topic";
     document.getElementById("theoryEditName").value = "";
     Theory._editingNo = null;
+    this._editContext={...syllabusContext(),snapshot:null};
     document.getElementById("theoryEditModal").style.display="flex";
   },
   openEdit(no){
+    if(SESSION?.role!=='instructor')return;
     const t = DATA.theory.find(x=>x.no===no);
     if(!t) return;
     document.getElementById("theoryEditTitle").textContent = "Edit Lesson "+t.no;
     document.getElementById("theoryEditName").value = t.title;
     Theory._editingNo = no;
+    this._editContext={...syllabusContext(),snapshot:syllabusRecordVersion(t)};
     document.getElementById("theoryEditModal").style.display="flex";
   },
-  closeEdit(){ document.getElementById("theoryEditModal").style.display="none"; },
+  closeEdit(){ this._editContext=null;document.getElementById("theoryEditModal").style.display="none"; },
   saveEdit(){
+    if(SESSION?.role!=='instructor')return;
+    if(!syllabusContextCurrent(this._editContext)||(this._editingNo!=null&&syllabusRecordVersion(DATA.theory.find(x=>x.no===this._editingNo))!==this._editContext.snapshot)){this.closeEdit();alert('The syllabus changed. Reopen the editor before saving.');return;}
     const title = document.getElementById("theoryEditName").value.trim();
     if(!title){ alert("Enter a title."); return; }
     if(Theory._editingNo==null){
@@ -2935,18 +2952,22 @@ const Theory = {
         sequence:nextSeq, plan:null, materials:{pdfLink:"",youtubeLink:"",updatedDate:null}});
     } else {
       const t = DATA.theory.find(x=>x.no===Theory._editingNo);
+      if(!t)return;
       t.title = title;
     }
     saveData(); Theory.closeEdit(); Theory.render(); Dashboard.render();
   },
   remove(no){
+    if(SESSION?.role!=='instructor')return;
     if(!confirm("Delete Lesson "+no+"? This removes it permanently, including from any generated schedule. If this is one of the 58 official DVET theory topics, make sure that's really what you want.")) return;
     DATA.theory = DATA.theory.filter(t=>t.no!==no);
     saveData(); Theory.render(); Dashboard.render();
   },
   moveSeq(no, dir){
+    if(SESSION?.role!=='instructor')return;
     const sorted = DATA.theory.slice().sort((a,b)=>a.sequence-b.sequence);
     const idx = sorted.findIndex(t=>t.no===no);
+    if(idx<0 || ![-1,1].includes(dir))return;
     const swapIdx = idx+dir;
     if(swapIdx<0 || swapIdx>=sorted.length) return;
     const a = sorted[idx], b = sorted[swapIdx];
@@ -2954,6 +2975,7 @@ const Theory = {
     saveData(); Theory.render();
   },
   setPlanned(no, date){
+    if(SESSION?.role!=='instructor')return;
     const t = DATA.theory.find(x=>x.no===no);
     if(!t) return;
     t.plannedDate = date || null;

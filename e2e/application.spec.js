@@ -201,3 +201,33 @@ test('module manager treats imported markup and opaque identifiers as text',asyn
  const confirmation=await dialog;expect(confirmation.message()).toContain('<img src=x');await confirmation.dismiss();await click;
  await expect(body.locator('tbody tr')).toHaveCount(1);
 });
+
+test('syllabus tables keep hostile fields inert and reject stale completion dialogs',async({page})=>{
+ await login(page,'instructor');
+ for(const kind of ['practical','theory']){
+  await page.evaluate(kind=>V15Sync.finalOpenTab(kind==='practical'?'practicals':'theory'),kind);
+  await page.evaluate(kind=>{const V=V15Sync;V.suppressLocalSync=true;clearTimeout(V.pendingTimer);const key=kind==='practical'?'practicals':'theory';window.syllabusOriginal=DATA[key];const markup='<img src=x onerror="window.syllabusInjection=true">';DATA[key]=[{no:"x');window.syllabusInjection=true;//",title:markup,unit:markup,hours:markup,sequence:1,status:'pending'}];(kind==='practical'?Practicals:Theory).render();},kind);
+  const body=page.locator('#'+kind+'TableBody'),modal=page.locator('#'+kind+'EditModal');
+  await expect(body.locator('img,script,[onclick],[onchange],[onerror]')).toHaveCount(0);await expect(body).toContainText('<img src=x');
+  await body.getByRole('button',{name:'Edit',exact:true}).click();await expect(modal.locator('textarea')).toHaveValue('<img src=x onerror="window.syllabusInjection=true">');await modal.getByRole('button',{name:'Cancel',exact:true}).click();
+  await body.getByRole('button',{name:'Mark Complete',exact:true}).click();await expect(page.locator('#markCompleteItemLabel')).toContainText('<img src=x');
+  await page.evaluate(kind=>{const key=kind==='practical'?'practicals':'theory';DATA[key]=[{...DATA[key][0],title:'Replacement topic'}];},kind);
+  const dialog=page.waitForEvent('dialog'),click=page.locator('#markCompleteModal').getByRole('button',{name:'Confirm',exact:true}).click();const warning=await dialog;expect(warning.message()).toContain('syllabus changed');await warning.dismiss();await click;
+  expect(await page.evaluate(kind=>DATA[kind==='practical'?'practicals':'theory'][0].status,kind)).toBe('pending');expect(await page.evaluate(()=>window.syllabusInjection)).toBeUndefined();
+  await page.evaluate(kind=>{DATA[kind==='practical'?'practicals':'theory']=window.syllabusOriginal;delete window.syllabusOriginal;V15Sync.suppressLocalSync=false;},kind);
+ }
+});
+
+test('Instructor syllabus forms and dated completion persist through real cloud sync',async({page})=>{
+ await login(page,'instructor');const titles={};
+ for(const kind of ['practical','theory']){
+  await page.evaluate(kind=>V15Sync.finalOpenTab(kind==='practical'?'practicals':'theory'),kind);
+  const title='Synthetic '+kind+' "Layout & print" '+test.info().project.name+' '+Date.now();titles[kind]=title;
+  await page.getByRole('button',{name:kind==='practical'?'+ Add Custom Practical':'+ Add Theory Topic',exact:true}).click();
+  const modal=page.locator('#'+kind+'EditModal');await modal.locator('textarea').fill(title);if(kind==='practical'){await page.locator('#pracEditUnit').fill('Synthetic publishing');await page.locator('#pracEditHours').fill('2');}
+  await modal.getByRole('button',{name:'Save',exact:true}).click();const row=page.locator('#'+kind+'TableBody tr').filter({hasText:title});await expect(row).toHaveCount(1);
+  await row.locator('input[type=date]').fill('2026-10-22');await row.getByRole('button',{name:'Mark Complete',exact:true}).click();await page.locator('#markCompleteDate').fill('2026-10-23');await page.locator('#markCompleteModal').getByRole('button',{name:'Confirm',exact:true}).click();await expect(row).toContainText('Done 2026-10-23');
+  await expect.poll(()=>page.evaluate(async ({kind,title})=>{const V=V15Sync,M=V.fb.M,z=await M.getDocs(V.col(kind==='practical'?'practicals':'theory'));return z.docs.some(d=>{const x=d.data().data;return x?.title===title&&x.status==='completed'&&x.doneDate==='2026-10-23'&&x.plannedDate==='2026-10-22';});},{kind,title})).toBe(true);
+ }
+ await login(page,'instructor');for(const kind of ['practical','theory']){await page.evaluate(kind=>V15Sync.finalOpenTab(kind==='practical'?'practicals':'theory'),kind);const row=page.locator('#'+kind+'TableBody tr').filter({hasText:titles[kind]});await expect(row).toHaveCount(1);await expect(row).toContainText('Done 2026-10-23');await expect(row.getByRole('button',{name:'Mark Complete'})).toHaveCount(0);}
+});
