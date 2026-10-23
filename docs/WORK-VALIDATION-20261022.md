@@ -349,3 +349,18 @@ Final local rerun after both fixes: all 17 regression scripts, 73 native tests
 and 30 desktop/mobile E2E scenarios PASS (browser suite 1.3m). The form/date/
 completion/server-persistence/fresh-login case passes in both viewports. Earlier
 interrupted or 28/30 runs are not counted as final passes.
+
+Hosted testing then exposed a second slow-network issue: Practical persisted,
+but the next Theory save occurred while the first `diff()` awaited its network
+flush. The busy guard discarded that subsequent save. Queue construction now
+releases its synchronous guard before awaiting the separately guarded network
+flush, allowing later edits to become durable immediately. A held-flush native
+regression proves the second save is queued before the first flush finishes.
+The browser persistence scenario now holds the real flush while both forms are
+saved, verifies queued completion records, then releases it and checks real
+server persistence and fresh login. The earlier hosted timeout is not a pass.
+
+Final slow-flush fix validation: 17 regression scripts + 74 native tests PASS;
+all 30 desktop/mobile scenarios PASS (1.3m), including both saves being durable
+while the earlier real flush is held, followed by actual server writes and
+fresh-login restoration. Final hosted and CI results remain tracked in PR16.

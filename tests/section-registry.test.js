@@ -12,3 +12,16 @@ test('saving a new section queues its discovery metadata even when institute met
   assert(metadata.data.arraySections.includes('modules'));assert.equal(metadata.data.trade,'Synthetic');assert.equal(metadata.workspaceId,record.workspaceId);
  }finally{w.close();}
 });
+test('a slow network flush cannot discard subsequent local syllabus saves',async()=>{
+ const dom=new JSDOM('<body></body>',{url:'https://synthetic.example',runScripts:'outside-only'}),w=dom.window;let release;
+ try{
+  w.SESSION={role:'instructor'};w.DATA={meta:{trade:'Synthetic'},practicals:[{no:1,title:'First'}],theory:[]};
+  const V={ready:true,workspaceId:'w',INSTITUTE_ID:'synthetic',member:{role:'instructor'},arraySections:new Set(['practicals','theory']),mapSections:new Set(),shadow:{meta:{trade:'Synthetic'},practicals:[],theory:[]},fb:{user:{uid:'i'}},clone:x=>structuredClone(x),eq:(a,b)=>JSON.stringify(a)===JSON.stringify(b),safe:x=>x,now:()=> '2026-10-23T00:00:00Z',itemId:(_,x)=>String(x.no),badge(){}};
+  w.V15Sync=V;w.eval(fs.readFileSync('v15/v15-governance-v2.js','utf8'));
+  const held=new Promise(r=>{release=r;});V.flushQueue=()=>held;
+  const first=V.diff();assert(V.queueRead().some(o=>o.section==='practicals'));
+  w.DATA.theory.push({no:1,title:'Second save during slow flush'});const second=V.diff();
+  assert(V.queueRead().some(o=>o.section==='theory'&&o.value.title==='Second save during slow flush'),'new work must be durable before the first network flush finishes');
+  release();await Promise.all([first,second]);
+ }finally{release?.();w.close();}
+});

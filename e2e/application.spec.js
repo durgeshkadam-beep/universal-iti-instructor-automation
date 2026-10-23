@@ -220,6 +220,8 @@ test('syllabus tables keep hostile fields inert and reject stale completion dial
 
 test('Instructor syllabus forms and dated completion persist through real cloud sync',async({page})=>{
  await login(page,'instructor');const titles={};
+ // Hold the real flush to exercise saves made while an earlier network sync is busy.
+ await page.evaluate(()=>{const V=V15Sync,base=V.flushQueue.bind(V);let release;const held=new Promise(r=>{release=r;});V.flushQueue=async()=>{await held;return base();};window.releaseSyllabusFlush=()=>{V.flushQueue=base;release();};});
  for(const kind of ['practical','theory']){
   await page.evaluate(kind=>V15Sync.finalOpenTab(kind==='practical'?'practicals':'theory'),kind);
   const title='Synthetic '+kind+' "Layout & print" '+test.info().project.name+' '+Date.now();titles[kind]=title;
@@ -227,7 +229,9 @@ test('Instructor syllabus forms and dated completion persist through real cloud 
   const modal=page.locator('#'+kind+'EditModal');await modal.locator('textarea').fill(title);if(kind==='practical'){await page.locator('#pracEditUnit').fill('Synthetic publishing');await page.locator('#pracEditHours').fill('2');}
   await modal.getByRole('button',{name:'Save',exact:true}).click();const row=page.locator('#'+kind+'TableBody tr').filter({hasText:title});await expect(row).toHaveCount(1);
   await row.locator('input[type=date]').fill('2026-10-22');await row.getByRole('button',{name:'Mark Complete',exact:true}).click();await page.locator('#markCompleteDate').fill('2026-10-23');await page.locator('#markCompleteModal').getByRole('button',{name:'Confirm',exact:true}).click();await expect(row).toContainText('Done 2026-10-23');
-  await expect.poll(()=>page.evaluate(async ({kind,title})=>{const V=V15Sync,M=V.fb.M,z=await M.getDocs(V.col(kind==='practical'?'practicals':'theory'));return z.docs.some(d=>{const x=d.data().data;return x?.title===title&&x.status==='completed'&&x.doneDate==='2026-10-23'&&x.plannedDate==='2026-10-22';});},{kind,title})).toBe(true);
+  await expect.poll(()=>page.evaluate(title=>V15Sync.queueRead().some(o=>o.value?.title===title&&o.value.status==='completed'&&o.value.plannedDate==='2026-10-22'),title)).toBe(true);
  }
+ await page.evaluate(()=>window.releaseSyllabusFlush());
+ for(const kind of ['practical','theory'])await expect.poll(()=>page.evaluate(async ({kind,title})=>{const V=V15Sync,M=V.fb.M,z=await M.getDocs(V.col(kind==='practical'?'practicals':'theory'));return z.docs.some(d=>{const x=d.data().data;return x?.title===title&&x.status==='completed'&&x.doneDate==='2026-10-23'&&x.plannedDate==='2026-10-22';});},{kind,title:titles[kind]})).toBe(true);
  await login(page,'instructor');for(const kind of ['practical','theory']){await page.evaluate(kind=>V15Sync.finalOpenTab(kind==='practical'?'practicals':'theory'),kind);const row=page.locator('#'+kind+'TableBody tr').filter({hasText:titles[kind]});await expect(row).toHaveCount(1);await expect(row).toContainText('Done 2026-10-23');await expect(row.getByRole('button',{name:'Mark Complete'})).toHaveCount(0);}
 });
