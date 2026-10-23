@@ -1,21 +1,23 @@
 const {test,expect}=require('@playwright/test');
+const testPassword=process.env.ITI_EMULATOR_TEST_PASSWORD;
+if(!testPassword)throw Error('Run browser tests through the emulator test runner.');
 async function login(page,role){
  // No production request is permitted in tests. Use real Auth/Firestore emulators and local SDK.
  await page.route(/https:\/\/.*/,r=>r.abort());
  await page.goto('/v15/index.html');
  await page.waitForFunction(()=>window.V15Sync?.renderSecureExams);
  await page.addScriptTag({url:'/.tmp/test-sdk.js'});
- await page.evaluate(async role=>{
+ await page.evaluate(async ({role,password})=>{
   const V=V15Sync,M=ITITestFirebase,cfg={apiKey:'test-api-key',projectId:'demo-universal-iti',authDomain:'localhost',appId:'test-app'};
   V.modules=async()=>M;V.config=()=>cfg;V.fb.M=M;
   const app=M.initializeApp(cfg,'iti-v15'),auth=M.getAuth(app),db=M.getFirestore(app);
   M.connectAuthEmulator(auth,'http://127.0.0.1:9099',{disableWarnings:true});M.connectFirestoreEmulator(db,'127.0.0.1',8080);
-  await M.signInWithEmailAndPassword(auth,role+'@example.test','Synthetic-Test-Password-49!');
+  await M.signInWithEmailAndPassword(auth,role+'@example.test',password);
   localStorage.setItem('iti-v15-role-v2',role);localStorage.setItem('iti-v15-email-v2',role+'@example.test');
   window.ITI_RUNTIME={apiUrl:'http://127.0.0.1:8787/api'};
   await V.login({interactive:false});
   return {ready:V.ready,role:V.currentRole(),message:document.querySelector('#v15LoginStatus')?.textContent};
- },role);
+ },{role,password:testPassword});
  // A restored session can already own the in-progress login. Wait for its
  // observable completion instead of treating the busy-guard return as failure.
  await expect.poll(()=>page.evaluate(()=>({ready:V15Sync.ready,role:V15Sync.currentRole(),message:document.querySelector('#v15LoginStatus')?.textContent})),{timeout:30000}).toMatchObject({ready:true,role});
@@ -163,13 +165,13 @@ test('staging password form rejects bad credentials and authenticates assigned s
  await page.addScriptTag({url:'/v15/v15-staging-login.js'});
  await expect(page.locator('#stagingNotice')).toContainText('Synthetic test data');
  await page.locator('#loginRole').selectOption('student');await page.locator('#v15ExpectedEmail').fill('student@example.test');
- await page.locator('#stagingPassword').fill('incorrect-test-password');await page.locator('#stagingSignIn').click();
+ await page.locator('#stagingPassword').fill(testPassword+'invalid');await page.locator('#stagingSignIn').click();
  await expect(page.locator('#v15LoginStatus')).toContainText('Staging sign-in failed');
  expect(await page.evaluate(()=>V15Sync.ready)).toBeFalsy();
- await page.locator('#loginRole').selectOption('admin');await page.locator('#stagingPassword').fill('Synthetic-Test-Password-49!');await page.locator('#stagingSignIn').click();
+ await page.locator('#loginRole').selectOption('admin');await page.locator('#stagingPassword').fill(testPassword);await page.locator('#stagingSignIn').click();
  await expect(page.locator('#v15LoginStatus')).toContainText('registered as Student');expect(await page.evaluate(()=>V15Sync.ready)).toBeFalsy();
  await page.locator('#loginRole').selectOption('student');
- await page.locator('#stagingPassword').fill('Synthetic-Test-Password-49!');await page.locator('#stagingSignIn').click();
+ await page.locator('#stagingPassword').fill(testPassword);await page.locator('#stagingSignIn').click();
  await expect(page.locator('#appShell')).toBeVisible();expect(await page.evaluate(()=>V15Sync.currentRole())).toBe('student');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
 });
@@ -179,7 +181,7 @@ test('a newly created module survives cloud sync and a fresh login',async({page}
  await page.locator('#moduleName').fill(name);await page.locator('#moduleCode').fill('SYNC-'+test.info().project.name);
  await page.getByRole('button',{name:'Create Module'}).click();
  await expect(page.locator('#moduleManagerBody')).toContainText(name);
- await expect.poll(()=>page.evaluate(async name=>{const V=V15Sync,M=V.fb.M;const records=await M.getDocs(V.col('modules'));return records.docs.some(d=>d.data().data?.name===name);},name)).toBeTruthy();
+ await expect.poll(()=>page.evaluate(async name=>{const V=V15Sync,M=V.fb.M;const [records,workspace]=await Promise.all([M.getDocs(V.col('modules')),M.getDoc(V.ws())]);return {saved:records.docs.some(d=>d.data().data?.name===name),registered:workspace.data()?.arraySections?.includes('modules')===true};},name)).toEqual({saved:true,registered:true});
  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('modules'));
  await expect(page.locator('#moduleManagerBody')).toContainText(name);
 });

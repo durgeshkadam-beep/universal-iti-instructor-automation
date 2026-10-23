@@ -110,3 +110,10 @@ The current renderer discards stale responses and binds each load to its user an
 workspace. 47 native tests now include reverse-order/identity-change regressions;
 the 24 browser scenarios also force concurrent queries and verify the saved result
 after a fresh login. Mobile fields are stacked and full-width with 44px controls.
+
+
+The module persistence follow-up now saves new section-discovery metadata even
+when no other workspace metadata changes. A module must finish synchronizing
+both its record and section registration before a fresh-login acceptance check.
+Current local coverage is 48 native tests, 17 regression scripts and 24 desktop/
+mobile scenarios; final CI/hosted follow-up is linked from PR16.

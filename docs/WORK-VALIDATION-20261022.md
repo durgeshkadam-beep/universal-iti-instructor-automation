@@ -230,3 +230,30 @@ The earlier hosted attempt with duplicate cards is not counted as a complete
 pass. Final hosted results and final-source CI are tracked on Draft PR16.
 
 Final local rerun after both corrections: **17 regression scripts + 47 native tests + all 24 desktop/mobile scenarios PASS (1.1m)**. No failed or interrupted run is counted as this final pass.
+
+
+### Final CI follow-up: new-section persistence
+
+CI39920007958 completed with 23/24 browser scenarios passing: the desktop module
+fresh-login scenario could not load a saved module. Investigation found a real
+registration gap, not a grading failure: a record could be written to a new
+collection while its workspace section list stayed unchanged when no other
+metadata changed. The governance diff now also queues metadata when its array or
+map section sets grow. Permissions and writer roles are unchanged.
+
+A deterministic regression saves a new module while ordinary metadata is
+identical and requires the section-discovery metadata operation. The real browser
+persistence scenario waits for both the server record and its registered section
+before signing in again. This validates completed synchronization instead of
+leaving during a pending multi-record save. Final local result after this fix:
+**17 regression scripts + 48 native tests + 24/24 desktop/mobile E2E PASS (1.1m)**.
+Final-source CI and hosted module save/reload acceptance are tracked on Draft PR16;
+the earlier failed CI run is not counted as a pass.
+
+
+The browser runner now generates a random emulator-only password for each run
+and passes it only through the test child-process environment. The spec contains
+no fixed password value; repeated emulator fixtures are reset to the current
+run's value. No staging login or production credential is used by that runner.
+This removes the credential-like test literal flagged during automatic review.
+The replacement fixture flow is re-tested through real emulator sign-in.
