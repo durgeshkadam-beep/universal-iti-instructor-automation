@@ -12,10 +12,11 @@ function validateStagingRuntime(env=process.env){
  if(env.FIRESTORE_EMULATOR_HOST||env.FIREBASE_AUTH_EMULATOR_HOST||env.FIREBASE_CONFIG)fail('remove emulator and alternate Firebase configuration');
  const origins=(env.ALLOWED_ORIGINS||'').split(',').map(s=>s.trim()).filter(Boolean);
  if(!origins.length||origins.some(origin=>!ORIGINS.has(origin)))fail('allow only the staging HTTPS origins');
- if(!env.GOOGLE_APPLICATION_CREDENTIALS)fail('mount the staging service account as a secret file');
+ if(env.GOOGLE_APPLICATION_CREDENTIALS&&env.ITI_STAGING_SERVICE_ACCOUNT_JSON)fail('select one credential source');
+ if(!env.GOOGLE_APPLICATION_CREDENTIALS&&!env.ITI_STAGING_SERVICE_ACCOUNT_JSON)fail('configure the staging service account secret');
  let credential;
- try{credential=JSON.parse(fs.readFileSync(env.GOOGLE_APPLICATION_CREDENTIALS,'utf8'));}
- catch{fail('the credential secret file is missing or invalid');}
+ try{credential=JSON.parse(env.ITI_STAGING_SERVICE_ACCOUNT_JSON||fs.readFileSync(env.GOOGLE_APPLICATION_CREDENTIALS,'utf8'));}
+ catch{fail('the credential secret is missing or invalid');}
  if(credential.type!=='service_account'||credential.project_id!==PROJECT||
     typeof credential.client_email!=='string'||!credential.client_email.endsWith('@'+PROJECT+'.iam.gserviceaccount.com'))fail('use a service account belonging to the staging project');
  try{const key=createPrivateKey(credential.private_key);if(key.asymmetricKeyType!=='rsa')fail('use a valid staging RSA credential');}
@@ -28,6 +29,6 @@ function validateStagingRuntime(env=process.env){
   if(!env.AI_MODEL||!['https:','http:'].includes(url.protocol)||url.username||url.password)fail('configure the model server and model');
  }
  if(env.AI_DAILY_LIMIT&&(!/^[1-9]\d*$/.test(env.AI_DAILY_LIMIT)||Number(env.AI_DAILY_LIMIT)>1000))fail('AI daily limit must be 1–1000');
- return {projectId:PROJECT,origins,provider};
+ return {projectId:PROJECT,origins,provider,credential};
 }
 module.exports={validateStagingRuntime};

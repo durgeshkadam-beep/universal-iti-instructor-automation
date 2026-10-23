@@ -2,7 +2,7 @@
 
 Status: the backend implementation, container and staging Blueprint are supplied.
 **No Render service has been created and the hosted MCQ/AI API is not yet enabled.**
-The Render account is not connected. Firebase Hosting already serves the frontend
+The Render account is connected to DURGESH's workspace. Firebase Hosting serves the frontend
 at https://universal-iti-dk-staging.web.app/v15/.
 
 ## Account and cost boundary
@@ -47,8 +47,15 @@ use an approved workload-identity host instead; do not weaken that policy.
    This validates configuration, not IAM access; authenticated acceptance below
    must still succeed. Do not disable the guard to make a deployment pass.
 
-No identity, IAM policy or key has been created by adding this recipe. Account
-connection and the private credential provisioning remain required operator work.
+The direct MCP deployment can instead set backend-only
+`ITI_STAGING_SERVICE_ACCOUNT_JSON` to the service-account JSON, leaving
+`GOOGLE_APPLICATION_CREDENTIALS` unset. The same project/key/origin validation
+applies; selecting both sources is rejected. The value is consumed in memory
+and removed from the process environment before Firebase initialization. Never
+put this value in a Docker build argument or source. Direct MCP configuration is
+managed on the Render service; the supplied Blueprint remains a separate
+secret-file recipe and must not be applied over that service without reconciling
+credential sources. Connection alone does not establish hosted API readiness.
 Rotate/revoke the staging key when the demonstration ends.
 
 ## Deploy, connect and verify
