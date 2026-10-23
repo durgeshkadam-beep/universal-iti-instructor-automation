@@ -103,3 +103,10 @@ Local verification: 17 regression scripts + 44 native tests + 24 desktop/mobile
 E2E scenarios passed. The new scenario exercises add/remove questions, mandatory
 answers/review, invalid schedule, actual network failure/retained input, retry
 through the real HTTP backend and Student grading with Auth/Firestore emulators.
+
+
+Later live testing exposed duplicate exam cards after overlapping reload queries.
+The current renderer discards stale responses and binds each load to its user and
+workspace. 47 native tests now include reverse-order/identity-change regressions;
+the 24 browser scenarios also force concurrent queries and verify the saved result
+after a fresh login. Mobile fields are stacked and full-width with 44px controls.

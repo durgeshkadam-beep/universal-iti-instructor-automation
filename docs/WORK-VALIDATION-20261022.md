@@ -209,3 +209,24 @@ now targets its own card so multiple published tests do not cause ambiguity.
 Backend role authorization, private keys, deadlines and grading were unchanged.
 The previous integration CI39914017155 passed in full; new-source CI and hosted
 verification are recorded on [Draft PR16](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/pull/16) as they complete.
+
+
+#### Follow-up from live mobile acceptance
+
+The hosted form test successfully published and graded, but failed its final
+reload check because concurrent exam-list loads appended duplicate cards. Each
+exam render now has a generation bound to the captured role, user and workspace;
+late responses cannot append stale records. Three deterministic async DOM
+regressions cover reverse completion order and changed workspace/user. Native
+validation now passes 47 tests plus 17 regression scripts. Browser coverage also
+forces concurrent real Firestore queries, asserts a single exam card, grades,
+signs in again and checks the same result. The emulator fresh-login helper is
+used because the isolated suite blocks external SDK/config downloads; the hosted
+browser still performs an ordinary reload with the actual Firebase SDK.
+
+Visual inspection also led to full-width stacked fields, 44px controls and a
+separate review-confirmation row on mobile. No answer-key draft is persisted.
+The earlier hosted attempt with duplicate cards is not counted as a complete
+pass. Final hosted results and final-source CI are tracked on Draft PR16.
+
+Final local rerun after both corrections: **17 regression scripts + 47 native tests + all 24 desktop/mobile scenarios PASS (1.1m)**. No failed or interrupted run is counted as this final pass.

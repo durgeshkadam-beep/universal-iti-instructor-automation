@@ -6,9 +6,10 @@ const role=()=>V.currentRole?.()||window.SESSION?.role||'';
 const el=(tag,value,parent)=>{const n=document.createElement(tag);if(value!=null)n.textContent=String(value);if(parent)parent.append(n);return n;};
 const error=(host,e)=>{host.textContent=e.message||String(e);};
 function examPublisher(host,status){
- const form=el('form',null,host);form.id='exam-publisher';
+ const form=el('form',null,host);form.id='exam-publisher';form.style.cssText='display:grid;gap:12px';
  el('p','Create your test, choose the correct answer for each question, and review before publishing. Published tests cannot be edited.',form);
- const field=(parent,label,type,max)=>{const wrap=el('label',label,parent);wrap.style.display='block';const input=el(type==='textarea'?'textarea':'input',null,wrap);if(type!=='textarea')input.type=type;else input.rows=3;input.required=true;if(max)input.maxLength=max;return input;};
+ const controlStyle='display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;min-height:44px;padding:10px 12px;margin-top:5px;border:1px solid #b8cbd4;border-radius:12px;background:#fff;color:inherit;font:inherit';
+ const field=(parent,label,type,max)=>{const wrap=el('label',label,parent);wrap.style.cssText='display:block;margin-bottom:12px';const input=el(type==='textarea'?'textarea':'input',null,wrap);input.style.cssText=controlStyle;if(type!=='textarea')input.type=type;else input.rows=3;input.required=true;if(max)input.maxLength=max;return input;};
  const title=field(form,'Test title','text',140);
  const duration=field(form,'Duration (minutes)','number');duration.min='1';duration.max='180';duration.step='1';duration.value='30';
  el('p','Opening and closing times use your device’s local time zone.',form);
@@ -23,7 +24,7 @@ function examPublisher(host,status){
   const card=el('fieldset',null,questions);card.className='card';card.style.cssText='min-width:0;overflow-wrap:anywhere';
   const legend=el('legend','',card),text=field(card,'Question text','textarea',2000),options=[];
   for(let i=0;i<4;i++)options.push(field(card,'Option '+(i+1),'text',500));
-  const label=el('label','Correct answer',card),answer=el('select',null,card);answer.required=true;answer.id='exam-answer-'+crypto.randomUUID();label.htmlFor=answer.id;
+  const label=el('label','Correct answer',card),answer=el('select',null,card);answer.style.cssText=controlStyle+';margin-bottom:12px';answer.required=true;answer.id='exam-answer-'+crypto.randomUUID();label.htmlFor=answer.id;
   const empty=el('option','Choose the correct option',answer);empty.value='';
   options.forEach((_,i)=>{const option=el('option','Option '+(i+1),answer);option.value=String(i);});
   const remove=el('button','Remove question',card);remove.type='button';remove.className='btn secondary';
@@ -31,7 +32,7 @@ function examPublisher(host,status){
   remove.onclick=()=>{if(entries.length===1)return;entries.splice(entries.indexOf(entry),1);card.remove();refresh();};refresh();
  }
  add.onclick=addQuestion;addQuestion();
- const review=el('label',null,form),checked=el('input',null,review);checked.type='checkbox';checked.required=true;checked.style.width='auto';review.append(' I reviewed the questions, correct answers and test schedule.');
+ const review=el('label',null,form),checked=el('input',null,review);review.style.cssText='display:flex;align-items:flex-start;gap:10px;margin:12px 0';checked.type='checkbox';checked.required=true;checked.style.cssText='width:auto;flex-shrink:0;margin-top:4px';review.append(' I reviewed the questions, correct answers and test schedule.');
  const button=el('button','Publish protected exam',form);button.type='submit';button.className='btn primary';
  const examId='exam-'+crypto.randomUUID();let publishing=false;
  form.onsubmit=async event=>{
@@ -106,7 +107,9 @@ V.renderCareerCoach=function(){
 };
 V.renderSecureExams=async function(){
  const host=document.getElementById('tab-exams');if(!host)return;
- const student=role()==='student';if(!student&&role()!=='instructor')return;
+ const currentRole=role(),student=currentRole==='student';if(!student&&currentRole!=='instructor')return;
+ const generation=V._examRenderGeneration=(V._examRenderGeneration||0)+1,workspace=V.workspaceId,uid=V.fb?.user?.uid;
+ const current=()=>V._examRenderGeneration===generation&&role()===currentRole&&V.workspaceId===workspace&&V.fb?.user?.uid===uid;
  host.replaceChildren();el('h2',student?'Secure Class Tests':'Secure MCQ Examinations',host);
  el('p','Official scores are calculated only by the trusted backend. Answer keys are never sent to students. Tests require an online connection.',host);
  const status=el('p','',host);status.setAttribute('role','status');
@@ -117,6 +120,7 @@ V.renderSecureExams=async function(){
  try{
   const M=V.fb.M,c=M.collection(V.fb.db,'institutes',V.INSTITUTE_ID,'workspaces',V.workspaceId,'secureExams');
   const z=await M.getDocs(student?M.query(c,M.where('published','==',true)):c);
+  if(!current())return;
   if(z.empty)el('p','No published tests yet.',host);
   z.forEach(doc=>{
    const exam=doc.data(),card=el('section',null,host);card.className='card';el('h3',exam.title,card);el('p',exam.durationMinutes+' minutes • '+exam.questions.length+' questions',card);
@@ -131,7 +135,7 @@ V.renderSecureExams=async function(){
     const submit=el('button','Submit answers for server grading',card);submit.className='btn primary';submit.onclick=async()=>{submit.disabled=true;try{const out=await V.backendRequest({action:'submitExam',examId:doc.id,answers:exam.questions.map((_,j)=>selections[j]??null)});el('p','Result: '+out.result.score+' / '+out.result.total,card);card.querySelectorAll('input,button').forEach(n=>{n.disabled=true;});}catch(e){error(status,e);submit.disabled=false;}};
    }catch(e){error(status,e);start.disabled=false;}};
   });
- }catch(e){error(status,e);}
+ }catch(e){if(current())error(status,e);}
 };
 // Save online copies only after explicit student edits. Local scoped data remains usable offline.
 const oldOpen=V.finalOpenTab?.bind(V);

@@ -117,10 +117,15 @@ test('instructor creates a reviewed MCQ with the form and student receives serve
  const studentContext=await browser.newContext({viewport:page.viewportSize(),serviceWorkers:'block'});
  try{
   const student=await studentContext.newPage();await login(student,'student');await student.evaluate(()=>V15Sync.finalOpenTab('exams'));
+  await student.evaluate(()=>Promise.all([V15Sync.renderSecureExams(),V15Sync.renderSecureExams()]));
   await expect(student.locator('#exam-publisher')).toHaveCount(0);
   const card=student.locator('#tab-exams section').filter({has:student.getByRole('heading',{name:title,exact:true})});
+  await expect(card).toHaveCount(1);
   await card.getByRole('button',{name:'Start / resume test'}).click();await card.getByLabel('PDF',{exact:true}).check();
   await card.getByRole('button',{name:'Submit answers for server grading'}).click();await expect(card).toContainText('Result: 1 / 1');
+  await login(student,'student');
+  await student.evaluate(()=>V15Sync.finalOpenTab('exams'));await expect(card).toHaveCount(1);
+  await card.getByRole('button',{name:'Start / resume test'}).click();await expect(card).toContainText('Result: 1 / 1');
  }finally{await studentContext.close();}
 });
 test('instructor assessment is visible to student; offline queue flush preserves concurrent work',async({page,context,browser})=>{

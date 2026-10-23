@@ -138,5 +138,5 @@ The current frontend offers a question form with local date/time inputs, four
 options per question, mandatory correct-answer selection and review confirmation.
 The advanced JSON publisher is optional. This is a frontend-only improvement;
 server-side answer protection and immutable grading remain unchanged. Local
-validation passed 24 desktop/mobile scenarios plus 17 regression scripts and 44
+validation passed 24 desktop/mobile scenarios plus 17 regression scripts and 47
 native tests, including actual publisher-to-Student grading through emulators.
