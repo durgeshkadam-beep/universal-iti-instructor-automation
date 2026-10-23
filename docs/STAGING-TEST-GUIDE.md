@@ -147,3 +147,16 @@ frontend: `firebase deploy --only firestore:rules,hosting --project universal-it
 Review legacy leave fields and permissions before any broader release; old
 records with missing/extra fields are not automatically migrated. No additional
 AI key, paid API or backend deployment is required for this flow.
+
+## Training backup and restore (V15)
+
+Use **Instructor → Reports → Backup**. “Export training backup” downloads server-read modules, practicals, theory, notices and holidays for the current institute/workspace. It waits for pending training writes to sync. This is a training-resource archive, not a full institution/disaster-recovery backup: student records, attendance, marks, exams, private skills/plans, accounts and uploaded files are excluded. Export requires an authorised online Instructor, Principal or System Admin session; restoring requires Instructor or System Admin. Principal export availability depends on its report view.
+
+1. Save the downloaded JSON on your device and verify that the file exists. Download initiation alone does not prove the operating system saved it.
+2. Choose **Preview training backup** in the same workspace. Check the file name, export time, workspace, per-section missing/existing/different counts and the expandable missing-resource titles.
+3. Select the sections to restore and click **Restore missing training resources**. Preview itself does not write records. A Firestore transaction adds missing resources and section discovery together. It rechecks targets and leaves records created since preview unchanged. Existing records, including different versions, are never overwritten or deleted.
+4. Reload the workspace after success. Existing records are preserved; this feature cannot undo an edit or reconcile two different versions.
+
+Limits: 10 MB, 500 training records per archive, nesting depth 12, and at most 50 missing resources per atomic restore. Select fewer sections or prepare smaller same-workspace files for larger restores. Legacy whole-data imports and the old full-cloud restore handler are disabled in V15. Cross-workspace/production-student migration requires a separate reviewed procedure; no automatic conversion or migration is performed.
+
+Drive uses the same training-only archive, requires a connected Google Drive account and upload permission, and is initiated only by its save button. No AI key or paid backend is required. Actual Drive upload, OS download handling, Google popup login and physical printing still require acceptance on the intended device/account. Tests use the browser's real download/upload flow and Auth/Firestore Emulators; they do not create files in a real Google Drive account.

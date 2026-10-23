@@ -10,6 +10,19 @@ const {doc,setDoc,getDoc,updateDoc,deleteDoc,getDocs,collection,serverTimestamp}
  // Leave ownership/schema attacks and the actual atomic review transaction.
  const FM=require('firebase/firestore'),workflow=require('../v15/v15-leave-workflow');
  const studentLeave=env.authenticatedContext('s1',{email:'s1@example.test'}).firestore(),instructorLeave=env.authenticatedContext('teacher',{email:'teacher@example.test'}).firestore();
+ // Actual maximum-size training restore and backend authority, independent of client UI guards.
+ const training=require('../v15/v15-training-backup'),trainingItems=Array.from({length:50},(_,i)=>({section:'notices',id:'backup-limit-'+i,data:{id:'backup-limit-'+i,title:'Synthetic maximum restore '+i,body:'Training only'}}));
+ const trainingOptions={M:FM,db:instructorLeave,workspace:doc(instructorLeave,ws),items:trainingItems,uid:'teacher',allowed:()=>true,current:()=>true};
+ assert.deepEqual(await training.restore(trainingOptions),{created:50,existing:0});
+ await updateDoc(doc(instructorLeave,ws+'/notices/backup-limit-0'),{'data.title':'Newer existing resource'});
+ assert.deepEqual(await training.restore(trainingOptions),{created:0,existing:50});
+ assert.equal((await getDoc(doc(instructorLeave,ws+'/notices/backup-limit-0'))).data().data.title,'Newer existing resource');
+ assert((await getDoc(doc(instructorLeave,ws))).data().arraySections.includes('notices'));
+ const deniedItem={section:'notices',id:'backup-denied',data:{id:'backup-denied',title:'Synthetic denied restore'}};
+ await assert.rejects(training.restore({...trainingOptions,db:studentLeave,workspace:doc(studentLeave,ws),items:[deniedItem],uid:'s1'}),e=>e.code==='permission-denied');
+ const otherTraining=env.authenticatedContext('other',{email:'other@example.test'}).firestore();
+ await assert.rejects(training.restore({...trainingOptions,db:otherTraining,workspace:doc(otherTraining,ws),items:[deniedItem],uid:'other'}),e=>e.code==='permission-denied');
+ assert.equal((await getDoc(doc(instructorLeave,ws+'/notices/backup-denied'))).exists(),false);
  const wrapper=(id,changes={})=>({data:{id,traineeId:'s1',type:'Medical',fromDate:'2031-01-31',toDate:'2031-02-01',reason:'Synthetic leave reason',certNote:'',status:'pending',appliedDate:'2031-01-01',...changes},updatedAt:'2031-01-01T00:00:00Z',updatedBy:'s1'});
  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),ws+'/trainees/s1'),{data:{id:'s1',name:'Synthetic'}}));
  for(const [id,changes] of [['forged',{status:'approved'}],['foreign',{traineeId:'s2'}],['large',{reason:'x'.repeat(2001)}],['extra',{role:'principal'}],['badtype',{reason:123}],['reviewer',{reviewedBy:'teacher'}]])await no(setDoc(doc(studentLeave,ws+'/leaves/'+id),wrapper(id,changes)));
