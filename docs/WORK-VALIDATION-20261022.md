@@ -285,3 +285,24 @@ also exercise configuration lookup and inactive-member denial. Full CI and
 hosted deployment results are tracked in Draft PR16.
 
 The complete local permission/backend emulator rerun also passed all three suites after this change; expected denied-write logs are assertions. No external AI provider was configured or called.
+
+### 23 October follow-up: safe module rendering
+
+Reproduced unsafe module/topic rendering with hostile markup in topic type and
+hours, and executable inline handlers built from saved IDs. Module Manager now
+uses DOM text nodes and event listeners with opaque IDs. No saved field becomes
+HTML or JavaScript. Delete controls and handlers require Instructor role; existing
+Firestore authorization remains the server boundary. Missing or non-array topic
+lists render an empty list rather than crashing the page.
+
+Four native DOM regressions failed before the fix and pass after it: hostile
+markup/IDs, exact-ID deletion and persistence, non-Instructor mutation denial,
+and malformed/missing lists. A real-browser scenario also exercises hostile
+values and the actual confirmation dialog in desktop/mobile emulator sessions.
+Final suite, CI and staging acceptance results are recorded in Draft PR16.
+This change does not constitute a complete audit of every legacy renderer.
+
+Local final result: all 17 regression scripts, 60 native tests and 26 real
+Auth/Firestore/HTTP emulator desktop/mobile E2E scenarios passed (browser suite
+1.1m). The new browser case verifies markup stays inert and canceling the real
+confirmation retains the topic. No credentials or real records are test fixtures.

@@ -186,3 +186,18 @@ test('a newly created module survives cloud sync and a fresh login',async({page}
  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('modules'));
  await expect(page.locator('#moduleManagerBody')).toContainText(name);
 });
+
+test('module manager treats imported markup and opaque identifiers as text',async({page})=>{
+ await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('modules'));
+ await page.evaluate(()=>{
+  const markup='<img src=x onerror="window.moduleInjection=true">',id="x');window.moduleInjection=true;//";
+  DATA.modules=[{id,code:'Synthetic',name:markup,description:markup,hours:markup,topics:[{id,type:markup,title:markup,hours:markup}]}];ModuleManager.refresh();
+ });
+ const body=page.locator('#moduleManagerBody');
+ await expect(body.locator('img,script,[onclick],[onerror]')).toHaveCount(0);
+ await expect(body).toContainText('<img src=x onerror="window.moduleInjection=true">');
+ expect(await page.evaluate(()=>window.moduleInjection)).toBeUndefined();
+ const dialog=page.waitForEvent('dialog'),click=body.getByRole('button',{name:'Delete',exact:true}).click();
+ const confirmation=await dialog;expect(confirmation.message()).toContain('<img src=x');await confirmation.dismiss();await click;
+ await expect(body.locator('tbody tr')).toHaveCount(1);
+});

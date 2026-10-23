@@ -2728,19 +2728,35 @@ function addDaysISO(iso, n){
 const ModuleManager = {
   refresh(){
     if(!DATA) return;
+    const modules=Array.isArray(DATA.modules)?DATA.modules:[];
+    const make=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;};
     const select=document.getElementById('topicModule');
     if(select){
-      select.innerHTML=DATA.modules.map(m=>`<option value="${this.esc(m.id)}">${this.esc(m.code)} — ${this.esc(m.name)}</option>`).join('') || '<option value="">Create a module first</option>';
+      select.replaceChildren();
+      for(const m of modules){const option=make('option',`${m.code??''} — ${m.name??''}`);option.value=String(m.id??'');select.append(option);}
+      if(!modules.length){const option=make('option','Create a module first');option.value='';select.append(option);}
     }
-    const body=document.getElementById('moduleManagerBody'); if(!body)return;
-    if(!DATA.modules.length){body.innerHTML='<div class="empty-state">No modules created yet. Create your first module above or use Syllabus AI.</div>';return;}
-    body.innerHTML=DATA.modules.map((m,idx)=>{
-      const topics=(m.topics||[]).map(t=>`<tr><td>${t.type}</td><td style="text-align:left">${this.esc(t.title)}</td><td>${t.hours}</td><td><button class="btn ghost small" onclick="ModuleManager.deleteTopic('${m.id}','${t.id}')">Delete</button></td></tr>`).join('');
-      return `<div class="card" style="margin-top:12px;border-left:4px solid var(--primary)">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><h3>${this.esc(m.code)} — ${this.esc(m.name)}</h3><p class="muted">${m.hours||0} hours · ${m.topics.length} topics</p><p>${this.esc(m.description||'')}</p></div><button class="btn ghost small" onclick="ModuleManager.deleteModule('${m.id}')">Delete Module</button></div>
-        <div class="table-scroll"><table class="datatable"><thead><tr><th>Type</th><th>Topic</th><th>Hours</th><th></th></tr></thead><tbody>${topics||'<tr><td colspan="4" class="muted">No topics in this module yet.</td></tr>'}</tbody></table></div>
-      </div>`;
-    }).join('');
+    const body=document.getElementById('moduleManagerBody');if(!body)return;
+    body.replaceChildren();
+    if(!modules.length){body.append(make('div','No modules created yet. Create your first module above or use Syllabus AI.','empty-state'));return;}
+    const canEdit=SESSION?.role==='instructor';
+    const button=(label,handler)=>{const node=make('button',label,'btn ghost small');node.type='button';node.addEventListener('click',handler);return node;};
+    for(const m of modules){
+      const topics=Array.isArray(m.topics)?m.topics:[];
+      const card=make('div',undefined,'card');card.style.cssText='margin-top:12px;border-left:4px solid var(--primary)';
+      const header=make('div');header.style.cssText='display:flex;justify-content:space-between;gap:10px;align-items:flex-start';
+      const details=make('div');details.append(make('h3',`${m.code??''} — ${m.name??''}`),make('p',`${m.hours||0} hours · ${topics.length} topics`,'muted'),make('p',m.description||''));header.append(details);
+      if(canEdit)header.append(button('Delete Module',()=>this.deleteModule(m.id)));
+      const scroll=make('div',undefined,'table-scroll'),table=make('table',undefined,'datatable'),head=make('thead'),row=make('tr'),tbody=make('tbody');
+      for(const label of ['Type','Topic','Hours',''])row.append(make('th',label));head.append(row);
+      for(const t of topics){
+        const tr=make('tr'),title=make('td',t.title),actions=make('td');title.style.textAlign='left';
+        if(canEdit)actions.append(button('Delete',()=>this.deleteTopic(m.id,t.id)));
+        tr.append(make('td',t.type),title,make('td',t.hours),actions);tbody.append(tr);
+      }
+      if(!topics.length){const tr=make('tr'),td=make('td','No topics in this module yet.','muted');td.colSpan=4;tr.append(td);tbody.append(tr);}
+      table.append(head,tbody);scroll.append(table);card.append(header,scroll);body.append(card);
+    }
   },
   saveModule(){
     if(SESSION?.role!=='instructor'){alert('Only the instructor can create modules.');return;}
@@ -2768,11 +2784,13 @@ const ModuleManager = {
     saveData(); document.getElementById('topicTitle').value=''; this.refresh(); Practicals.render(); Theory.render(); Dashboard.render();
   },
   deleteTopic(moduleId,topicId){
+    if(SESSION?.role!=='instructor')return;
     const m=DATA.modules.find(x=>x.id===moduleId); if(!m)return; const t=m.topics.find(x=>x.id===topicId); if(!t)return;
     if(!confirm(`Delete topic "${t.title}" from this module?`))return;
     m.topics=m.topics.filter(x=>x.id!==topicId); saveData(); this.refresh();
   },
   deleteModule(id){
+    if(SESSION?.role!=='instructor')return;
     const m=DATA.modules.find(x=>x.id===id); if(!m)return;
     if(!confirm(`Delete module "${m.name}"? Existing practical/theory records will remain.`))return;
     DATA.modules=DATA.modules.filter(x=>x.id!==id); saveData(); this.refresh();
