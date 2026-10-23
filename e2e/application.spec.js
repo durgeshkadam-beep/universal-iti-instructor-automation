@@ -5,7 +5,7 @@ async function login(page,role){
  await page.goto('/v15/index.html');
  await page.waitForFunction(()=>window.V15Sync?.renderSecureExams);
  await page.addScriptTag({url:'/.tmp/test-sdk.js'});
- const result=await page.evaluate(async role=>{
+ await page.evaluate(async role=>{
   const V=V15Sync,M=ITITestFirebase,cfg={apiKey:'test-api-key',projectId:'demo-universal-iti',authDomain:'localhost',appId:'test-app'};
   V.modules=async()=>M;V.config=()=>cfg;V.fb.M=M;
   const app=M.initializeApp(cfg,'iti-v15'),auth=M.getAuth(app),db=M.getFirestore(app);
@@ -16,7 +16,9 @@ async function login(page,role){
   await V.login({interactive:false});
   return {ready:V.ready,role:V.currentRole(),message:document.querySelector('#v15LoginStatus')?.textContent};
  },role);
- expect(result,JSON.stringify(result)).toMatchObject({ready:true,role});
+ // A restored session can already own the in-progress login. Wait for its
+ // observable completion instead of treating the busy-guard return as failure.
+ await expect.poll(()=>page.evaluate(()=>({ready:V15Sync.ready,role:V15Sync.currentRole(),message:document.querySelector('#v15LoginStatus')?.textContent})),{timeout:30000}).toMatchObject({ready:true,role});
  await expect(page.locator('#appShell')).toBeVisible();
 }
 for(const role of ['admin','principal','instructor','staff','student'])test(role+' actual login, every route and mobile containment',async({page})=>{
