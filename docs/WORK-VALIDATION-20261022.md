@@ -398,3 +398,49 @@ assertion incorrectly included the static modal Close handler; it was scoped to
 dynamic viewer content and the complete suite reran. Earlier interrupted runs
 are not counted as final passes. Link tests validate structure/hosts and access,
 not the existence or contents of the external synthetic PDF/video resources.
+
+### 23 October follow-up: leave ownership and atomic attendance review
+
+Prototype leave rules now validate bounded wrapper/application fields on create
+and update, require Student-owned pending requests without review metadata, and
+permit only unchanged pending retries for Students. Review freezes application
+identity/content and allows pending → approved/rejected by authorized staff.
+Approved/rejected requests cannot be downgraded or reassigned. Date strings are
+format/order checked by rules; actual calendar validity and the complete 1–90
+UTC-day span are checked by the review transaction. Certificate links require
+absolute HTTPS without embedded credentials.
+
+V15 Student apply derives identity from activated membership, validates input and
+awaits durable queue construction even offline. Leave is always loaded/listened
+to as a known schema section, independent of old section-registration metadata.
+Online Instructor review reads the authoritative request, linked trainee and all
+month locks in one Firestore transaction, then writes approval and the entire
+attendance span together. Locked/unknown lock states fail closed; Principal must
+reopen the month. Rejection leaves attendance unchanged. Retries are idempotent;
+changed account/workspace callbacks cannot update the new screen. No API key or
+paid backend is required. Offline approval is deliberately unavailable, while
+Student requests remain queued offline.
+
+Actual Emulator attacks cover forged approval, foreign identity/reads, schema,
+type/size pollution, Student updates/deletes, immutable reviews, locked
+cross-month atomicity, reopened success and retries. Native tests cover UTC/leap
+spans, URL safety, role/context rejection, membership identity and offline saves.
+The new desktop/mobile browser scenario uses real Student/Instructor/Principal
+sessions, request forms, server records, lock failure, Principal reopen, complete
+approval and Student fresh-login restoration. Final CI/staging results are in
+Draft PR16. These prototype rules need review before broad production sharing;
+legacy leave records with missing/extra fields need explicit review/migration.
+
+Maximum-span testing exposed the Firestore multi-document rules access budget
+for a 366-day approval across 13 reopened months. That run failed and is not
+counted as a pass. A request is now explicitly limited to 90 days (longer leave
+requires separate requests); the real maximum-span test covers four reopened
+months and 90 attendance writes in one transaction. No lock checks were removed
+or weakened to accommodate longer transactions.
+
+Final-source local validation: all 17 regression scripts, 90 native tests,
+three permission/backend Emulator suites (including maximum-span approval),
+and all 38 desktop/mobile real Auth/Firestore/HTTP E2E scenarios PASS. The first
+mobile fixture replaced lock review metadata during re-submit; it was corrected
+to use the same merge semantics as the app, and the complete suite reran. Final
+hosted and CI evidence is tracked in Draft PR16.

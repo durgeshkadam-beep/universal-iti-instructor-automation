@@ -27,7 +27,7 @@ Object.assign(V,{
      for(const section of ['attendance','marks','submissions'])if(!DATA[section]||typeof DATA[section]!=='object')DATA[section]={};
    }
    DATA=DATA||{};DATA.meta={...(DATA.meta||{}),...w,schemaVersion:15,appVersion:'V15'};delete DATA.meta.ownerUid;delete DATA.meta.arraySections;delete DATA.meta.mapSections;DATA.gallery=g;DATA.users=u;
-   this.arraySections=new Set(w.arraySections||[]);this.mapSections=new Set(w.mapSections||[]);
+   this.arraySections=new Set([...(w.arraySections||[]),'leaves']);this.mapSections=new Set(w.mapSections||[]);
    if(role==='student')await this.loadStudent();
    else{
      const jobs=[];

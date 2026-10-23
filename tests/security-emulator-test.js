@@ -6,6 +6,40 @@ const {doc,setDoc,getDoc,updateDoc,deleteDoc,getDocs,collection,serverTimestamp}
  const env=await initializeTestEnvironment({projectId:'demo-universal-iti',firestore:{rules:fs.readFileSync('firestore.rules','utf8')}}),base='institutes/security-test',ws=base+'/workspaces/w1';
  try{
  await env.withSecurityRulesDisabled(async c=>{const d=c.firestore();await setDoc(doc(d,base),{ownerUid:'owner',schemaVersion:15});await setDoc(doc(d,ws),{trade:'Synthetic'});for(const [uid,role,ids] of [['principal','principal',[]],['teacher','instructor',['w1']],['other','instructor',['w2']],['staff','staff',['w1']],['s1','student',['w1']],['s2','student',['w1']]])await setDoc(doc(d,base+'/members/'+uid),{uid,email:uid+'@example.test',role,active:true,owner:false,workspaceIds:ids,traineeId:uid});await setDoc(doc(d,base+'/access/principal@example.test'),{role:'principal',workspaceIds:[]});await setDoc(doc(d,ws+'/examKeys/e'),{answers:[1]});await setDoc(doc(d,ws+'/examSessions/e--s1'),{deadline:100});await setDoc(doc(d,ws+'/attendance/old'),{key:'2026-10-01',subKey:'s1',traineeId:'s1',data:'P'});await setDoc(doc(d,ws+'/submissions/private'),{key:'1',subKey:'s2',traineeId:'s2',data:'private'});});
+
+ // Leave ownership/schema attacks and the actual atomic review transaction.
+ const FM=require('firebase/firestore'),workflow=require('../v15/v15-leave-workflow');
+ const studentLeave=env.authenticatedContext('s1',{email:'s1@example.test'}).firestore(),instructorLeave=env.authenticatedContext('teacher',{email:'teacher@example.test'}).firestore();
+ const wrapper=(id,changes={})=>({data:{id,traineeId:'s1',type:'Medical',fromDate:'2031-01-31',toDate:'2031-02-01',reason:'Synthetic leave reason',certNote:'',status:'pending',appliedDate:'2031-01-01',...changes},updatedAt:'2031-01-01T00:00:00Z',updatedBy:'s1'});
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),ws+'/trainees/s1'),{data:{id:'s1',name:'Synthetic'}}));
+ for(const [id,changes] of [['forged',{status:'approved'}],['foreign',{traineeId:'s2'}],['large',{reason:'x'.repeat(2001)}],['extra',{role:'principal'}],['badtype',{reason:123}],['reviewer',{reviewedBy:'teacher'}]])await no(setDoc(doc(studentLeave,ws+'/leaves/'+id),wrapper(id,changes)));
+ await yes(setDoc(doc(studentLeave,ws+'/leaves/atomic'),wrapper('atomic')));
+ await yes(setDoc(doc(studentLeave,ws+'/leaves/atomic'),wrapper('atomic'))); // idempotent pending retry
+ await no(updateDoc(doc(studentLeave,ws+'/leaves/atomic'),{'data.status':'approved'}));
+ await no(deleteDoc(doc(studentLeave,ws+'/leaves/atomic')));
+ await no(getDoc(doc(env.authenticatedContext('s2').firestore(),ws+'/leaves/atomic')));
+ await no(FM.getDocs(FM.collection(env.unauthenticatedContext().firestore(),ws+'/leaves')));
+ const reviewLeave=(id,status='approved')=>workflow.review({M:FM,db:instructorLeave,workspace:doc(instructorLeave,ws),uid:'teacher',role:'instructor',leaveId:id,status});
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),ws+'/attendanceLocks/2031-02'),{status:'submitted'}));
+ await assert.rejects(reviewLeave('atomic'),/locked/);
+ assert.equal((await getDoc(doc(instructorLeave,ws+'/leaves/atomic'))).data().data.status,'pending');
+ assert.equal((await getDoc(doc(instructorLeave,ws+'/attendance/2031-01-31--s1'))).exists(),false);
+ await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),ws+'/attendanceLocks/2031-02'),{status:'reopened'}));
+ await reviewLeave('atomic');for(const day of ['2031-01-31','2031-02-01'])assert.equal((await getDoc(doc(instructorLeave,ws+'/attendance/'+day+'--s1'))).data().data,'L');
+ assert.equal((await getDoc(doc(instructorLeave,ws+'/leaves/atomic'))).data().data.status,'approved');
+ const registered=(await getDoc(doc(instructorLeave,ws))).data();assert(registered.arraySections.includes('leaves'));assert(registered.mapSections.includes('attendance'));
+ await reviewLeave('atomic');await assert.rejects(reviewLeave('atomic','rejected'),/already/);
+ await no(updateDoc(doc(instructorLeave,ws+'/leaves/atomic'),{'data.status':'pending',updatedBy:'teacher'}));
+ await no(updateDoc(doc(instructorLeave,ws+'/leaves/atomic'),{'data.traineeId':'s2',updatedBy:'teacher'}));
+ await yes(setDoc(doc(studentLeave,ws+'/leaves/rejected'),wrapper('rejected')));await reviewLeave('rejected','rejected');
+ await no(updateDoc(doc(studentLeave,ws+'/leaves/rejected'),{'data.reason':'altered'}));
+ await no(setDoc(doc(env.unauthenticatedContext().firestore(),ws+'/leaves/anonymous'),wrapper('anonymous')));
+ await no(updateDoc(doc(instructorLeave,ws+'/leaves/atomic'),{'data.reason':'x'.repeat(2001),updatedBy:'teacher'}));
+ await no(updateDoc(doc(instructorLeave,ws+'/leaves/atomic'),{'data.type':FM.deleteField(),updatedBy:'teacher'}));
+ await yes(setDoc(doc(studentLeave,ws+'/leaves/long-span'),wrapper('long-span',{fromDate:'2032-01-31',toDate:'2032-04-29'})));
+ await env.withSecurityRulesDisabled(async c=>{for(const month of new Set(workflow.dates('2032-01-31','2032-04-29').map(d=>d.slice(0,7))))await setDoc(doc(c.firestore(),ws+'/attendanceLocks/'+month),{status:'reopened'});});
+ await reviewLeave('long-span');assert.equal((await getDoc(doc(instructorLeave,ws+'/attendance/2032-04-29--s1'))).data().data,'L');
+ console.log('PASS leave rules/transaction: forged statuses, owner/type/size/schema, immutable reviews, locked cross-month atomicity, reopened approval and retry.');
  const db=x=>env.authenticatedContext(x,{email:x+'@example.test',email_verified:true}).firestore(),teacher=db('teacher'),principal=db('principal'),student=db('s1');
  // Every sensitive named match must resist the generic match, for every privileged client too.
  for(const who of ['owner','principal','teacher','staff','s1','other']){

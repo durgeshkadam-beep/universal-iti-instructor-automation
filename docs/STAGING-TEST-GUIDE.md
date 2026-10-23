@@ -125,3 +125,25 @@ model names and private URLs stay on the backend. Provider configuration is not 
 health/quality/quota guarantee. Marathi/Hindi/English guided practice is available
 while the lookup runs and after a lookup failure. Generative AI remains disabled
 on this staging service; no external provider key or paid account was configured.
+
+### Leave requests and locked attendance (prototype rules)
+
+Use only synthetic staging trainees. Student → Leave: submit 1–90 calendar days,
+a reason and an optional absolute HTTPS certificate URL. The request must appear
+as Pending after cloud sync and after a fresh login. Student identity comes from
+activated membership. Offline Student requests are queued on the device; online
+connection is required for Instructor review.
+
+Instructor → Leave → Approve: approval and the entire requested attendance span
+are committed together. A submitted/approved attendance month blocks the whole
+approval, including dates in an otherwise open month. Principal → Attendance:
+reopen the affected month with a reason, then let the Instructor retry. Student
+reload should show Approved and the attendance records should contain L. Reject
+must leave attendance unchanged. Longer leave requires separate requests of at
+most 90 days. Invalid/reversed dates and forged approved Student creates fail.
+
+Deploy these prototype rules only to the isolated staging project alongside the
+frontend: `firebase deploy --only firestore:rules,hosting --project universal-iti-dk-staging --config firebase.staging.json`.
+Review legacy leave fields and permissions before any broader release; old
+records with missing/extra fields are not automatically migrated. No additional
+AI key, paid API or backend deployment is required for this flow.

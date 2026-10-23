@@ -32,6 +32,29 @@ service cloud.firestore {
       let lock = /databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid)/attendanceLocks/$(month);
       return valid && (!exists(lock) || get(lock).data.status == 'reopened');
     }
+    // Leave wrapper: immutable application data, bounded strings, pending Student creates.
+    // Review fields are Instructor-authored strings; calendar logic/span is checked by the transaction.
+    function validLeave(record, docId) {
+      let d = record.data;
+      return record.keys().hasOnly(['data','updatedAt','updatedBy'])
+        && record.updatedBy == request.auth.uid && record.updatedAt is string && record.updatedAt.size() <= 40
+        && d is map && d.keys().hasAll(['id','traineeId','type','fromDate','toDate','reason','certNote','status','appliedDate'])
+        && d.keys().hasOnly(['id','traineeId','type','fromDate','toDate','reason','certNote','status','appliedDate','reviewedAt','reviewedBy'])
+        && d.id == docId && d.id is string && d.id.size() <= 180
+        && d.traineeId is string && d.traineeId.size() > 0 && d.traineeId.size() <= 180
+        && d.type in ['Casual','Medical','Other'] && d.status in ['pending','approved','rejected']
+        && d.fromDate is string && d.fromDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.toDate is string && d.toDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && d.toDate >= d.fromDate
+        && d.appliedDate is string && d.appliedDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.reason is string && d.reason.size() > 0 && d.reason.size() <= 2000
+        && d.certNote is string && d.certNote.size() <= 2048 && (d.certNote == '' || d.certNote.matches('^https://[^/?#@ ]+([/?#].*)?$'))
+        && (!('reviewedAt' in d) || (d.reviewedAt is string && d.reviewedAt.size() <= 40))
+        && (!('reviewedBy' in d) || (d.reviewedBy is string && d.reviewedBy.size() <= 128));
+    }
+    function pendingStudentLeave(inst, d) {
+      return ownTrainee(inst, d.traineeId) && d.status == 'pending'
+        && !d.keys().hasAny(['reviewedAt','reviewedBy']);
+    }
     function publicStudentSection(section) {
       return section in ['theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams'];
     }
@@ -197,8 +220,16 @@ service cloud.firestore {
         }
         match /leaves/{docId} {
           allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId));
-          allow create: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.data.traineeId));
-          allow update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow create: if workspaceAllowed(inst, wid) && validLeave(request.resource.data, docId)
+            && (isStaff(inst) || pendingStudentLeave(inst, request.resource.data.data));
+          allow update: if workspaceAllowed(inst, wid) && validLeave(request.resource.data, docId)
+            && (request.resource.data.data == resource.data.data
+              ? (isStaff(inst) || pendingStudentLeave(inst, resource.data.data))
+              : (isStaff(inst) && resource.data.data.status == 'pending'
+                && request.resource.data.data.status in ['approved','rejected']
+                && request.resource.data.data.reviewedBy == request.auth.uid
+                && request.resource.data.data.diff(resource.data.data).affectedKeys().hasOnly(['status','reviewedAt','reviewedBy'])));
+          allow delete: if workspaceAllowed(inst, wid) && isStaff(inst);
         }
         match /examAttempts/{docId} {
           allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId));
