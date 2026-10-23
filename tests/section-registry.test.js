@@ -25,3 +25,16 @@ test('a slow network flush cannot discard subsequent local syllabus saves',async
   release();await Promise.all([first,second]);
  }finally{release?.();w.close();}
 });
+test('a save is durable before a deferred cloud callback or page close can replace its record',()=>{
+ const dom=new JSDOM('',{url:'https://synthetic.example',runScripts:'outside-only'}),w=dom.window;
+ try{
+  Object.defineProperty(w.navigator,'onLine',{value:false});w.SESSION={role:'instructor'};
+  const original={no:1,title:'Synthetic',materials:{pdfLink:'https://example.test/notes.pdf'}};
+  w.DATA={practicals:[structuredClone(original)],meta:{}};
+  const V={ready:true,workspaceId:'w',INSTITUTE_ID:'synthetic',member:{role:'instructor'},arraySections:new Set(['practicals']),mapSections:new Set(),shadow:structuredClone(w.DATA),fb:{user:{uid:'i'}},clone:structuredClone,eq:(a,b)=>JSON.stringify(a)===JSON.stringify(b),safe:structuredClone,now:()=>new Date().toISOString(),itemId:(_,x)=>String(x.no),badge(){}};
+  w.V15Sync=V;w.eval(fs.readFileSync('v15/v15-governance-v2.js','utf8'));
+  w.DATA.practicals[0].plan={objective:['Synthetic latest plan']};V.schedule();
+  assert.equal(V.queueRead()[0]?.value.plan.objective[0],'Synthetic latest plan','save must reach durable storage in the same task');
+  V.receiveSyllabusSnapshot('practicals',[original]);assert.equal(w.DATA.practicals[0].plan.objective[0],'Synthetic latest plan');
+ }finally{w.close();}
+});

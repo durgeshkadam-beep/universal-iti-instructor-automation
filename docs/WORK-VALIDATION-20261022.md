@@ -5,7 +5,7 @@ Development branch: `phase1/security-student-career-20261021`
 Review: Draft PR #16
 Baseline: `98a3d93bce4bcd58370234687a239c803c7985c4`
 
-**Release status: isolated frontend staging deployed; hosted backend and remaining acceptance are still required.** This report does not certify that every legacy form, external integration or real-device scenario is production-ready. Main was not merged or modified; no production deployment or real-student record changes occurred. Runtime test records were synthetic in `demo-universal-iti` and the separate `universal-iti-dk-staging` project. Later sections preserve the sequence of findings and fixes.
+**Release status: isolated Firebase frontend and Render backend are deployed; production acceptance remains incomplete.** This report does not certify that every legacy form, external integration or real-device scenario is production-ready. Main was not merged or modified; no production deployment or real-student record changes occurred. Runtime test records were synthetic in `demo-universal-iti` and the separate `universal-iti-dk-staging` project. Later sections preserve the sequence of findings and fixes.
 
 ## Latest deployment preparation
 
@@ -453,3 +453,13 @@ helper declarations while retaining unique ruleset/database headers and snapshot
 identity. The full local command was rerun with checked exit status: all 17
 regression scripts and 90 native tests PASS (exit 0). Actual deployed rules and
 application behavior are unchanged by this snapshot/integrity-test correction.
+
+## 23 October: interrupted leave acknowledgement and offline replay
+
+Executable regression tests reproduced three failures: an approved/rejected remote request was overwritten in the local view by its original pending retry, a denied replay prevented the next queued operation from being sent, and different server application content was hidden by that retry. The fix preserves reviewed server records in the view and, only after a permission-denied write, requests a server-only snapshot. An exact match of every original application field, with approved/rejected status, acknowledges the old operation without another write or a rules exception. Changed/unknown fields, unavailable reads and account changes retain the operation. Account changes during ordinary writes/audit also stop queue removal. Console warnings identify the section/document and failure without logging the full queued student record.
+
+Five new executable tests pass, including the next-write continuation, mismatched request, unavailable server confirmation and account switch. Full local `npm test` passes all 17 regression scripts and **96 native tests**, including a sixth case for immediate durable saves. The desktop/mobile Emulator leave scenario now additionally restores two queued writes while offline: the original pending application after approval, then a new synthetic application. It reconnects, checks an empty queue and real server persistence, and fresh-login checks Approved/Pending separately. Current browser and hosted results are recorded below after verification. No rule or backend change is needed. This is narrow retry recovery, not a general multi-device conflict-resolution UI: a mismatched request remains pending and can still block subsequent writes for review.
+
+The first complete browser run was 37/38: the new retry flow passed both viewports, but the pre-existing desktop Plan Viewer persistence poll did not see the latest text. A diagnostic rerun passed 38/38 without changing that assertion. Independently, a new deterministic test failed because ordinary saves waited 250 ms before entering durable storage. Default scheduling now captures changes immediately, including while an earlier network flush is active; explicitly delayed reconnect retries remain delayed. This closes the demonstrated page-close/delayed-callback durability gap. It does not establish the exact cause of the earlier intermittent Plan Viewer failure. Temporary diagnostic wrappers were removed; the final suite is rerun against the new source.
+
+Final local source verification: all **38 desktop/mobile Emulator browser scenarios PASS (1.8m)**, including both immediate Plan Viewer saves and the offline reviewed-leave replay/next-write/fresh-login assertions; all 17 regression scripts and 96 native tests pass. No temporary diagnostics, skipped cases or weakened assertions are included. Hosted staging acceptance and full remote CI are tracked in Draft PR #16.
