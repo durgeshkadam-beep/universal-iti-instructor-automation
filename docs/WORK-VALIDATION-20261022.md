@@ -364,3 +364,37 @@ Final slow-flush fix validation: 17 regression scripts + 74 native tests PASS;
 all 30 desktop/mobile scenarios PASS (1.3m), including both saves being durable
 while the earlier real flush is held, followed by actual server writes and
 fresh-login restoration. Final hosted and CI results remain tracked in PR16.
+
+### 23 October follow-up: Plan Viewer, teaching links and record selection
+
+Plan previews/material editors now build controls and metadata through DOM text
+nodes and event listeners. Stored material input values, update dates and plan
+versions cannot inject markup/handlers. Student links are absolute HTTPS only,
+without embedded credentials; video links require recognised YouTube/youtu.be
+hosts and the default HTTPS port. Invalid saved links are hidden. Invalid edits
+show a message without saving. New-window links use noopener/noreferrer.
+
+Only Instructors can mutate text/materials. Viewer actions bind the original
+record contents, role, user and workspace; changed contexts require reopening.
+Record lookup preserves original identifiers instead of coercing numeric aliases
+or falling back to the first unrelated record. Print/preview share this lookup.
+Legacy scalar list sections and malformed steps no longer crash the document or
+editor. Explicitly clearing a custom section now stays cleared rather than
+silently restoring a bundled DTPO reference. Document HTML comes from the existing
+escaped RecordFormats renderer; dynamic toolbar/editor metadata stays out of HTML.
+
+Nine executable DOM regressions cover hostile fields, URL validation, authorized
+saves, role/context denials, legacy shapes, exact identifiers, saved text and
+explicit clears. New desktop/mobile browser cases cover real form updates,
+server persistence, fresh login, generated print popup, Student material reads,
+hostile in-memory fields and stale-editor rejection. Only synthetic emulator data
+is used. Final local, CI and hosted acceptance results are recorded in Draft PR16.
+This does not certify every legacy dashboard/report renderer or physical printing.
+
+Final local result: 17 regression scripts, 83 native tests and all 34 real
+Auth/Firestore/HTTP desktop/mobile E2E scenarios PASS. Print popup, fresh-login
+plan restoration and Student links passed in both viewports. An initial browser
+assertion incorrectly included the static modal Close handler; it was scoped to
+dynamic viewer content and the complete suite reran. Earlier interrupted runs
+are not counted as final passes. Link tests validate structure/hosts and access,
+not the existence or contents of the external synthetic PDF/video resources.

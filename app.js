@@ -1094,11 +1094,11 @@ const RecordFormats = {
   record(type, no) {
     const isDemo = type==="demo" || type==="practical";
     const list = isDemo ? (DATA.practicals||[]) : (DATA.theory||[]);
-    const item = list.find(x=>Number(x.no)===Number(no)) || list[0] || {};
-    const n = Number(no || item.no || 1);
+    const item = list.find(x=>x.no===no) || list.find(x=>String(x.no)===String(no)) || {};
+    const n = item.no??no??1, officialNumber=Number(n);
     // Bundled 58/119 records are DTPO references only. Never reuse them for another trade.
     const isDtpTrade=/desktop publishing|dtpo|\bdtp\b/i.test(String(DATA.meta?.trade||""));
-    const official = !isDtpTrade ? null : (isDemo
+    const official = !isDtpTrade||!Number.isSafeInteger(officialNumber)||officialNumber<1||String(officialNumber)!==String(n) ? null : (isDemo
       ? ((typeof OFFICIAL_DEMO_RECORDS!=="undefined" && OFFICIAL_DEMO_RECORDS[n]) || null)
       : ((typeof OFFICIAL_LESSON_RECORDS!=="undefined" && OFFICIAL_LESSON_RECORDS[n]) || null));
     const p=this.profile();
@@ -1112,26 +1112,11 @@ const RecordFormats = {
     d.unit=d.unit || item.unit || item.module || "";
     d.proposed=d.proposed || item.plannedDate || "";
     d.conducted=item.doneDate || d.conducted || "";
-    if(isDemo){
-      if(custom.objective?.length) d.objectives=custom.objective;
-      if(custom.tools?.length) d.tools=custom.tools;
-      if(custom.questions?.length) d.questions=custom.questions;
-      if(custom.nextDemo) d.next=custom.nextDemo;
-      if(custom.steps?.length) d.steps=custom.steps;
-      d.tools=d.tools||[]; if(item.hours)d.time=`${item.hours} Hours (Practical Period)`;
-    }else{
-      if(custom.objective?.length) d.objectives=custom.objective;
-      if(custom.materials?.length) d.materials=custom.materials;
-      if(custom.review) d.review=custom.review;
-      if(custom.motivation) d.motivation=custom.motivation;
-      if(custom.questions?.length) d.questions=custom.questions;
-      if(custom.summary) d.summary=custom.summary;
-      if(custom.assignment) d.assignment=custom.assignment;
-      if(custom.nextLesson) d.next=custom.nextLesson;
-      if(custom.steps?.length) d.steps=custom.steps;
-      d.materials=d.materials||[]; if(item.hours)d.time=`${item.hours} Hours (Theory Period)`;
-    }
-    d.objectives=d.objectives||[]; d.questions=d.questions||[]; d.steps=d.steps||[];
+    const mappings=isDemo?{objective:'objectives',tools:'tools',questions:'questions',nextDemo:'next',steps:'steps'}:{objective:'objectives',materials:'materials',review:'review',motivation:'motivation',questions:'questions',summary:'summary',assignment:'assignment',nextLesson:'next',steps:'steps'};
+    for(const [key,target] of Object.entries(mappings))if(Object.prototype.hasOwnProperty.call(custom,key))d[target]=custom[key];
+    if(item.hours)d.time=`${item.hours} Hours (${isDemo?'Practical':'Theory'} Period)`;
+    for(const key of ['objectives','tools','materials','questions'])d[key]=Array.isArray(d[key])?d[key]:typeof d[key]==='string'&&d[key]?[d[key]]:[];
+    d.steps=Array.isArray(d.steps)?d.steps.filter(Array.isArray):[];
     d.instructor=p.name; d.designation=p.designation; d.trade=p.trade; d.batch=p.batch; d.session=p.session; d.institute=p.institute;
     return d;
   },
@@ -1189,13 +1174,13 @@ const RecordFormats = {
     return `<div class="doc-signatures"><div>INSTRUCTOR<br><span>(Signature & Date)</span></div><div>GROUP INSTRUCTOR<br><span>(Signature & Date)</span></div><div>VICE-PRINCIPAL / PRINCIPAL<br><span>(Signature & Date)</span></div></div>
       <div class="doc-footer-credit">Universal ITI Instructor Automation • Designed & Developed by Durgesh Kadam</div>`;
   },
-  firstNo(type){ const list=(type==="demo"?DATA.practicals:DATA.theory)||[]; return list[0]?.no || 1; },
+  firstNo(type){ const list=(type==="demo"?DATA.practicals:DATA.theory)||[]; return list[0]?.no ?? 1; },
   preview(type,no) {
-    const n=no||this.firstNo(type);
-    PlanViewer.open(type==="demo"?"practical":"theory",Number(n));
+    const n=no??this.firstNo(type);
+    PlanViewer.open(type==="demo"?"practical":"theory",n);
   },
   print(type,no) {
-    const n=no||this.firstNo(type);
+    const n=no??this.firstNo(type);
     const body=this.render(type,n);
     const w=window.open("","_blank");
     if(!w){alert("Please allow pop-ups for printing. The full plan can still be viewed inside the app.");return;}
@@ -1846,71 +1831,71 @@ const PLAN_FIELDS = {
 };
 
 const PlanViewer = {
-  current:{type:null, no:null},
-  open(type, no){
-    this.current={type,no:Number(no)};
-    const list=type==="practical" ? DATA.practicals : DATA.theory;
-    const item=list.find(x=>Number(x.no)===Number(no));
-    if(!item) return;
-    const isStudent=SESSION.role==="student";
-    document.getElementById("planModalTitle").textContent = isStudent ? `${type==="practical"?"Practical":"Theory"} ${no}: ${item.title}` : `${type==="practical"?"Demonstration":"Lesson"} Plan No. ${no}`;
-
-    const m=item.materials || {pdfLink:"",youtubeLink:"",updatedDate:null};
-    let materialsHtml="";
-    if(isStudent){
-      materialsHtml=`<div class="plan-materials"><h4>📎 Teaching Materials</h4>
-        ${m.pdfLink?`<p>📄 <a href="${m.pdfLink}" target="_blank" rel="noopener">Open Notes PDF</a></p>`:""}
-        ${m.youtubeLink?`<p>▶️ <a href="${m.youtubeLink}" target="_blank" rel="noopener">Watch on YouTube</a></p>`:""}
-        ${(!m.pdfLink&&!m.youtubeLink)?`<p class="muted">Not uploaded by your instructor yet.</p>`:""}</div>`;
-    }else{
-      const fullDoc=RecordFormats.render(type==="practical"?"demo":"lesson",Number(no));
+  current:null,
+  find(type,no){const list=type==='practical'?DATA.practicals:type==='theory'?DATA.theory:[];return list.find(x=>x.no===no)||list.find(x=>String(x.no)===String(no));},
+  safeMaterialUrl(value,youtube=false){
+    const text=String(value??'').trim();if(!text)return '';
+    try{const url=new URL(text);if(url.protocol!=='https:'||url.username||url.password)return '';if(youtube&&(url.port||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be','youtube-nocookie.com','www.youtube-nocookie.com'].includes(url.hostname)))return '';return url.href;}catch{return '';}
+  },
+  readCurrent(edit=false){
+    const c=this.current;if(!c||(edit&&SESSION?.role!=='instructor'))return null;
+    const item=this.find(c.type,c.no);
+    if(SESSION?.role!==c.role||!syllabusContextCurrent(c.context)||!item||syllabusRecordVersion(item)!==c.version){this.close();alert('The syllabus or account changed. Reopen the plan before continuing.');return null;}
+    return item;
+  },
+  node(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;},
+  button(label,action,className='btn ghost small'){const b=this.node('button',label,className);b.type='button';b.addEventListener('click',action);return b;},
+  open(type,no){
+    const item=this.find(type,no);if(!item||!['admin','principal','instructor','staff','student'].includes(SESSION?.role)){this.close();return;}
+    this.current={type,no:item.no,role:SESSION.role,context:syllabusContext(),version:syllabusRecordVersion(item)};
+    const isStudent=SESSION.role==='student',m=item.materials||{},body=document.getElementById('planModalBody');body.replaceChildren();
+    document.getElementById('planModalTitle').textContent=isStudent?`${type==='practical'?'Practical':'Theory'} ${item.no}: ${item.title}`:`${type==='practical'?'Demonstration':'Lesson'} Plan No. ${item.no}`;
+    if(!isStudent){
       const pm=item.planMeta||{};
-      const statusHtml=pm.status?`<div class="callout" style="margin-bottom:10px"><b>Plan status:</b> ${RecordFormats.esc(String(pm.status).replace(/-/g,' ').toUpperCase())}${pm.approvedBy?` · Approved by ${RecordFormats.esc(pm.approvedBy)}`:''}${pm.version?` · Version ${pm.version}`:''}</div>`:'';
-      materialsHtml=`${statusHtml}
-        <div class="plan-preview-toolbar">
-          <button class="btn secondary small" onclick="RecordFormats.print('${type==="practical"?"demo":"lesson"}',${Number(no)})">🖨️ Print / Save PDF</button>
-          ${SESSION.role==="instructor"?`<button class="btn primary small" onclick="InstructorAI.openPlanDraft('${type}',${Number(no)})">✨ AI Draft Plan</button><button class="btn ghost small" onclick="PlanViewer.editPlan()">✏️ Edit Text Sections</button>`:""}
-        </div>
-        <div class="plan-document-wrap"><style>${RecordFormats.css(false)}</style>${fullDoc}</div>
-        ${SESSION.role==="instructor"?`<div class="plan-materials"><h4>📎 Teaching Materials (for students)</h4>
-          <div class="field"><label>Notes PDF link</label><input type="text" id="planPdfLink" value="${m.pdfLink||''}" placeholder="Paste Drive/other link to your notes PDF"></div>
-          <div class="field"><label>YouTube video link</label><input type="text" id="planYoutubeLink" value="${m.youtubeLink||''}" placeholder="https://youtube.com/watch?v=..."></div>
-          <button class="btn primary small" onclick="PlanViewer.saveMaterials()">Save Materials</button>${m.updatedDate?`<p class="muted">Last updated ${m.updatedDate}</p>`:""}</div>`:""}`;
+      if(pm.status){const status=this.node('div',`Plan status: ${String(pm.status).replace(/-/g,' ').toUpperCase()}${pm.approvedBy?' · Approved by '+pm.approvedBy:''}${pm.version?' · Version '+pm.version:''}`,'callout');status.style.marginBottom='10px';body.append(status);}
+      const toolbar=this.node('div',undefined,'plan-preview-toolbar');
+      toolbar.append(this.button('Print / Save PDF',()=>{if(this.readCurrent())RecordFormats.print(type==='practical'?'demo':'lesson',item.no);},'btn secondary small'));
+      if(SESSION.role==='instructor')toolbar.append(this.button('AI Draft Plan',()=>{if(this.readCurrent(true))InstructorAI.openPlanDraft(type,item.no);},'btn primary small'),this.button('Edit Text Sections',()=>this.editPlan()));
+      body.append(toolbar);
+      const preview=this.node('div',undefined,'plan-document-wrap'),style=this.node('style',RecordFormats.css(false));preview.append(style);
+      const documentBody=this.node('div');try{documentBody.innerHTML=RecordFormats.render(type==='practical'?'demo':'lesson',item.no);}catch{documentBody.textContent='This plan could not be displayed. Review its imported fields before use.';}preview.append(documentBody);body.append(preview);
     }
-    document.getElementById("planModalBody").innerHTML=materialsHtml;
-    document.getElementById("planModal").style.display="flex";
-    const card=document.querySelector("#planModal .modal-card"); if(card){card.scrollTop=0;}
+    if(isStudent||SESSION.role==='instructor'){
+      const materials=this.node('div',undefined,'plan-materials');materials.append(this.node('h4',isStudent?'Teaching Materials':'Teaching Materials (for students)'));
+      if(isStudent){
+        let count=0;
+        for(const [key,label,youtube] of [['pdfLink','Open Notes PDF',false],['youtubeLink','Watch on YouTube',true]]){const href=this.safeMaterialUrl(m[key],youtube);if(href){const p=this.node('p'),a=this.node('a',label);a.href=href;a.target='_blank';a.rel='noopener noreferrer';p.append(a);materials.append(p);count++;}}
+        if(!count)materials.append(this.node('p','No valid teaching-material links are available yet.','muted'));
+      }else{
+        for(const [id,label,value,placeholder] of [['planPdfLink','Notes PDF link',m.pdfLink,'https://… notes PDF'],['planYoutubeLink','YouTube video link',m.youtubeLink,'https://youtube.com/watch?v=…']]){const field=this.node('div',undefined,'field'),l=this.node('label',label),input=this.node('input');l.htmlFor=id;input.id=id;input.type='url';input.value=String(value??'');input.placeholder=placeholder;field.append(l,input);materials.append(field);}
+        materials.append(this.node('p','Use absolute HTTPS links without embedded login credentials. Video links must use YouTube or youtu.be.','muted'));
+        const status=this.node('p');status.id='planMaterialsStatus';status.setAttribute('role','status');materials.append(status,this.button('Save Materials',()=>this.saveMaterials(),'btn primary small'));
+        if(m.updatedDate)materials.append(this.node('p','Last updated '+m.updatedDate,'muted'));
+      }
+      body.append(materials);
+    }
+    document.getElementById('planModal').style.display='flex';const card=document.querySelector('#planModal .modal-card');if(card)card.scrollTop=0;
   },
   editPlan(){
-    const {type,no}=this.current;
-    const list=type==="practical"?DATA.practicals:DATA.theory;
-    const item=list.find(x=>Number(x.no)===Number(no)); if(!item)return;
-    const official=RecordFormats.record(type==="practical"?"demo":"lesson",no);
-    const existing=item.plan||{};
-    const seed=type==="practical"?{
-      objective:official.objectives||[], tools:official.tools||[], questions:official.questions||[], nextDemo:official.next||""
-    }:{
-      objective:official.objectives||[], materials:official.materials||[], review:official.review||"", motivation:official.motivation||"", questions:official.questions||[], summary:official.summary||"", assignment:official.assignment||"", nextLesson:official.next||""
-    };
-    const fields=PLAN_FIELDS[type];
-    const formHtml=fields.map(([key,label,isArray])=>{
-      const val=(key in existing)?existing[key]:seed[key];
-      const textVal=isArray?(val||[]).join("\n"):(val||"");
-      return `<div class="field"><label>${label}${isArray?' <span class="muted">(one per line)</span>':''}</label><textarea id="planField_${key}" rows="${isArray?4:3}">${RecordFormats.esc(textVal)}</textarea></div>`;
-    }).join("");
-    document.getElementById("planModalBody").innerHTML=`<p class="muted">Edit the text sections below. The official procedure/teaching table, plan header, dates and signature area remain part of the full document.</p>${formHtml}<div class="field-row" style="justify-content:flex-end"><button class="btn ghost" onclick="PlanViewer.open('${type}',${no})">Cancel</button><button class="btn primary" onclick="PlanViewer.savePlan()">Save & View Full Plan</button></div>`;
+    const item=this.readCurrent(true);if(!item)return;
+    const {type,no}=this.current,official=RecordFormats.record(type==='practical'?'demo':'lesson',no),existing=item.plan||{};
+    const seed=type==='practical'?{objective:official.objectives,tools:official.tools,questions:official.questions,nextDemo:official.next}:{objective:official.objectives,materials:official.materials,review:official.review,motivation:official.motivation,questions:official.questions,summary:official.summary,assignment:official.assignment,nextLesson:official.next};
+    const body=document.getElementById('planModalBody');body.replaceChildren(this.node('p','Edit the text sections below. The official procedure/teaching table, plan header, dates and signature area remain part of the full document.','muted'));
+    for(const [key,label,isArray] of PLAN_FIELDS[type]){const val=Object.prototype.hasOwnProperty.call(existing,key)?existing[key]:seed[key],field=this.node('div',undefined,'field'),l=this.node('label',label+(isArray?' (one per line)':'')),input=this.node('textarea');input.id='planField_'+key;l.htmlFor=input.id;input.rows=isArray?4:3;input.value=Array.isArray(val)?val.map(x=>String(x??'')).join('\n'):typeof val==='string'||typeof val==='number'?String(val):'';field.append(l,input);body.append(field);}
+    const actions=this.node('div',undefined,'field-row');actions.style.justifyContent='flex-end';actions.append(this.button('Cancel',()=>{if(this.readCurrent(true))this.open(type,no);},'btn ghost'),this.button('Save & View Full Plan',()=>this.savePlan(),'btn primary'));body.append(actions);
   },
   savePlan(){
-    const {type,no}=this.current; const list=type==="practical"?DATA.practicals:DATA.theory; const item=list.find(x=>Number(x.no)===Number(no)); if(!item)return;
-    const newPlan={}; PLAN_FIELDS[type].forEach(([key,label,isArray])=>{const raw=document.getElementById("planField_"+key).value; newPlan[key]=isArray?raw.split("\n").map(s=>s.trim()).filter(Boolean):raw.trim();});
-    item.plan={...(item.plan||{}),...newPlan};
-    item.planMeta={...(item.planMeta||{}),status:"instructor-edited",editedAt:new Date().toISOString(),editedBy:SESSION?.name||"Instructor",version:Number(item.planMeta?.version||0)+1};
-    saveData(); alert("Plan saved. Review it before final use."); this.open(type,no);
+    const item=this.readCurrent(true);if(!item)return;const {type,no}=this.current,newPlan={};
+    for(const [key,label,isArray] of PLAN_FIELDS[type]){const input=document.getElementById('planField_'+key);if(!input)return;const raw=input.value;newPlan[key]=isArray?raw.split('\n').map(s=>s.trim()).filter(Boolean):raw.trim();}
+    item.plan={...(item.plan||{}),...newPlan};const version=Number(item.planMeta?.version);item.planMeta={...(item.planMeta||{}),status:'instructor-edited',editedAt:new Date().toISOString(),editedBy:SESSION?.name||'Instructor',version:Number.isSafeInteger(version)&&version>=0&&version<Number.MAX_SAFE_INTEGER?version+1:1};
+    saveData();alert('Plan saved. Review it before final use.');this.open(type,no);
   },
-  close(){document.getElementById("planModal").style.display="none";},
+  close(){this.current=null;document.getElementById('planModal').style.display='none';document.getElementById('planModalBody').replaceChildren();},
   saveMaterials(){
-    const {type,no}=this.current; const list=type==="practical"?DATA.practicals:DATA.theory; const item=list.find(x=>Number(x.no)===Number(no)); if(!item)return;
-    item.materials={pdfLink:document.getElementById("planPdfLink").value.trim(),youtubeLink:document.getElementById("planYoutubeLink").value.trim(),updatedDate:todayISO()}; saveData(); alert("Materials saved."); this.open(type,no);
+    const item=this.readCurrent(true);if(!item)return;const pdf=document.getElementById('planPdfLink'),video=document.getElementById('planYoutubeLink');if(!pdf||!video)return;
+    const pdfText=pdf.value.trim(),videoText=video.value.trim(),pdfLink=this.safeMaterialUrl(pdfText),youtubeLink=this.safeMaterialUrl(videoText,true);
+    if((pdfText&&!pdfLink)||(videoText&&!youtubeLink)){document.getElementById('planMaterialsStatus').textContent='Enter valid absolute HTTPS links. Video links must use YouTube; embedded login credentials are not allowed.';return;}
+    const {type,no}=this.current;item.materials={pdfLink,youtubeLink,updatedDate:todayISO()};saveData();alert('Materials saved.');this.open(type,no);
   }
 };
 
