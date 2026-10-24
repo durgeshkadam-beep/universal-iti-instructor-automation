@@ -2,7 +2,8 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else{root.ITITrainingBackup=api;api.install(root.V15Sync);}})(typeof window!=='undefined'?window:this,function(){
 'use strict';
 const SECTIONS=['practicals','theory','modules','notices','holidays'],FORMAT='Universal ITI training backup',MAX_BYTES=10*1024*1024;
-const forbidden=new Set(['__proto__','prototype','constructor','pin','password','instructorpin','principalpin','apikey','api_key','accesstoken','refreshtoken','idtoken','authorization','private_key','client_secret','credentials']);
+const fieldKey=k=>k.toLowerCase().replace(/[_-]/g,'');
+const forbidden=new Set(['__proto__','prototype','constructor','pin','password','instructorpin','principalpin','apikey','api_key','accesstoken','refreshtoken','idtoken','authorization','private_key','client_secret','credentials'].map(fieldKey));
 const plain=x=>x&&typeof x==='object'&&!Array.isArray(x),text=x=>typeof x==='string'&&x.trim().length>0&&x.length<=500;
 function clean(value,depth=0,strip=false){
  if(depth>12)throw Error('Backup nesting is too deep.');
@@ -11,7 +12,7 @@ function clean(value,depth=0,strip=false){
  if(typeof value==='string'){if(value.length>20000)throw Error('A training field is too long.');return value;}
  if(Array.isArray(value)){if(value.length>1000)throw Error('A training list is too large.');return value.map(x=>clean(x,depth+1,strip));}
  if(!plain(value))throw Error('Backup contains an unsupported value.');
- const out={};for(const [k,v] of Object.entries(value)){if(forbidden.has(k.toLowerCase())){if(strip)continue;throw Error('Backup contains credentials or unsafe object keys.');}out[k]=clean(v,depth+1,strip);}return out;
+ const out={};for(const [k,v] of Object.entries(value)){if(forbidden.has(fieldKey(k))){if(strip)continue;throw Error('Backup contains credentials or unsafe object keys.');}out[k]=clean(v,depth+1,strip);}return out;
 }
 function esc(x){return String(x??'').trim().toLowerCase().replace(/[^a-z0-9._@-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,180)||'record';}
 function recordId(section,x){

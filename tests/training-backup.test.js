@@ -3,7 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const source={instituteId:'synthetic',workspaceId:'w'},record={id:'n-1',data:{no:1,title:'Synthetic topic',plan:{objective:['Practice']}}};
 const backup=()=>B.payload(source,{practicals:[record],theory:[],modules:[],notices:[],holidays:[]});
 test('training exports strip nested credentials and remain bound to one workspace',()=>{
- const secret=require('node:crypto').randomBytes(32).toString('hex'),p=B.payload(source,{practicals:[{...record,data:{...record.data,pin:secret,plan:{password:secret,objective:['Synthetic']}}}]});assert(!JSON.stringify(p).includes(secret));assert.equal(p.sections.practicals[0].data.plan.objective[0],'Synthetic');assert.throws(()=>B.parse(p,{...source,workspaceId:'other'}),/different/);
+ const secret=require('node:crypto').randomBytes(32).toString('hex'),p=B.payload(source,{practicals:[{...record,data:{...record.data,pin:secret,plan:{password:secret,privateKey:secret,clientSecret:secret,access_token:secret,refresh_token:secret,objective:['Synthetic']}}}]});assert(!JSON.stringify(p).includes(secret));assert.equal(p.sections.practicals[0].data.plan.objective[0],'Synthetic');assert.throws(()=>B.parse(p,{...source,workspaceId:'other'}),/different/);
 });
 test('legacy, protected collections, unsafe keys, duplicate IDs and malformed topics cannot be restored',()=>{
  assert.throws(()=>B.parse({meta:{}},source),/Legacy/);
