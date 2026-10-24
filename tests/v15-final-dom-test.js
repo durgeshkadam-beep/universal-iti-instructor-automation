@@ -5,7 +5,7 @@ const {JSDOM}=require('jsdom');
 const root=path.resolve(__dirname,'..');
 const controller=fs.readFileSync(path.join(root,'v15/v15-final-controller.js'),'utf8');
 const PANEL_NAMES=['admin-console','dashboard','users','notices','record-formats','inspection','reports','ai-assistant','syllabus-ai','modules','trainees','attendance','practicals','theory','splitup','evaluation','leave','exams','ojt','gallery','activities','cloud'];
-const EXPECTED={admin:1,principal:6,instructor:20,staff:4,student:11};
+const EXPECTED={admin:1,principal:6,instructor:22,staff:4,student:15};
 let failures=0;
 function ok(cond,msg){if(cond)console.log('PASS',msg);else{console.error('FAIL',msg);failures++;}}
 function html(){return `<!doctype html><html><head></head><body><div id="loginScreen"></div><div id="appShell"><header class="topbar"><div class="brand"><div class="brand-text"><strong>Universal ITI</strong><small>Institute</small></div></div><div class="who"><div class="old-trade"><span>Trade:</span><select><option>DTP</option></select></div><div id="v15WorkspaceSwitcher"><span>Trade:</span><select><option>DTP</option></select></div><span id="whoName"></span><button id="changePinBtn">Change PIN</button><button id="logoutBtn">Logout</button></div></header><nav id="tabs" class="tabs"><div class="sidebar-caption"><span>Workspace</span><small>Instructor Automation • V13</small></div>${PANEL_NAMES.map((n,i)=>`<button class="tab${i===1?' active':''}" data-tab="${n}">${n}</button>`).join('')}</nav><nav id="mobileNav"></nav><div id="mobileMoreGrid"></div><main id="main">${PANEL_NAMES.map(n=>`<section id="tab-${n}" class="panel${n==='dashboard'?' active':''}">${n==='attendance'?'<div class="card"><h3>Monthly Attendance Submission</h3></div><div class="card"><h3>Monthly Attendance Submission</h3></div>':''}</section>`).join('')}</main></div></body></html>`;}
@@ -35,6 +35,20 @@ async function build(r){
       const cards=[...w.document.querySelectorAll('#tab-attendance .card')].filter(x=>/Monthly Attendance Submission/i.test(x.textContent));
       ok(cards.length===1,'instructor: exactly one Monthly Attendance Submission card');
     }else ok(w.document.querySelectorAll('#v15FinalWorkspaceSwitcher').length===0,`${r}: no Instructor Trade selector`);
+    w.close();
+  }
+  // A slow page render must not let shell refresh or an older completion replace a newer selection.
+  {
+    const {w,V}=await build('principal');await V.applyRolePortal();
+    w.eval(fs.readFileSync(path.join(root,'v15/v15-staff-dialog-fix.js'),'utf8'));
+    let release;const delayed=new Promise(resolve=>{release=resolve;});V.renderPrincipalStaff=()=>delayed;
+    const first=V.finalOpenTab('users');
+    ok(w.localStorage.getItem('iti-v15-tab-v2')==='users','pending page immediately becomes the saved navigation target');
+    const refresh=V.applyRolePortal();
+    ok(w.document.getElementById('tab-users').classList.contains('active'),'shell refresh preserves the selected pending page');
+    await V.finalOpenTab('reports');release();await Promise.all([first,refresh]);
+    ok(w.localStorage.getItem('iti-v15-tab-v2')==='reports','older asynchronous page completion cannot overwrite the newer route');
+    ok(w.document.getElementById('tab-reports').classList.contains('active')&&!w.document.getElementById('tab-users').classList.contains('active'),'late Staff & Access completion cannot reactivate the page after leaving');
     w.close();
   }
   if(failures){console.error(`\n${failures} DOM smoke test(s) failed.`);process.exit(1);}console.log('\nAll Universal ITI FINAL DOM smoke tests passed.');

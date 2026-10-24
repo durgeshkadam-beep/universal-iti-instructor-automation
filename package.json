@@ -1,0 +1,31 @@
+{
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "^1.56.1",
+    "esbuild": "^0.25.11",
+    "firebase": "^12.16.0",
+    "firebase-tools": "^15.34.1",
+    "jsdom": "^25.0.1"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  },
+  "name": "universal-iti-instructor-automation",
+  "version": "15.1.0",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "test": "node scripts/test.js",
+    "test:rules": "firebase emulators:exec --only firestore,auth --project demo-universal-iti \"node tests/phase1-skill-firestore-emulator-test.js && node tests/security-emulator-test.js && node tests/backend-emulator-test.js\"",
+    "test:e2e": "firebase emulators:exec --only firestore,auth --project demo-universal-iti \"node scripts/browser-tests.js\"",
+    "start:api": "node server/index.js",
+    "audit:production": "node scripts/production-audit.js",
+    "build:web": "node scripts/build-web.js",
+    "release:check": "node scripts/build-web.js --require-runtime"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.14.6"
+  }
+}

@@ -904,18 +904,15 @@ function defaultData(){
       instructor:"Durgesh Kadam",
       designation:"Craft Instructor (DTP Trade)",
       authority:"Directorate of Vocational Education and Training (DVET), Maharashtra",
-      instructorPin:"1234",
-      principalPin:"5678",
+      instructorPin:null,
+      principalPin:null,
       attendanceThreshold:75,
       scheduleStartDate:null,
       scheduleMode:"real",
       hoursPerWorkingDay:7,
       theoryDaysPerTopic:1
     },
-    users:[
-      {id:"admin-principal", username:"principal", name:"Principal", role:"principal", pin:"5678", active:true},
-      {id:"inst-durgesh", username:"durgesh", name:"Durgesh Kadam", role:"instructor", pin:"1234", active:true}
-    ],
+    users:[],
     trainees:[],
     practicals: SEED_PRACTICALS.map(p=>({no:p[0],unit:p[1],title:p[2],status:"pending",doneDate:null,plannedDate:cal.pDates[p[0]]||null,
       sequence:p[0], hours: DEMO_HOURS[p[0]]||7,
@@ -949,7 +946,7 @@ let DATA = null;
 let SESSION = null;
 
 function loadData(){
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = window.__ITI_V15 ? null : localStorage.getItem(STORAGE_KEY);
   DATA = raw ? JSON.parse(raw) : defaultData();
   // migrate: ensure new top-level AND nested meta fields exist if an older backup loaded
   const d = defaultData();
@@ -961,12 +958,7 @@ function loadData(){
   }
   if(!Array.isArray(DATA.modules)) DATA.modules=[];
   DATA.modules.forEach((m,i)=>{ if(!m.id)m.id=uid(); if(!m.code)m.code=`M${String(i+1).padStart(2,"0")}`; if(!Array.isArray(m.topics))m.topics=[]; });
-  if(!Array.isArray(DATA.users) || !DATA.users.length){
-    DATA.users=[
-      {id:"admin-principal", username:"principal", name:"Principal", role:"principal", pin:DATA.meta.principalPin||"5678", active:true},
-      {id:"inst-durgesh", username:"durgesh", name:DATA.meta.instructor||"Durgesh Kadam", role:"instructor", pin:DATA.meta.instructorPin||"1234", active:true}
-    ];
-  }
+  if(!Array.isArray(DATA.users))DATA.users=[];
   DATA.users.forEach(u=>{ if(!u.id)u.id=uid(); if(u.active===undefined)u.active=true; });
   // V14 safe migration: preserve a pre-upgrade snapshot before changing schema.
   const oldSchema=Number(DATA.meta.schemaVersion||1);
@@ -1011,7 +1003,7 @@ function loadData(){
 }
 function saveData(){
   if(DATA && DATA.meta){ DATA.meta.schemaVersion=14; DATA.meta.appVersion="V14"; }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+  if(!window.__ITI_V15) localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
   if(window.CloudCenter) window.CloudCenter.scheduleSync();
 }
 
@@ -1102,11 +1094,11 @@ const RecordFormats = {
   record(type, no) {
     const isDemo = type==="demo" || type==="practical";
     const list = isDemo ? (DATA.practicals||[]) : (DATA.theory||[]);
-    const item = list.find(x=>Number(x.no)===Number(no)) || list[0] || {};
-    const n = Number(no || item.no || 1);
+    const item = list.find(x=>x.no===no) || list.find(x=>String(x.no)===String(no)) || {};
+    const n = item.no??no??1, officialNumber=Number(n);
     // Bundled 58/119 records are DTPO references only. Never reuse them for another trade.
     const isDtpTrade=/desktop publishing|dtpo|\bdtp\b/i.test(String(DATA.meta?.trade||""));
-    const official = !isDtpTrade ? null : (isDemo
+    const official = !isDtpTrade||!Number.isSafeInteger(officialNumber)||officialNumber<1||String(officialNumber)!==String(n) ? null : (isDemo
       ? ((typeof OFFICIAL_DEMO_RECORDS!=="undefined" && OFFICIAL_DEMO_RECORDS[n]) || null)
       : ((typeof OFFICIAL_LESSON_RECORDS!=="undefined" && OFFICIAL_LESSON_RECORDS[n]) || null));
     const p=this.profile();
@@ -1120,26 +1112,11 @@ const RecordFormats = {
     d.unit=d.unit || item.unit || item.module || "";
     d.proposed=d.proposed || item.plannedDate || "";
     d.conducted=item.doneDate || d.conducted || "";
-    if(isDemo){
-      if(custom.objective?.length) d.objectives=custom.objective;
-      if(custom.tools?.length) d.tools=custom.tools;
-      if(custom.questions?.length) d.questions=custom.questions;
-      if(custom.nextDemo) d.next=custom.nextDemo;
-      if(custom.steps?.length) d.steps=custom.steps;
-      d.tools=d.tools||[]; if(item.hours)d.time=`${item.hours} Hours (Practical Period)`;
-    }else{
-      if(custom.objective?.length) d.objectives=custom.objective;
-      if(custom.materials?.length) d.materials=custom.materials;
-      if(custom.review) d.review=custom.review;
-      if(custom.motivation) d.motivation=custom.motivation;
-      if(custom.questions?.length) d.questions=custom.questions;
-      if(custom.summary) d.summary=custom.summary;
-      if(custom.assignment) d.assignment=custom.assignment;
-      if(custom.nextLesson) d.next=custom.nextLesson;
-      if(custom.steps?.length) d.steps=custom.steps;
-      d.materials=d.materials||[]; if(item.hours)d.time=`${item.hours} Hours (Theory Period)`;
-    }
-    d.objectives=d.objectives||[]; d.questions=d.questions||[]; d.steps=d.steps||[];
+    const mappings=isDemo?{objective:'objectives',tools:'tools',questions:'questions',nextDemo:'next',steps:'steps'}:{objective:'objectives',materials:'materials',review:'review',motivation:'motivation',questions:'questions',summary:'summary',assignment:'assignment',nextLesson:'next',steps:'steps'};
+    for(const [key,target] of Object.entries(mappings))if(Object.prototype.hasOwnProperty.call(custom,key))d[target]=custom[key];
+    if(item.hours)d.time=`${item.hours} Hours (${isDemo?'Practical':'Theory'} Period)`;
+    for(const key of ['objectives','tools','materials','questions'])d[key]=Array.isArray(d[key])?d[key]:typeof d[key]==='string'&&d[key]?[d[key]]:[];
+    d.steps=Array.isArray(d.steps)?d.steps.filter(Array.isArray):[];
     d.instructor=p.name; d.designation=p.designation; d.trade=p.trade; d.batch=p.batch; d.session=p.session; d.institute=p.institute;
     return d;
   },
@@ -1197,13 +1174,13 @@ const RecordFormats = {
     return `<div class="doc-signatures"><div>INSTRUCTOR<br><span>(Signature & Date)</span></div><div>GROUP INSTRUCTOR<br><span>(Signature & Date)</span></div><div>VICE-PRINCIPAL / PRINCIPAL<br><span>(Signature & Date)</span></div></div>
       <div class="doc-footer-credit">Universal ITI Instructor Automation • Designed & Developed by Durgesh Kadam</div>`;
   },
-  firstNo(type){ const list=(type==="demo"?DATA.practicals:DATA.theory)||[]; return list[0]?.no || 1; },
+  firstNo(type){ const list=(type==="demo"?DATA.practicals:DATA.theory)||[]; return list[0]?.no ?? 1; },
   preview(type,no) {
-    const n=no||this.firstNo(type);
-    PlanViewer.open(type==="demo"?"practical":"theory",Number(n));
+    const n=no??this.firstNo(type);
+    PlanViewer.open(type==="demo"?"practical":"theory",n);
   },
   print(type,no) {
-    const n=no||this.firstNo(type);
+    const n=no??this.firstNo(type);
     const body=this.render(type,n);
     const w=window.open("","_blank");
     if(!w){alert("Please allow pop-ups for printing. The full plan can still be viewed inside the app.");return;}
@@ -1417,7 +1394,7 @@ const Inspection = {
 const App = {
   init(){
     loadData();
-    const rawSession = localStorage.getItem(SESSION_KEY);
+    const rawSession = window.__ITI_V15 ? null : localStorage.getItem(SESSION_KEY);
     document.getElementById("loginRole").addEventListener("change", e=>{
       const isStudent = e.target.value === "student";
       document.getElementById("staffNameField").style.display = isStudent? "none":"block";
@@ -1435,29 +1412,8 @@ const App = {
     }
   },
   login(){
-    const role = document.getElementById("loginRole").value;
-    if(role==="instructor" || role==="principal"){
-      const username = document.getElementById("loginName").value.trim().toLowerCase();
-      const pin = document.getElementById("loginPin").value.trim();
-      const users = Array.isArray(DATA.users) ? DATA.users : [];
-      const user = users.find(u=>u.username.toLowerCase()===username && u.role===role && u.active!==false);
-      // V12 security fix: a matched staff account must also match its own PIN.
-      const legacyUserOk = role==="instructor" ? ["durgesh","instructor"].includes(username) : ["principal","admin"].includes(username);
-      const legacyMatch = !user && legacyUserOk && (role==="instructor" ? pin===DATA.meta.instructorPin : pin===DATA.meta.principalPin);
-      if((user && pin!==String(user.pin??"")) || (!user && !legacyMatch)){ alert("Invalid User ID or PIN."); return; }
-      const name = user ? user.name : (role==="principal"?"Principal":"Instructor");
-      SESSION = {role, name, userId:user?.id||("legacy-"+role), username:user?.username||username};
-    } else {
-      const roll = document.getElementById("loginRoll").value.trim();
-      const pin = document.getElementById("loginStudentPin").value.trim();
-      if(!roll){ alert("Enter your Roll No."); return; }
-      const t = DATA.trainees.find(x=>x.roll===roll);
-      if(!t){ alert("Roll No. not found. Ask your instructor to add you in Trainee Master first."); return; }
-      if(pin !== t.pin){ alert("Incorrect PIN. Ask your instructor if you don't know your PIN."); return; }
-      SESSION = {role:"student", name:t.name, traineeId:t.id, roll:t.roll};
-    }
-    localStorage.setItem(SESSION_KEY, JSON.stringify(SESSION));
-    App.enter();
+    alert('Local PIN login has been retired. Open the secure V15 Google login.');
+    location.replace(new URL('final/',location.href));
   },
   logout(){
     localStorage.removeItem(SESSION_KEY);
@@ -1875,71 +1831,71 @@ const PLAN_FIELDS = {
 };
 
 const PlanViewer = {
-  current:{type:null, no:null},
-  open(type, no){
-    this.current={type,no:Number(no)};
-    const list=type==="practical" ? DATA.practicals : DATA.theory;
-    const item=list.find(x=>Number(x.no)===Number(no));
-    if(!item) return;
-    const isStudent=SESSION.role==="student";
-    document.getElementById("planModalTitle").textContent = isStudent ? `${type==="practical"?"Practical":"Theory"} ${no}: ${item.title}` : `${type==="practical"?"Demonstration":"Lesson"} Plan No. ${no}`;
-
-    const m=item.materials || {pdfLink:"",youtubeLink:"",updatedDate:null};
-    let materialsHtml="";
-    if(isStudent){
-      materialsHtml=`<div class="plan-materials"><h4>📎 Teaching Materials</h4>
-        ${m.pdfLink?`<p>📄 <a href="${m.pdfLink}" target="_blank" rel="noopener">Open Notes PDF</a></p>`:""}
-        ${m.youtubeLink?`<p>▶️ <a href="${m.youtubeLink}" target="_blank" rel="noopener">Watch on YouTube</a></p>`:""}
-        ${(!m.pdfLink&&!m.youtubeLink)?`<p class="muted">Not uploaded by your instructor yet.</p>`:""}</div>`;
-    }else{
-      const fullDoc=RecordFormats.render(type==="practical"?"demo":"lesson",Number(no));
+  current:null,
+  find(type,no){const list=type==='practical'?DATA.practicals:type==='theory'?DATA.theory:[];return list.find(x=>x.no===no)||list.find(x=>String(x.no)===String(no));},
+  safeMaterialUrl(value,youtube=false){
+    const text=String(value??'').trim();if(!text)return '';
+    try{const url=new URL(text);if(url.protocol!=='https:'||url.username||url.password)return '';if(youtube&&(url.port||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be','youtube-nocookie.com','www.youtube-nocookie.com'].includes(url.hostname)))return '';return url.href;}catch{return '';}
+  },
+  readCurrent(edit=false){
+    const c=this.current;if(!c||(edit&&SESSION?.role!=='instructor'))return null;
+    const item=this.find(c.type,c.no);
+    if(SESSION?.role!==c.role||!syllabusContextCurrent(c.context)||!item||syllabusRecordVersion(item)!==c.version){this.close();alert('The syllabus or account changed. Reopen the plan before continuing.');return null;}
+    return item;
+  },
+  node(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;},
+  button(label,action,className='btn ghost small'){const b=this.node('button',label,className);b.type='button';b.addEventListener('click',action);return b;},
+  open(type,no){
+    const item=this.find(type,no);if(!item||!['admin','principal','instructor','staff','student'].includes(SESSION?.role)){this.close();return;}
+    this.current={type,no:item.no,role:SESSION.role,context:syllabusContext(),version:syllabusRecordVersion(item)};
+    const isStudent=SESSION.role==='student',m=item.materials||{},body=document.getElementById('planModalBody');body.replaceChildren();
+    document.getElementById('planModalTitle').textContent=isStudent?`${type==='practical'?'Practical':'Theory'} ${item.no}: ${item.title}`:`${type==='practical'?'Demonstration':'Lesson'} Plan No. ${item.no}`;
+    if(!isStudent){
       const pm=item.planMeta||{};
-      const statusHtml=pm.status?`<div class="callout" style="margin-bottom:10px"><b>Plan status:</b> ${RecordFormats.esc(String(pm.status).replace(/-/g,' ').toUpperCase())}${pm.approvedBy?` · Approved by ${RecordFormats.esc(pm.approvedBy)}`:''}${pm.version?` · Version ${pm.version}`:''}</div>`:'';
-      materialsHtml=`${statusHtml}
-        <div class="plan-preview-toolbar">
-          <button class="btn secondary small" onclick="RecordFormats.print('${type==="practical"?"demo":"lesson"}',${Number(no)})">🖨️ Print / Save PDF</button>
-          ${SESSION.role==="instructor"?`<button class="btn primary small" onclick="InstructorAI.openPlanDraft('${type}',${Number(no)})">✨ AI Draft Plan</button><button class="btn ghost small" onclick="PlanViewer.editPlan()">✏️ Edit Text Sections</button>`:""}
-        </div>
-        <div class="plan-document-wrap"><style>${RecordFormats.css(false)}</style>${fullDoc}</div>
-        ${SESSION.role==="instructor"?`<div class="plan-materials"><h4>📎 Teaching Materials (for students)</h4>
-          <div class="field"><label>Notes PDF link</label><input type="text" id="planPdfLink" value="${m.pdfLink||''}" placeholder="Paste Drive/other link to your notes PDF"></div>
-          <div class="field"><label>YouTube video link</label><input type="text" id="planYoutubeLink" value="${m.youtubeLink||''}" placeholder="https://youtube.com/watch?v=..."></div>
-          <button class="btn primary small" onclick="PlanViewer.saveMaterials()">Save Materials</button>${m.updatedDate?`<p class="muted">Last updated ${m.updatedDate}</p>`:""}</div>`:""}`;
+      if(pm.status){const status=this.node('div',`Plan status: ${String(pm.status).replace(/-/g,' ').toUpperCase()}${pm.approvedBy?' · Approved by '+pm.approvedBy:''}${pm.version?' · Version '+pm.version:''}`,'callout');status.style.marginBottom='10px';body.append(status);}
+      const toolbar=this.node('div',undefined,'plan-preview-toolbar');
+      toolbar.append(this.button('Print / Save PDF',()=>{if(this.readCurrent())RecordFormats.print(type==='practical'?'demo':'lesson',item.no);},'btn secondary small'));
+      if(SESSION.role==='instructor')toolbar.append(this.button('AI Draft Plan',()=>{if(this.readCurrent(true))InstructorAI.openPlanDraft(type,item.no);},'btn primary small'),this.button('Edit Text Sections',()=>this.editPlan()));
+      body.append(toolbar);
+      const preview=this.node('div',undefined,'plan-document-wrap'),style=this.node('style',RecordFormats.css(false));preview.append(style);
+      const documentBody=this.node('div');try{documentBody.innerHTML=RecordFormats.render(type==='practical'?'demo':'lesson',item.no);}catch{documentBody.textContent='This plan could not be displayed. Review its imported fields before use.';}preview.append(documentBody);body.append(preview);
     }
-    document.getElementById("planModalBody").innerHTML=materialsHtml;
-    document.getElementById("planModal").style.display="flex";
-    const card=document.querySelector("#planModal .modal-card"); if(card){card.scrollTop=0;}
+    if(isStudent||SESSION.role==='instructor'){
+      const materials=this.node('div',undefined,'plan-materials');materials.append(this.node('h4',isStudent?'Teaching Materials':'Teaching Materials (for students)'));
+      if(isStudent){
+        let count=0;
+        for(const [key,label,youtube] of [['pdfLink','Open Notes PDF',false],['youtubeLink','Watch on YouTube',true]]){const href=this.safeMaterialUrl(m[key],youtube);if(href){const p=this.node('p'),a=this.node('a',label);a.href=href;a.target='_blank';a.rel='noopener noreferrer';p.append(a);materials.append(p);count++;}}
+        if(!count)materials.append(this.node('p','No valid teaching-material links are available yet.','muted'));
+      }else{
+        for(const [id,label,value,placeholder] of [['planPdfLink','Notes PDF link',m.pdfLink,'https://… notes PDF'],['planYoutubeLink','YouTube video link',m.youtubeLink,'https://youtube.com/watch?v=…']]){const field=this.node('div',undefined,'field'),l=this.node('label',label),input=this.node('input');l.htmlFor=id;input.id=id;input.type='url';input.value=String(value??'');input.placeholder=placeholder;field.append(l,input);materials.append(field);}
+        materials.append(this.node('p','Use absolute HTTPS links without embedded login credentials. Video links must use YouTube or youtu.be.','muted'));
+        const status=this.node('p');status.id='planMaterialsStatus';status.setAttribute('role','status');materials.append(status,this.button('Save Materials',()=>this.saveMaterials(),'btn primary small'));
+        if(m.updatedDate)materials.append(this.node('p','Last updated '+m.updatedDate,'muted'));
+      }
+      body.append(materials);
+    }
+    document.getElementById('planModal').style.display='flex';const card=document.querySelector('#planModal .modal-card');if(card)card.scrollTop=0;
   },
   editPlan(){
-    const {type,no}=this.current;
-    const list=type==="practical"?DATA.practicals:DATA.theory;
-    const item=list.find(x=>Number(x.no)===Number(no)); if(!item)return;
-    const official=RecordFormats.record(type==="practical"?"demo":"lesson",no);
-    const existing=item.plan||{};
-    const seed=type==="practical"?{
-      objective:official.objectives||[], tools:official.tools||[], questions:official.questions||[], nextDemo:official.next||""
-    }:{
-      objective:official.objectives||[], materials:official.materials||[], review:official.review||"", motivation:official.motivation||"", questions:official.questions||[], summary:official.summary||"", assignment:official.assignment||"", nextLesson:official.next||""
-    };
-    const fields=PLAN_FIELDS[type];
-    const formHtml=fields.map(([key,label,isArray])=>{
-      const val=(key in existing)?existing[key]:seed[key];
-      const textVal=isArray?(val||[]).join("\n"):(val||"");
-      return `<div class="field"><label>${label}${isArray?' <span class="muted">(one per line)</span>':''}</label><textarea id="planField_${key}" rows="${isArray?4:3}">${RecordFormats.esc(textVal)}</textarea></div>`;
-    }).join("");
-    document.getElementById("planModalBody").innerHTML=`<p class="muted">Edit the text sections below. The official procedure/teaching table, plan header, dates and signature area remain part of the full document.</p>${formHtml}<div class="field-row" style="justify-content:flex-end"><button class="btn ghost" onclick="PlanViewer.open('${type}',${no})">Cancel</button><button class="btn primary" onclick="PlanViewer.savePlan()">Save & View Full Plan</button></div>`;
+    const item=this.readCurrent(true);if(!item)return;
+    const {type,no}=this.current,official=RecordFormats.record(type==='practical'?'demo':'lesson',no),existing=item.plan||{};
+    const seed=type==='practical'?{objective:official.objectives,tools:official.tools,questions:official.questions,nextDemo:official.next}:{objective:official.objectives,materials:official.materials,review:official.review,motivation:official.motivation,questions:official.questions,summary:official.summary,assignment:official.assignment,nextLesson:official.next};
+    const body=document.getElementById('planModalBody');body.replaceChildren(this.node('p','Edit the text sections below. The official procedure/teaching table, plan header, dates and signature area remain part of the full document.','muted'));
+    for(const [key,label,isArray] of PLAN_FIELDS[type]){const val=Object.prototype.hasOwnProperty.call(existing,key)?existing[key]:seed[key],field=this.node('div',undefined,'field'),l=this.node('label',label+(isArray?' (one per line)':'')),input=this.node('textarea');input.id='planField_'+key;l.htmlFor=input.id;input.rows=isArray?4:3;input.value=Array.isArray(val)?val.map(x=>String(x??'')).join('\n'):typeof val==='string'||typeof val==='number'?String(val):'';field.append(l,input);body.append(field);}
+    const actions=this.node('div',undefined,'field-row');actions.style.justifyContent='flex-end';actions.append(this.button('Cancel',()=>{if(this.readCurrent(true))this.open(type,no);},'btn ghost'),this.button('Save & View Full Plan',()=>this.savePlan(),'btn primary'));body.append(actions);
   },
   savePlan(){
-    const {type,no}=this.current; const list=type==="practical"?DATA.practicals:DATA.theory; const item=list.find(x=>Number(x.no)===Number(no)); if(!item)return;
-    const newPlan={}; PLAN_FIELDS[type].forEach(([key,label,isArray])=>{const raw=document.getElementById("planField_"+key).value; newPlan[key]=isArray?raw.split("\n").map(s=>s.trim()).filter(Boolean):raw.trim();});
-    item.plan={...(item.plan||{}),...newPlan};
-    item.planMeta={...(item.planMeta||{}),status:"instructor-edited",editedAt:new Date().toISOString(),editedBy:SESSION?.name||"Instructor",version:Number(item.planMeta?.version||0)+1};
-    saveData(); alert("Plan saved. Review it before final use."); this.open(type,no);
+    const item=this.readCurrent(true);if(!item)return;const {type,no}=this.current,newPlan={};
+    for(const [key,label,isArray] of PLAN_FIELDS[type]){const input=document.getElementById('planField_'+key);if(!input)return;const raw=input.value;newPlan[key]=isArray?raw.split('\n').map(s=>s.trim()).filter(Boolean):raw.trim();}
+    item.plan={...(item.plan||{}),...newPlan};const version=Number(item.planMeta?.version);item.planMeta={...(item.planMeta||{}),status:'instructor-edited',editedAt:new Date().toISOString(),editedBy:SESSION?.name||'Instructor',version:Number.isSafeInteger(version)&&version>=0&&version<Number.MAX_SAFE_INTEGER?version+1:1};
+    saveData();alert('Plan saved. Review it before final use.');this.open(type,no);
   },
-  close(){document.getElementById("planModal").style.display="none";},
+  close(){this.current=null;document.getElementById('planModal').style.display='none';document.getElementById('planModalBody').replaceChildren();},
   saveMaterials(){
-    const {type,no}=this.current; const list=type==="practical"?DATA.practicals:DATA.theory; const item=list.find(x=>Number(x.no)===Number(no)); if(!item)return;
-    item.materials={pdfLink:document.getElementById("planPdfLink").value.trim(),youtubeLink:document.getElementById("planYoutubeLink").value.trim(),updatedDate:todayISO()}; saveData(); alert("Materials saved."); this.open(type,no);
+    const item=this.readCurrent(true);if(!item)return;const pdf=document.getElementById('planPdfLink'),video=document.getElementById('planYoutubeLink');if(!pdf||!video)return;
+    const pdfText=pdf.value.trim(),videoText=video.value.trim(),pdfLink=this.safeMaterialUrl(pdfText),youtubeLink=this.safeMaterialUrl(videoText,true);
+    if((pdfText&&!pdfLink)||(videoText&&!youtubeLink)){document.getElementById('planMaterialsStatus').textContent='Enter valid absolute HTTPS links. Video links must use YouTube; embedded login credentials are not allowed.';return;}
+    const {type,no}=this.current;item.materials={pdfLink,youtubeLink,updatedDate:todayISO()};saveData();alert('Materials saved.');this.open(type,no);
   }
 };
 
@@ -2557,22 +2513,30 @@ const Holidays = {
 
 
 /* ===================== MARK COMPLETE (date-editable) ===================== */
+function syllabusRecordVersion(record){
+  const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+  return JSON.stringify(canonical(record));
+}
+function syllabusContext(){return {data:DATA,workspace:window.V15Sync?.workspaceId??null,uid:window.V15Sync?.fb?.user?.uid??null};}
+function syllabusContextCurrent(context){const current=syllabusContext();return !!context&&context.data===current.data&&context.workspace===current.workspace&&context.uid===current.uid;}
 const MarkComplete = {
   pending:null,
   open(type, no, label){
-    this.pending = {type, no};
+    if(SESSION?.role!=='instructor'||!['practical','theory'].includes(type))return;
+    const item=(type==='practical'?DATA.practicals:DATA.theory).find(x=>x.no===no);if(!item)return;
+    this.pending = {type,no,snapshot:syllabusRecordVersion(item),context:syllabusContext()};
     document.getElementById("markCompleteItemLabel").textContent = label;
     document.getElementById("markCompleteDate").value = todayISO();
     document.getElementById("markCompleteModal").style.display="flex";
   },
-  close(){ document.getElementById("markCompleteModal").style.display="none"; },
+  close(){ this.pending=null;document.getElementById("markCompleteModal").style.display="none"; },
   confirm(){
+    if(SESSION?.role!=='instructor'||!this.pending)return;
+    const {type,no,snapshot,context}=this.pending;
+    const list=type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>x.no===no);
+    if(!syllabusContextCurrent(context)||!item||syllabusRecordVersion(item)!==snapshot){this.close();alert('The syllabus changed. Reopen the topic before marking it complete.');return;}
     const date = document.getElementById("markCompleteDate").value;
     if(!date){ alert("Select a date."); return; }
-    const {type, no} = this.pending;
-    const list = type==="practical" ? DATA.practicals : DATA.theory;
-    const item = list.find(x=>x.no===no);
-    if(!item) return;
     item.status="completed"; item.doneDate=date;
     saveData();
     MarkComplete.close();
@@ -2757,19 +2721,35 @@ function addDaysISO(iso, n){
 const ModuleManager = {
   refresh(){
     if(!DATA) return;
+    const modules=Array.isArray(DATA.modules)?DATA.modules:[];
+    const make=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;};
     const select=document.getElementById('topicModule');
     if(select){
-      select.innerHTML=DATA.modules.map(m=>`<option value="${this.esc(m.id)}">${this.esc(m.code)} — ${this.esc(m.name)}</option>`).join('') || '<option value="">Create a module first</option>';
+      select.replaceChildren();
+      for(const m of modules){const option=make('option',`${m.code??''} — ${m.name??''}`);option.value=String(m.id??'');select.append(option);}
+      if(!modules.length){const option=make('option','Create a module first');option.value='';select.append(option);}
     }
-    const body=document.getElementById('moduleManagerBody'); if(!body)return;
-    if(!DATA.modules.length){body.innerHTML='<div class="empty-state">No modules created yet. Create your first module above or use Syllabus AI.</div>';return;}
-    body.innerHTML=DATA.modules.map((m,idx)=>{
-      const topics=(m.topics||[]).map(t=>`<tr><td>${t.type}</td><td style="text-align:left">${this.esc(t.title)}</td><td>${t.hours}</td><td><button class="btn ghost small" onclick="ModuleManager.deleteTopic('${m.id}','${t.id}')">Delete</button></td></tr>`).join('');
-      return `<div class="card" style="margin-top:12px;border-left:4px solid var(--primary)">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><h3>${this.esc(m.code)} — ${this.esc(m.name)}</h3><p class="muted">${m.hours||0} hours · ${m.topics.length} topics</p><p>${this.esc(m.description||'')}</p></div><button class="btn ghost small" onclick="ModuleManager.deleteModule('${m.id}')">Delete Module</button></div>
-        <div class="table-scroll"><table class="datatable"><thead><tr><th>Type</th><th>Topic</th><th>Hours</th><th></th></tr></thead><tbody>${topics||'<tr><td colspan="4" class="muted">No topics in this module yet.</td></tr>'}</tbody></table></div>
-      </div>`;
-    }).join('');
+    const body=document.getElementById('moduleManagerBody');if(!body)return;
+    body.replaceChildren();
+    if(!modules.length){body.append(make('div','No modules created yet. Create your first module above or use Syllabus AI.','empty-state'));return;}
+    const canEdit=SESSION?.role==='instructor';
+    const button=(label,handler)=>{const node=make('button',label,'btn ghost small');node.type='button';node.addEventListener('click',handler);return node;};
+    for(const m of modules){
+      const topics=Array.isArray(m.topics)?m.topics:[];
+      const card=make('div',undefined,'card');card.style.cssText='margin-top:12px;border-left:4px solid var(--primary)';
+      const header=make('div');header.style.cssText='display:flex;justify-content:space-between;gap:10px;align-items:flex-start';
+      const details=make('div');details.append(make('h3',`${m.code??''} — ${m.name??''}`),make('p',`${m.hours||0} hours · ${topics.length} topics`,'muted'),make('p',m.description||''));header.append(details);
+      if(canEdit)header.append(button('Delete Module',()=>this.deleteModule(m.id)));
+      const scroll=make('div',undefined,'table-scroll'),table=make('table',undefined,'datatable'),head=make('thead'),row=make('tr'),tbody=make('tbody');
+      for(const label of ['Type','Topic','Hours',''])row.append(make('th',label));head.append(row);
+      for(const t of topics){
+        const tr=make('tr'),title=make('td',t.title),actions=make('td');title.style.textAlign='left';
+        if(canEdit)actions.append(button('Delete',()=>this.deleteTopic(m.id,t.id)));
+        tr.append(make('td',t.type),title,make('td',t.hours),actions);tbody.append(tr);
+      }
+      if(!topics.length){const tr=make('tr'),td=make('td','No topics in this module yet.','muted');td.colSpan=4;tr.append(td);tbody.append(tr);}
+      table.append(head,tbody);scroll.append(table);card.append(header,scroll);body.append(card);
+    }
   },
   saveModule(){
     if(SESSION?.role!=='instructor'){alert('Only the instructor can create modules.');return;}
@@ -2797,11 +2777,13 @@ const ModuleManager = {
     saveData(); document.getElementById('topicTitle').value=''; this.refresh(); Practicals.render(); Theory.render(); Dashboard.render();
   },
   deleteTopic(moduleId,topicId){
+    if(SESSION?.role!=='instructor')return;
     const m=DATA.modules.find(x=>x.id===moduleId); if(!m)return; const t=m.topics.find(x=>x.id===topicId); if(!t)return;
     if(!confirm(`Delete topic "${t.title}" from this module?`))return;
     m.topics=m.topics.filter(x=>x.id!==topicId); saveData(); this.refresh();
   },
   deleteModule(id){
+    if(SESSION?.role!=='instructor')return;
     const m=DATA.modules.find(x=>x.id===id); if(!m)return;
     if(!confirm(`Delete module "${m.name}"? Existing practical/theory records will remain.`))return;
     DATA.modules=DATA.modules.filter(x=>x.id!==id); saveData(); this.refresh();
@@ -2810,34 +2792,41 @@ const ModuleManager = {
 };
 
 /* ===================== PRACTICALS ===================== */
+function renderSyllabusRows(type, records, manager){
+  const practical=type==='practical',body=document.getElementById(practical?'practicalTableBody':'theoryTableBody');if(!body)return;
+  const make=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;};
+  const sorted=records.slice().sort((a,b)=>a.sequence-b.sequence),instructor=SESSION?.role==='instructor';body.replaceChildren();
+  const button=(label,action)=>{const node=make('button',label,'btn ghost small');node.type='button';node.addEventListener('click',action);return node;};
+  for(const [i,item] of sorted.entries()){
+    const row=make('tr'),title=make('td',item.title),date=make('td'),status=make('td'),actions=make('td');row.append(make('td',item.no));
+    if(practical){row.append(make('td',item.unit));title.append(' ',make('span',`(${item.hours??''} hrs)`,'muted'));}row.append(title);
+    if(instructor){const input=make('input');input.type='date';input.value=item.plannedDate||'';input.style.width='130px';input.setAttribute('aria-label',`Planned date for ${practical?'Demo':'Lesson'} ${item.no}`);input.addEventListener('change',()=>manager.setPlanned(item.no,input.value));date.append(input);}else date.textContent=String(item.plannedDate||'—');
+    status.append(make('span',item.status==='completed'?`Done ${item.doneDate||''}`:'Pending',item.status==='completed'?'badge signed':'badge pending'));
+    actions.append(button(SESSION?.role==='student'?'View Notes':'View Plan',()=>PlanViewer.open(type,item.no)));
+    if(instructor){
+      if(item.status!=='completed')actions.append(button('Mark Complete',()=>MarkComplete.open(type,item.no,`${practical?'Demo':'Lesson'} ${item.no}: ${item.title??''}`)));
+      const up=button('↑',()=>manager.moveSeq(item.no,-1)),down=button('↓',()=>manager.moveSeq(item.no,1));up.disabled=i===0;down.disabled=i===sorted.length-1;up.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} up`);down.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} down`);
+      actions.append(up,down,button('Edit',()=>manager.openEdit(item.no)),button('Delete',()=>manager.remove(item.no)));
+    }
+    row.append(date,status,actions);body.append(row);
+  }
+  if(!sorted.length&&!practical){const row=make('tr'),cell=make('td','No theory topics added yet. Use "+ Add Theory Topics" to paste in your 58-topic list.','muted');cell.colSpan=5;row.append(cell);body.append(row);}
+}
 const Practicals = {
-  render(){
-    const sorted = DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence);
-    document.getElementById("practicalTableBody").innerHTML = sorted.map((p,i)=>`
-      <tr>
-        <td>${p.no}</td><td>${p.unit}</td><td>${p.title} <span class="muted">(${p.hours} hrs)</span></td>
-        <td>${SESSION.role==="instructor"
-          ? `<input type="date" value="${p.plannedDate||''}" style="width:130px" onchange="Practicals.setPlanned(${p.no},this.value)">`
-          : (p.plannedDate||'—')}</td>
-        <td>${p.status==="completed"? `<span class="badge signed">Done ${p.doneDate||''}</span>` : `<span class="badge pending">Pending</span>`}</td>
-        <td>
-          <button class="btn ghost small" onclick="PlanViewer.open('practical',${p.no})">${SESSION.role==="student"?"View Notes":"View Plan"}</button>
-          ${SESSION.role==="instructor" && p.status!=="completed" ? `<button class="btn ghost small" onclick="MarkComplete.open('practical',${p.no},'Demo ${p.no}: ${p.title.replace(/'/g,"\\'")}')">Mark Complete</button>`:""}
-          ${SESSION.role==="instructor" ? `<button class="btn ghost small" onclick="Practicals.moveSeq(${p.no},-1)" ${i===0?'disabled':''}>&uarr;</button><button class="btn ghost small" onclick="Practicals.moveSeq(${p.no},1)" ${i===sorted.length-1?'disabled':''}>&darr;</button>
-          <button class="btn ghost small" onclick="Practicals.openEdit(${p.no})">Edit</button>
-          <button class="btn ghost small" onclick="Practicals.remove(${p.no})">Delete</button>`:""}
-        </td>
-      </tr>`).join("");
+  render(){ renderSyllabusRows('practical',DATA.practicals,this);
   },
   openAdd(){
+    if(SESSION?.role!=='instructor')return;
     document.getElementById("practicalEditTitle").textContent = "Add Custom Practical";
     document.getElementById("pracEditUnit").value = "";
     document.getElementById("pracEditName").value = "";
     document.getElementById("pracEditHours").value = 7;
     Practicals._editingNo = null;
+    this._editContext={...syllabusContext(),snapshot:null};
     document.getElementById("practicalEditModal").style.display="flex";
   },
   openEdit(no){
+    if(SESSION?.role!=='instructor')return;
     const p = DATA.practicals.find(x=>x.no===no);
     if(!p) return;
     document.getElementById("practicalEditTitle").textContent = "Edit Demo "+p.no;
@@ -2845,10 +2834,13 @@ const Practicals = {
     document.getElementById("pracEditName").value = p.title;
     document.getElementById("pracEditHours").value = p.hours;
     Practicals._editingNo = no;
+    this._editContext={...syllabusContext(),snapshot:syllabusRecordVersion(p)};
     document.getElementById("practicalEditModal").style.display="flex";
   },
-  closeEdit(){ document.getElementById("practicalEditModal").style.display="none"; },
+  closeEdit(){ this._editContext=null;document.getElementById("practicalEditModal").style.display="none"; },
   saveEdit(){
+    if(SESSION?.role!=='instructor')return;
+    if(!syllabusContextCurrent(this._editContext)||(this._editingNo!=null&&syllabusRecordVersion(DATA.practicals.find(x=>x.no===this._editingNo))!==this._editContext.snapshot)){this.closeEdit();alert('The syllabus changed. Reopen the editor before saving.');return;}
     const unit = document.getElementById("pracEditUnit").value.trim() || "Custom";
     const title = document.getElementById("pracEditName").value.trim();
     const hours = Number(document.getElementById("pracEditHours").value)||7;
@@ -2860,18 +2852,22 @@ const Practicals = {
         sequence:nextSeq, plan:null, materials:{pdfLink:"",youtubeLink:"",updatedDate:null}});
     } else {
       const p = DATA.practicals.find(x=>x.no===Practicals._editingNo);
+      if(!p)return;
       p.unit = unit; p.title = title; p.hours = hours;
     }
     saveData(); Practicals.closeEdit(); Practicals.render(); Dashboard.render();
   },
   remove(no){
+    if(SESSION?.role!=='instructor')return;
     if(!confirm("Delete Demo "+no+"? This removes it permanently, including from any generated schedule. If this is one of the 119 official DVET practicals, make sure that's really what you want.")) return;
     DATA.practicals = DATA.practicals.filter(p=>p.no!==no);
     saveData(); Practicals.render(); Dashboard.render();
   },
   moveSeq(no, dir){
+    if(SESSION?.role!=='instructor')return;
     const sorted = DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence);
     const idx = sorted.findIndex(p=>p.no===no);
+    if(idx<0 || ![-1,1].includes(dir))return;
     const swapIdx = idx+dir;
     if(swapIdx<0 || swapIdx>=sorted.length) return;
     const a = sorted[idx], b = sorted[swapIdx];
@@ -2879,6 +2875,7 @@ const Practicals = {
     saveData(); Practicals.render();
   },
   setPlanned(no, date){
+    if(SESSION?.role!=='instructor')return;
     const p = DATA.practicals.find(x=>x.no===no);
     if(!p) return;
     p.plannedDate = date || null;
@@ -2889,11 +2886,15 @@ const Practicals = {
 /* ===================== THEORY ===================== */
 const Theory = {
   openBulkAdd(){
+    if(SESSION?.role!=='instructor')return;
+    this._bulkContext=syllabusContext();
     document.getElementById("theoryBulkText").value="";
     document.getElementById("theoryModal").style.display="flex";
   },
-  closeBulkAdd(){ document.getElementById("theoryModal").style.display="none"; },
+  closeBulkAdd(){ this._bulkContext=null;document.getElementById("theoryModal").style.display="none"; },
   saveBulkAdd(){
+    if(SESSION?.role!=='instructor')return;
+    if(!syllabusContextCurrent(this._bulkContext)){this.closeBulkAdd();alert('The workspace changed. Reopen the bulk editor before saving.');return;}
     const lines = document.getElementById("theoryBulkText").value.split("\n").map(l=>l.trim()).filter(Boolean);
     if(!lines.length){ Theory.closeBulkAdd(); return; }
     let nextNo = DATA.theory.length? Math.max(...DATA.theory.map(t=>t.no))+1 : 1;
@@ -2903,40 +2904,30 @@ const Theory = {
     });
     saveData(); Theory.closeBulkAdd(); Theory.render(); Dashboard.render();
   },
-  render(){
-    const sorted = DATA.theory.slice().sort((a,b)=>a.sequence-b.sequence);
-    document.getElementById("theoryTableBody").innerHTML = sorted.map((t,i)=>`
-      <tr>
-        <td>${t.no}</td><td>${t.title}</td>
-        <td>${SESSION.role==="instructor"
-          ? `<input type="date" value="${t.plannedDate||''}" style="width:130px" onchange="Theory.setPlanned(${t.no},this.value)">`
-          : (t.plannedDate||'—')}</td>
-        <td>${t.status==="completed"? `<span class="badge signed">Done ${t.doneDate||''}</span>` : `<span class="badge pending">Pending</span>`}</td>
-        <td>
-          <button class="btn ghost small" onclick="PlanViewer.open('theory',${t.no})">${SESSION.role==="student"?"View Notes":"View Plan"}</button>
-          ${SESSION.role==="instructor" && t.status!=="completed" ? `<button class="btn ghost small" onclick="MarkComplete.open('theory',${t.no},'Lesson ${t.no}: ${t.title.replace(/'/g,"\\'")}')">Mark Complete</button>`:""}
-          ${SESSION.role==="instructor" ? `<button class="btn ghost small" onclick="Theory.moveSeq(${t.no},-1)" ${i===0?'disabled':''}>&uarr;</button><button class="btn ghost small" onclick="Theory.moveSeq(${t.no},1)" ${i===sorted.length-1?'disabled':''}>&darr;</button>
-          <button class="btn ghost small" onclick="Theory.openEdit(${t.no})">Edit</button>
-          <button class="btn ghost small" onclick="Theory.remove(${t.no})">Delete</button>`:""}
-        </td>
-      </tr>`).join("") || `<tr><td colspan="5" class="muted">No theory topics added yet. Use "+ Add Theory Topics" to paste in your 58-topic list.</td></tr>`;
+  render(){ renderSyllabusRows('theory',DATA.theory,this);
   },
   openAdd(){
+    if(SESSION?.role!=='instructor')return;
     document.getElementById("theoryEditTitle").textContent = "Add Theory Topic";
     document.getElementById("theoryEditName").value = "";
     Theory._editingNo = null;
+    this._editContext={...syllabusContext(),snapshot:null};
     document.getElementById("theoryEditModal").style.display="flex";
   },
   openEdit(no){
+    if(SESSION?.role!=='instructor')return;
     const t = DATA.theory.find(x=>x.no===no);
     if(!t) return;
     document.getElementById("theoryEditTitle").textContent = "Edit Lesson "+t.no;
     document.getElementById("theoryEditName").value = t.title;
     Theory._editingNo = no;
+    this._editContext={...syllabusContext(),snapshot:syllabusRecordVersion(t)};
     document.getElementById("theoryEditModal").style.display="flex";
   },
-  closeEdit(){ document.getElementById("theoryEditModal").style.display="none"; },
+  closeEdit(){ this._editContext=null;document.getElementById("theoryEditModal").style.display="none"; },
   saveEdit(){
+    if(SESSION?.role!=='instructor')return;
+    if(!syllabusContextCurrent(this._editContext)||(this._editingNo!=null&&syllabusRecordVersion(DATA.theory.find(x=>x.no===this._editingNo))!==this._editContext.snapshot)){this.closeEdit();alert('The syllabus changed. Reopen the editor before saving.');return;}
     const title = document.getElementById("theoryEditName").value.trim();
     if(!title){ alert("Enter a title."); return; }
     if(Theory._editingNo==null){
@@ -2946,18 +2937,22 @@ const Theory = {
         sequence:nextSeq, plan:null, materials:{pdfLink:"",youtubeLink:"",updatedDate:null}});
     } else {
       const t = DATA.theory.find(x=>x.no===Theory._editingNo);
+      if(!t)return;
       t.title = title;
     }
     saveData(); Theory.closeEdit(); Theory.render(); Dashboard.render();
   },
   remove(no){
+    if(SESSION?.role!=='instructor')return;
     if(!confirm("Delete Lesson "+no+"? This removes it permanently, including from any generated schedule. If this is one of the 58 official DVET theory topics, make sure that's really what you want.")) return;
     DATA.theory = DATA.theory.filter(t=>t.no!==no);
     saveData(); Theory.render(); Dashboard.render();
   },
   moveSeq(no, dir){
+    if(SESSION?.role!=='instructor')return;
     const sorted = DATA.theory.slice().sort((a,b)=>a.sequence-b.sequence);
     const idx = sorted.findIndex(t=>t.no===no);
+    if(idx<0 || ![-1,1].includes(dir))return;
     const swapIdx = idx+dir;
     if(swapIdx<0 || swapIdx>=sorted.length) return;
     const a = sorted[idx], b = sorted[swapIdx];
@@ -2965,6 +2960,7 @@ const Theory = {
     saveData(); Theory.render();
   },
   setPlanned(no, date){
+    if(SESSION?.role!=='instructor')return;
     const t = DATA.theory.find(x=>x.no===no);
     if(!t) return;
     t.plannedDate = date || null;
@@ -3598,8 +3594,8 @@ const UniversalSyllabus = {
       if(kind==='practical'){pi=idx;pRemain=remain;}else{ti=idx;tRemain=remain;}
       return {parts,used};
     };
-    while(date.toISOString().slice(0,10)<=end && safety++<5000){
-      const iso=date.toISOString().slice(0,10), dow=date.getDay();
+    while(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`<=end && safety++<5000){
+      const iso=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`, dow=date.getDay();
       let holidayLabel=holidayMap.get(iso)||'';
       if(!holidayLabel && altSat && this.isSecondOrFourthSaturday(date)) holidayLabel='2nd/4th Saturday';
       if(!holidayLabel && !workdays.includes(dow)) holidayLabel=dow===0?'Sunday':'Non-working day';

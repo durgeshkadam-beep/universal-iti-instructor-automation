@@ -11,11 +11,17 @@ const BUILD='FINAL';
 const NAV={
   admin:[['admin-console','⚙️ Admin Panel']],
   principal:[['dashboard','📊 Principal Dashboard'],['users','👥 Staff & Access'],['notices','📰 Institute Notices'],['record-formats','🖨️ Record Formats'],['inspection','🛡️ Inspection & Compliance'],['reports','📄 Institute Reports']],
-  instructor:[['dashboard','📊 Dashboard'],['ai-assistant','✨ AI Assistant'],['syllabus-ai','🤖 Syllabus AI'],['modules','🧩 Module Manager'],['trainees','👥 Trainees'],['attendance','✅ Attendance'],['practicals','🖥️ Practicals'],['theory','📘 Theory'],['splitup','🗓️ Split-up Syllabus'],['evaluation','📝 Evaluation'],['notices','📰 Notice Board'],['leave','🩺 Leave & Discipline'],['exams','📝 Class Test'],['ojt','🏭 OJT & Projects'],['gallery','🖼️ Gallery'],['activities','🏆 Extra Activities'],['record-formats','🖨️ Record Formats'],['inspection','🛡️ Inspection File'],['cloud','☁️ Cloud & Drive'],['reports','📄 Reports']],
+  instructor:[['dashboard','📊 Dashboard'],['ai-assistant','✨ AI Assistant'],['syllabus-ai','🤖 Syllabus AI'],['modules','🧩 Module Manager'],['skill-review','✅ Verify Skills'],['market-editor','💼 Job Sources'],['trainees','👥 Trainees'],['attendance','✅ Attendance'],['practicals','🖥️ Practicals'],['theory','📘 Theory'],['splitup','🗓️ Split-up Syllabus'],['evaluation','📝 Evaluation'],['notices','📰 Notice Board'],['leave','🩺 Leave & Discipline'],['exams','📝 Class Test'],['ojt','🏭 OJT & Projects'],['gallery','🖼️ Gallery'],['activities','🏆 Extra Activities'],['record-formats','🖨️ Record Formats'],['inspection','🛡️ Inspection File'],['cloud','☁️ Cloud & Drive'],['reports','📄 Reports']],
   staff:[['dashboard','📊 Staff Dashboard'],['notices','📰 Notices'],['record-formats','🖨️ Record Formats'],['reports','📄 Reports']],
-  student:[['dashboard','🏠 My Dashboard'],['trainees','👤 My Profile'],['attendance','✅ My Attendance'],['practicals','🖥️ My Practicals'],['theory','📘 Theory'],['splitup','🗓️ Training Calendar'],['evaluation','📝 My Marks'],['notices','📰 Notices'],['leave','🩺 My Leave'],['exams','📝 Class Tests'],['ojt','🏭 My OJT / Projects']]
+  student:[['dashboard','🏠 My Dashboard'],['trainees','👤 My Profile'],['attendance','✅ My Attendance'],['practicals','🖥️ My Practicals'],['theory','📘 Theory'],['splitup','🗓️ Training Calendar'],['evaluation','📝 My Marks'],['notices','📰 Notices'],['leave','🩺 My Leave'],['exams','📝 Class Tests'],['ojt','🏭 My OJT / Projects'],['career-coach','💬 Career Coach'],['skills','🧩 My Skills'],['skill-gap','🎯 Skill Gap'],['local-market','📍 Job Market']]
 };
 const LABEL={admin:'System Admin',principal:'Principal',instructor:'Instructor',staff:'Staff',student:'Student / Trainee'};
+const START={
+  principal:[['users','Staff & Access','Review staff access and assignments.'],['inspection','Inspection & Compliance','Review submitted training records.'],['reports','Institute Reports','Open institute reports.']],
+  instructor:[['attendance','Take Attendance','Open the daily attendance register.'],['skill-review','Verify Student Skills','Record practical evidence and progress.'],['modules','Plan Training','Organise your training modules.']],
+  staff:[['notices','Read Notices','View institute announcements.'],['record-formats','Record Formats','Open the available record formats.'],['reports','View Reports','Review the available reports.']],
+  student:[['attendance','My Attendance','Check your attendance record.'],['skills','My Skills','View your skills and instructor verification.'],['career-coach','Career & Resume Practice','Practise in Marathi, Hindi or English.']]
+};
 const FOOTER={admin:'Technical administration • V15 FINAL',principal:'Principal oversight • V15 FINAL',instructor:'Instructor workspace • V15 FINAL',staff:'Staff read-only • V15 FINAL',student:'Student workspace • V15 FINAL'};
 const preserved=new Map();
 let mountedRole='';
@@ -42,6 +48,12 @@ function ensureStyle(){
     #v15FinalWorkspaceSwitcher select{max-width:330px;min-width:180px;padding:7px 9px;border:1px solid #d8e0e8;border-radius:8px;background:#fff}
     .topbar .who{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0}
     .v15-final-page-error{max-width:980px;margin:18px auto}
+    #v15QuickStart{margin-bottom:18px}
+    #v15QuickStart .v15-start-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    #v15QuickStart button{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;white-space:normal;text-align:left;padding:16px!important;min-height:96px!important;height:auto;min-width:0;overflow-wrap:anywhere;line-height:1.4}
+    #v15QuickStart button strong,#v15QuickStart button span{flex-shrink:0;font-family:inherit;line-height:1.4}
+    #v15QuickStart button span{font-weight:400;font-size:.9rem}
+    @media(max-width:650px){#v15QuickStart .v15-start-grid{grid-template-columns:1fr}}
     @media(max-width:1100px){.topbar{flex-wrap:wrap}.topbar .who{width:100%;justify-content:flex-start}#v15FinalWorkspaceSwitcher{max-width:100%;flex:1}#v15FinalWorkspaceSwitcher select{max-width:100%;width:100%}}
   `;
   document.head.appendChild(s);
@@ -100,11 +112,14 @@ function removeOldTradeSwitchers(){
   [...who.children].forEach(x=>{if(x.id==='whoName'||x.id==='changePinBtn'||x.tagName==='BUTTON')return;const txt=(x.textContent||'').trim();if(x.querySelector?.('select')&&/^trade\s*:/i.test(txt))x.remove();});
 }
 
+let tradeBuildSerial=0;
 V.finalEnsureWorkspaceSwitcher=async function(){
-  removeOldTradeSwitchers();
-  if(role()!=='instructor')return;
+  const ticket=++tradeBuildSerial;
+  if(role()!=='instructor'){removeOldTradeSwitchers();return;}
   const who=document.querySelector('.topbar .who');if(!who)return;
   const list=await V.listTradeWorkspaces?.({includeArchived:false})||[];
+  if(ticket!==tradeBuildSerial||role()!=='instructor')return;
+  removeOldTradeSwitchers();
   if(!list.length)return;
   const d=document.createElement('div');d.id='v15FinalWorkspaceSwitcher';d.dataset.v15TradeSwitcher='1';
   if(list.length===1){d.innerHTML=`<label>Trade:</label><span class="badge">${esc(wsLabel(list[0]))}</span>`;}
@@ -171,6 +186,11 @@ async function renderStaff(name){
 }
 
 async function renderStudent(name){
+  if(name==='exams')return V.renderSecureExams?.();
+  if(name==='career-coach')return V.renderCareerCoach?.();
+  if(name==='skills')return V.renderSkillPassport?.();
+  if(name==='skill-gap')return V.renderStudentSkillGap?.();
+  if(name==='local-market')return V.renderStudentLocalMarket?.();
   if(name==='dashboard')V.renderStudentDashboard?.();
   else renderLegacyInstructor(name);
   if(name==='notices')await V.injectInstituteNotices?.();
@@ -181,6 +201,9 @@ async function renderRole(r,name){
   if(r==='admin')return V.renderAdminPanel?.();
   if(r==='principal')return renderPrincipal(name);
   if(r==='instructor'){
+    if(name==='exams')return V.renderSecureExams?.();
+    if(name==='skill-review')return V.renderInstructorSkillVerification?.();
+    if(name==='market-editor')return V.renderInstructorMarketEditor?.();
     renderLegacyInstructor(name);
     if(name==='attendance')await V.finalAttendanceGovernance();
     if(name==='gallery')await V.injectGalleryCloud?.();
@@ -191,15 +214,32 @@ async function renderRole(r,name){
   if(r==='student')return renderStudent(name);
 }
 
+function renderQuickStart(r){
+  const host=panel('dashboard');if(!host||!START[r])return;
+  host.querySelector('#v15QuickStart')?.remove();
+  const card=document.createElement('section');card.id='v15QuickStart';card.className='card';card.setAttribute('aria-label','Main tasks');
+  card.innerHTML='<h2>Start here</h2><p class="muted">Choose a main task below. All other tools remain in the menu.</p><div class="v15-start-grid"></div>';
+  for(const [target,title,description] of START[r]){
+    if(!allowed(r,target))continue;
+    const button=document.createElement('button');button.type='button';button.className='btn secondary';button.dataset.quickTab=target;
+    const heading=document.createElement('strong');heading.textContent=title;button.appendChild(heading);
+    const detail=document.createElement('span');detail.textContent=description;button.appendChild(detail);
+    button.addEventListener('click',()=>V.finalOpenTab(target).catch(console.error));card.querySelector('.v15-start-grid').appendChild(button);
+  }
+  host.prepend(card);
+}
+
 V.finalOpenTab=async function(name){
   const r=role();if(!V.ready||!r)return false;
   if(!allowed(r,name))name=defaultTab(r);
   if(!mount(r))return false;
   updateVisuals(r);activate(name);
-  try{await renderRole(r,name);}catch(e){console.error('FINAL page',r,name,e);pageError(name,e);}
+  // Record selection before asynchronous rendering so shell refreshes follow the latest route.
+  localStorage.setItem('iti-v15-tab-v2',name);
+  try{await renderRole(r,name);if(name==='dashboard')renderQuickStart(r);}catch(e){console.error('FINAL page',r,name,e);pageError(name,e);}
   if(r==='instructor')V.finalEnsureWorkspaceSwitcher().catch(()=>{});else removeOldTradeSwitchers();
   try{App.buildMobileNav?.();}catch(e){}
-  localStorage.setItem('iti-v15-tab-v2',name);return true;
+  return true;
 };
 
 V.applyRolePortal=async function(){

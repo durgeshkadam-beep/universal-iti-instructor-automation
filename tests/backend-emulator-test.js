@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {initializeApp}=require('firebase-admin/app'),{getFirestore}=require('firebase-admin/firestore');
+const {createService}=require('../server/service');
+(async()=>{
+ assert(process.env.FIRESTORE_EMULATOR_HOST,'Emulator required');
+ const db=getFirestore(initializeApp({projectId:'demo-universal-iti'},'backend-test'));
+ const base='institutes/backend-test';await db.doc(base).set({ownerUid:'owner'});await db.doc(base+'/workspaces/w1').set({trade:'Synthetic'});
+ for(const [uid,role] of [['teacher','instructor'],['student','student'],['other','student'],['staff','staff']])await db.doc(base+'/members/'+uid).set({role,active:true,workspaceIds:['w1'],traineeId:uid});
+ let t=1800000000000;const service=createService({db,verifyToken:async uid=>({uid}),now:()=>t});
+ const request=(uid,b)=>service.execute(uid,{instituteId:'backend-test',workspaceId:'w1',...b});
+ assert.deepEqual(await request('student',{action:'capabilities'}),{aiConfigured:false});
+ const exam={id:'exam1',title:'Synthetic MCQ',durationMinutes:1,opensAt:t-1000,closesAt:t+3600000,questions:[{text:'2+2?',options:['3','4'],correctIndex:1},{text:'Safe PPE?',options:['Goggles','None'],correctIndex:0}]};
+ await assert.rejects(request('student',{action:'publishExam',exam}),/Instructor/);
+ await request('teacher',{action:'publishExam',exam});
+ const pub=(await db.doc(base+'/workspaces/w1/secureExams/exam1').get()).data();assert(!JSON.stringify(pub).includes('correctIndex'));assert(!('answers'in pub));
+ await assert.rejects(request('teacher',{action:'publishExam',exam}),/immutable/);
+ await assert.rejects(request('student',{action:'submitExam',examId:'exam1',answers:[1,0]}),/Start/);
+ const start=await request('student',{action:'startExam',examId:'exam1'});assert.equal(start.deadline,t+60000);
+ t+=30000;assert.equal((await request('student',{action:'startExam',examId:'exam1'})).deadline,start.deadline);
+ await assert.rejects(request('student',{action:'submitExam',examId:'exam1',answers:[99,0]}),/Invalid/);
+ const submitted=await Promise.all([request('student',{action:'submitExam',examId:'exam1',answers:[1,0],score:999}),request('student',{action:'submitExam',examId:'exam1',answers:[1,0]})]);assert(submitted.every(x=>x.result.score===2));
+ const retry=await request('student',{action:'submitExam',examId:'exam1',answers:[0,1]});assert.equal(retry.result.score,2);
+ await request('other',{action:'startExam',examId:'exam1'});t+=60001;await assert.rejects(request('other',{action:'submitExam',examId:'exam1',answers:[1,0]}),/expired/);
+ await assert.rejects(request('staff',{action:'startExam',examId:'exam1'}),/student/);
+ for(const language of ['en','mr','hi']){const g=await request('student',{action:'ai',task:'interview',language,input:''});assert.equal(g.mode,'guided');assert(g.text.length>80);}
+ await db.doc(base+'/members/student').update({active:false});await assert.rejects(request('student',{action:'startExam',examId:'exam1'}),/denied/);await assert.rejects(request('student',{action:'capabilities'}),/denied/);
+ console.log('PASS backend with Firestore Emulator: publish, protected payload, server time, concurrent grading/idempotence, expiry, role/revocation, multilingual no-key assistance.');
+ await db.terminate();
+})().catch(e=>{console.error(e);process.exitCode=1;});

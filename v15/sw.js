@@ -1,7 +1,8 @@
 const CACHE='iti-v15-final-clean13-20260827';
 const CORE=[
+  '../config/runtime.js','../shared/guidance.js','./v15-student-services.js',
   './index.html','./manifest.json','./v15-core.js','./v15-data.js','./v15-access.js','./v15-ui.js',
-  './v15-auth-roles-v2.js','./v15-session-bridge.js','./v15-workspaces-v2.js','./v15-governance-v2.js','./v15-portals-v2.js','./v15-legacy-app-bridge.js','./v15-final-controller.js','./v15-final-polish.js','./v15-final-hotfix.js','./v15-mobile-android.js','./v15-auth-stable-mobile.js','./v15-adaptive-app-shell.js','./v15-staff-dialog-fix.js','./v15-system-admin-control.js','./v15-system-admin-master.js','./v15-admin-universal-speed.js',
+  './v15-auth-roles-v2.js','./v15-session-bridge.js','./v15-workspaces-v2.js','./v15-governance-v2.js','./v15-portals-v2.js','./v15-legacy-app-bridge.js','./v15-final-controller.js','./v15-final-polish.js','./v15-final-hotfix.js','./v15-mobile-android.js','./v15-auth-stable-mobile.js','./v15-adaptive-app-shell.js','./v15-staff-dialog-fix.js','./v15-system-admin-control.js','./v15-system-admin-master.js','./v15-admin-universal-speed.js','./v15-skill-passport.js','./v15-skill-verification.js','./v15-skill-gap.js','./v15-local-market.js',
   '../index.html','../style.css','../app.js','../ai.js','../cloud.js','../security-patch.js','../admission-import.js',
   '../other-printable-records.js','../official-plans.js','../logo.png','../icon.svg'
 ];
@@ -15,14 +16,18 @@ self.addEventListener('activate',event=>{
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET')return;
   const req=event.request;
+  const url=new URL(req.url);
+  // Cache only this app's public static assets, never API/auth/database responses.
+  if(url.origin!==self.location.origin||!/\.(html|js|css|json|png|svg)$/.test(url.pathname))return;
+  if(url.pathname.endsWith('/config/runtime.js'))return;
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE);
     try{
       const fresh=await fetch(req,{cache:'no-store'});
-      if(fresh&&fresh.ok)cache.put(req,fresh.clone()).catch(()=>{});
+      if(fresh&&fresh.ok)cache.put(new Request(url.origin+url.pathname),fresh.clone()).catch(()=>{});
       return fresh;
     }catch(err){
-      const exact=await cache.match(req);
+      const exact=await cache.match(req,{ignoreSearch:true});
       if(exact)return exact;
       if(req.destination==='document'){
         const shell=await cache.match('./index.html');

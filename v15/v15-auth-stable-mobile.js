@@ -41,7 +41,7 @@ V.googleAuthority=async function(interactive=false){
     if(!app)app=M.initializeApp(cfg,'iti-v15');
     const auth=M.getAuth(app);
     await M.setPersistence(auth,M.browserLocalPersistence);
-    const db=M.getFirestore(app);
+    const db=this.firestore(app,M);
 
     // Fast path: normal popup/saved sessions do not need the redirect-result round trip.
     // Consume redirect only when an older/fallback redirect marker exists.

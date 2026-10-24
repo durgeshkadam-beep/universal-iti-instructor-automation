@@ -1,0 +1,42 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom'),B=require('../v15/v15-training-backup');
+const source={instituteId:'synthetic',workspaceId:'w'},record={id:'n-1',data:{no:1,title:'Synthetic topic',plan:{objective:['Practice']}}};
+const backup=()=>B.payload(source,{practicals:[record],theory:[],modules:[],notices:[],holidays:[]});
+test('training exports strip nested credentials and remain bound to one workspace',()=>{
+ const secret=require('node:crypto').randomBytes(32).toString('hex'),p=B.payload(source,{practicals:[{...record,data:{...record.data,pin:secret,plan:{password:secret,privateKey:secret,clientSecret:secret,access_token:secret,refresh_token:secret,objective:['Synthetic']}}}]});assert(!JSON.stringify(p).includes(secret));assert.equal(p.sections.practicals[0].data.plan.objective[0],'Synthetic');assert.throws(()=>B.parse(p,{...source,workspaceId:'other'}),/different/);
+});
+test('legacy, protected collections, unsafe keys, duplicate IDs and malformed topics cannot be restored',()=>{
+ assert.throws(()=>B.parse({meta:{}},source),/Legacy/);
+ for(const modify of [p=>p.sections.trainees=[],p=>p.sections.practicals.push(record),p=>p.sections.practicals[0].id='elsewhere',p=>delete p.sections.practicals[0].data.title,p=>p.sections.practicals[0].data.pin='synthetic',p=>p.sections.practicals[0].data=JSON.parse('{"no":1,"title":"Synthetic","__proto__":{"polluted":true}}')]){const p=backup();modify(p);assert.throws(()=>B.parse(p,source));}
+ assert.throws(()=>B.parse(' '.repeat(B.MAX_BYTES+1),source),/10 MB/);assert.equal({}.polluted,undefined);
+});
+test('restore reads every target before writes and never overwrites concurrently created records',async()=>{
+ const events=[],stored=new Map([['ws/practicals/n-1',{data:{no:1,title:'Newer server topic'}}]]),M={doc:(...a)=>a.join('/'),arrayUnion:(...x)=>x,runTransaction:async(db,fn)=>fn({get:async ref=>{events.push('read');return {exists:()=>stored.has(ref)};},set:(ref,data)=>{events.push('write');stored.set(ref,data);}})};
+ const result=await B.restore({M,db:{},workspace:'ws',items:[{section:'practicals',...record},{section:'theory',id:'n-2',data:{no:2,title:'Restored theory'}}],uid:'instructor',current:()=>true,allowed:()=>true});assert.deepEqual(result,{created:1,existing:1});assert.equal(stored.get('ws/practicals/n-1').data.title,'Newer server topic');assert.equal(stored.get('ws/theory/n-2').updatedBy,'instructor');assert.deepEqual(events,['read','read','write','write']);assert(stored.get('ws').arraySections.includes('theory'));
+});
+test('restore refuses role/context changes, protected targets and more than 50 missing resources',async()=>{
+ let writes=0,current=true;const M={doc:(...x)=>x.join('/'),runTransaction:async(db,fn)=>fn({get:async()=>{current=false;return {exists:()=>false};},set:()=>writes++})},opts={M,db:{},workspace:'ws',items:[{section:'practicals',...record}],uid:'i',current:()=>current,allowed:()=>true};
+ await assert.rejects(B.restore({...opts,allowed:()=>false}),/Account/);await assert.rejects(B.restore({...opts,items:[{section:'attendance',...record}]}),/Only training/);await assert.rejects(B.restore(opts),/Account/);assert.equal(writes,0);await assert.rejects(B.restore({...opts,current:()=>true,items:Array.from({length:51},(_,i)=>({section:'practicals',id:'n-'+(i+1),data:{no:i+1,title:'Synthetic'}}))}),/50/);
+});
+function ui(role='instructor'){
+ const dom=new JSDOM('<section class="card"><p class="muted">Local copy always kept</p><div id="storageStats">5 MB device limit</div></section><div class="card"><button onclick="App.exportData()">Export</button><label>Import<input id="importFile"></label></div>',{url:'https://synthetic.example',runScripts:'outside-only'}),w=dom.window;w.TextEncoder=TextEncoder;w.DATA={meta:{},trainees:[{id:'synthetic-student'}],practicals:[]};w.SESSION={role};w.App={};w.Reports={};w.CloudCenter={drive:{connected:false}};w.V15Sync={ready:true,workspaceId:'w',INSTITUTE_ID:'synthetic',member:{active:true,role},fb:{user:{uid:role},db:{},M:{collection:(...a)=>a.join('/'),getDocs:async()=>({docs:[]})}},ws:()=> 'ws',diff:async()=>{},flushQueue:async()=>{},queueRead:()=>[]};w.eval(fs.readFileSync('v15/v15-training-backup.js','utf8'));return {w,V:w.V15Sync,close:()=>w.close()};
+}
+test('legacy import is replaced by a non-mutating preview and never stores a full-data snapshot',async()=>{
+ const f=ui();try{const before=JSON.stringify(f.w.DATA);await f.w.App.importData({target:{files:[{name:'legacy.json',size:10,text:async()=>JSON.stringify({meta:{},trainees:[]})}]}});assert.equal(JSON.stringify(f.w.DATA),before);assert.equal(f.w.localStorage.length,0);assert.match(f.w.document.querySelector('#v15TrainingBackup').textContent,/Legacy/);await f.w.CloudCenter.restoreFromCloud();f.w.CloudCenter.createLocalSafetySnapshot();assert.equal(f.w.localStorage.length,0);assert.equal(JSON.stringify(f.w.DATA),before);}finally{f.close();}
+});
+test('preview displays untrusted names as text, requires an explicit restore click and rejects stale workspace',async()=>{
+ const f=ui();try{let transactions=0;f.V.fb.M.runTransaction=async()=>transactions++;const p=backup();p.sections.practicals[0].data.title='<img src=x onerror=window.injected=true>';await f.w.App.importData({target:{files:[{name:'<script>backup</script>.json',size:500,text:async()=>JSON.stringify(p)}]}});const host=f.w.document.querySelector('#v15TrainingBackup');assert.equal(transactions,0);assert.equal(host.querySelectorAll('img,script,[onerror]').length,0);assert.match(host.textContent,/<img/);assert.equal(f.w.document.querySelector('#importFile').parentElement.textContent.trim(),'Preview training backup');assert.equal(f.w.DATA.practicals.length,0);f.V.workspaceId='other';host.querySelector('button').click();await new Promise(r=>setImmediate(r));assert.equal(transactions,0);}finally{f.close();}
+});
+test('Student and Staff handlers cannot read backup collections or mutate local data',async()=>{
+ for(const role of ['student','staff']){const f=ui(role);try{let reads=0;f.V.fb.M.getDocs=async()=>{reads++;};const before=JSON.stringify(f.w.DATA);await f.w.App.exportData();await f.w.App.importData({target:{files:[{size:100,text:async()=>JSON.stringify(backup())}]}});assert.equal(reads,0);assert.equal(JSON.stringify(f.w.DATA),before);assert.match(f.w.document.querySelector('#v15TrainingBackup').textContent,/Instructor/);}finally{f.close();}}
+});
+test('offline or workspace changes during file read cannot create a restore preview',async()=>{
+ for(const change of ['offline','workspace']){const f=ui();try{if(change==='offline')Object.defineProperty(f.w.navigator,'onLine',{value:false});await f.w.App.importData({target:{files:[{size:100,text:async()=>{if(change==='workspace')f.V.workspaceId='other';return JSON.stringify(backup());}}]}});assert.equal(f.w.document.querySelector('#v15TrainingBackup button'),null);}finally{f.close();}}
+});
+test('Drive save requires a connected account and uploads the same training-only archive',async()=>{
+ const f=ui();try{let uploads=0,uploaded;f.w.CloudCenter.uploadDriveBlob=async blob=>{uploads++;uploaded=await new Promise((resolve,reject)=>{const reader=new f.w.FileReader();reader.onload=()=>resolve(JSON.parse(reader.result));reader.onerror=reject;reader.readAsText(blob);});};await f.w.CloudCenter.saveBackupToDrive();assert.equal(uploads,0);assert.match(f.w.document.querySelector('#v15TrainingBackup').textContent,/Connect your Google Drive/);f.w.CloudCenter.drive.connected=true;await f.w.CloudCenter.saveBackupToDrive();assert.equal(uploads,1);assert.equal(uploaded.backupFormat,'Universal ITI training backup');assert.equal(uploaded.source.workspaceId,'w');assert.equal(uploaded.sections.trainees,undefined);assert.equal(f.w.DATA.trainees.length,1);}finally{f.close();}
+});
+
+test('V15 storage guidance never claims a full local record copy or a device quota for cloud data',()=>{
+ const f=ui();try{f.w.Reports.renderStorageStats();const card=f.w.document.querySelector('#storageStats').closest('.card').textContent;assert.match(card,/Pending changes/);assert.match(card,/separate institution backup/);assert(!card.includes('5 MB'));assert(!card.includes('Local copy always'));}finally{f.close();}
+});

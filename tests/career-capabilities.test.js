@@ -1,0 +1,25 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+const settle=()=>new Promise(resolve=>setTimeout(resolve,0));
+function setup(request){
+ const dom=new JSDOM('<section id="tab-career-coach"></section>',{url:'https://synthetic.example',runScripts:'outside-only'}),w=dom.window;
+ const V={ready:true,currentRole:()=> 'student',workspaceId:'w',fb:{user:{uid:'student'}}};w.V15Sync=V;w.ITI_RUNTIME={apiUrl:'https://synthetic.example/api'};w.ITIGuidance=require('../shared/guidance');
+ w.eval(fs.readFileSync('v15/v15-student-services.js','utf8'));V.backendRequest=request;
+ return {dom,w,V,ai:()=>[...w.document.querySelectorAll('button')].find(n=>n.textContent==='Request optional AI draft'),guide:()=>[...w.document.querySelectorAll('button')].find(n=>n.textContent==='Start free guided practice')};
+}
+test('guided practice is immediate while provider status loads and disabled AI has no consent controls',async()=>{
+ let resolve;const pending=new Promise(r=>{resolve=r;});const {dom,w,V,ai,guide}=setup(async body=>{assert.deepEqual(Object.keys(body),['action']);assert.equal(body.action,'capabilities');return pending;});
+ try{V.renderCareerCoach();assert(!ai());guide().click();assert(w.document.querySelector('#coach-output').textContent.length>60);resolve({aiConfigured:false});await settle();assert(!ai());assert.equal(w.document.querySelectorAll('input[type=checkbox]').length,0);assert.match(w.document.querySelector('#coach-ai-status').textContent,/not enabled/);}finally{dom.window.close();}
+});
+test('configured AI appears only after confirmation and still requires explicit consent',async()=>{
+ let requests=0;const {dom,w,V,ai}=setup(async body=>{if(body.action==='capabilities')return {aiConfigured:true};requests++;assert.equal(body.consent,true);return {mode:'ai-draft',text:'Synthetic draft for review'};});
+ try{V.renderCareerCoach();await settle();assert(ai());ai().click();assert.equal(requests,0);assert.match(w.document.querySelector('#coach-output').textContent,/Consent is required/);w.document.querySelector('input[type=checkbox]').click();ai().click();await settle();assert.equal(requests,1);assert.match(w.document.querySelector('#coach-output').textContent,/AI draft.*check accuracy/);}finally{dom.window.close();}
+});
+test('failed status lookup leaves all three guided languages usable without an AI button',async()=>{
+ const {dom,w,V,ai,guide}=setup(async()=>{throw Error('Synthetic unavailable service');});
+ try{V.renderCareerCoach();await settle();assert(!ai());assert.match(w.document.querySelector('#coach-ai-status').textContent,/could not be checked/);for(const language of ['mr','hi','en']){w.document.querySelector('#coach-language').value=language;guide().click();assert(w.document.querySelector('#coach-output').textContent.length>60);}}finally{dom.window.close();}
+});
+test('late configuration response cannot enable controls in another workspace',async()=>{
+ let resolve;const {dom,V,ai}=setup(async()=>new Promise(r=>{resolve=r;}));
+ try{V.renderCareerCoach();V.workspaceId='another-workspace';resolve({aiConfigured:true});await settle();assert(!ai());}finally{dom.window.close();}
+});

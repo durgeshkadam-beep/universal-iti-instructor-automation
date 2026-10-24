@@ -1,0 +1,8 @@
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!server/
+!server/*.js
+!shared/
+!shared/guidance.js

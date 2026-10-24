@@ -101,25 +101,11 @@ V.renderPrincipalStaff=async function(){
 // Staff & Access panel, so always expose it after routing.
 const openBase=V.finalOpenTab?.bind(V);
 if(openBase)V.finalOpenTab=async function(name){
-  const out=await openBase(name);
-  if(currentRole()==='principal'&&name==='users'){
-    exposeStaffPanel();
-    await V.renderPrincipalStaff();
-    pActivate();
-  }
-  return out;
+  // The canonical router owns rendering and selection. A second awaited render
+  // here used to reactivate Users after the user had already left the page.
+  if(currentRole()==='principal'&&name==='users')exposeStaffPanel();
+  return openBase(name);
 };
-function pActivate(){
-  const p=document.getElementById('tab-users');if(!p)return;
-  p.style.removeProperty('display');p.classList.add('active');
-  document.querySelectorAll('#main .panel').forEach(x=>{if(x!==p)x.classList.remove('active');});
-}
-
-document.addEventListener('click',e=>{
-  const b=e.target.closest?.('[data-tab="users"]');
-  if(!b||currentRole()!=='principal')return;
-  setTimeout(()=>{exposeStaffPanel();V.renderPrincipalStaff().catch(console.error);},30);
-},true);
 
 function installResponsiveDialogStyle(){
   if(document.getElementById('v15ResponsiveDialogFix'))return;

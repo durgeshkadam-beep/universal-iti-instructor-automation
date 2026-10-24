@@ -277,7 +277,7 @@
           const payload={backupFormat:'Universal ITI Instructor Automation',appVersion:'V14.3-security',schemaVersion:this.VERSION,exportedAt:new Date().toISOString(),securityNote:'PINs intentionally excluded from Drive backup',data:SecurityPatch.sanitizeBackupData()};
           const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
           const obj=await this.uploadDriveBlob(blob,`Universal-ITI-Backup-${todayISO()}.json`,'application/json');
-          DATA.lastBackup=todayISO();localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));this.setMessage(`Secure backup saved to Drive: ${obj.name} (PINs excluded)`,'ok');
+          DATA.lastBackup=todayISO();if(!window.__ITI_V15)localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));this.setMessage(`Secure backup saved to Drive: ${obj.name} (PINs excluded)`,'ok');
         }catch(e){console.error(e);this.setMessage('Drive backup failed: '+(e.message||e),'error');}
       };
 
@@ -329,7 +329,7 @@
     install(){
       if(this.installed)return;this.installed=true;
       this.sanitizeDataInPlace();
-      try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));}catch(e){}
+      try{if(!window.__ITI_V15)localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));}catch(e){}
       this.installSaveSanitizer();
       this.installSessionHardening();
       this.installPinFix();
