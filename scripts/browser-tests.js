@@ -29,7 +29,7 @@ const esbuild=require('esbuild'),{randomBytes}=require('node:crypto');
   const exam={id:'browser-exam',title:'Synthetic browser test',durationMinutes:10,opensAt:Date.now()-1000,closesAt:Date.now()+3600000,questions:[{text:'Two plus two?',options:['Three','Four'],correctIndex:1}]};
   await service.execute(await (async()=>{const r=await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'instructor@example.test',password:testPassword,returnSecureToken:true})});return (await r.json()).idToken;})(),{action:'publishExam',instituteId:'brdbagiti-mumbai-01',workspaceId:'w1',exam});
   // Spawn asynchronously so the in-process static server remains responsive.
-  const result=await new Promise(resolve=>{const c=spawn(process.execPath,['node_modules/@playwright/test/cli.js','test',...(process.env.ITI_E2E_GREP?['--grep',process.env.ITI_E2E_GREP,...(repeat>1?['--repeat-each',String(repeat)]:[])]:[])],{stdio:'inherit',env:{...process.env,ITI_EMULATOR_TEST_PASSWORD:testPassword}});c.on('exit',resolve);});
-  process.exitCode=result||0;
+  const result=await new Promise(resolve=>{const c=spawn(process.execPath,['node_modules/@playwright/test/cli.js','test',...(process.env.ITI_E2E_GREP?['--grep',process.env.ITI_E2E_GREP,...(repeat>1?['--repeat-each',String(repeat)]:[])]:[])],{stdio:'inherit',env:{...process.env,ITI_EMULATOR_TEST_PASSWORD:testPassword}});c.once('error',()=>resolve(1));c.once('exit',(code,signal)=>{if(signal)console.error('Browser runner terminated by '+signal);resolve(typeof code==='number'?code:1);});});
+  process.exitCode=result;
  }finally{api.kill();server.close();await db.terminate();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
