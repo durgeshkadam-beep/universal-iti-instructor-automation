@@ -3,6 +3,7 @@ const {spawn,spawnSync}=require('node:child_process'),http=require('node:http'),
 const esbuild=require('esbuild'),{randomBytes}=require('node:crypto');
 (async()=>{
  if(!process.env.FIRESTORE_EMULATOR_HOST||!process.env.FIREBASE_AUTH_EMULATOR_HOST)throw Error('Both emulators required');
+ const repeat=Number(process.env.ITI_E2E_REPEAT||1);if(!Number.isInteger(repeat)||repeat<1||repeat>10)throw Error('ITI_E2E_REPEAT must be between 1 and 10.');
  const testPassword=randomBytes(32).toString('base64url');
  fs.mkdirSync('.tmp',{recursive:true});
  await esbuild.build({stdin:{contents:"export * from 'firebase/app'; export * from 'firebase/auth'; export * from 'firebase/firestore';",resolveDir:process.cwd()},bundle:true,format:'iife',globalName:'ITITestFirebase',outfile:'.tmp/test-sdk.js'});
@@ -28,7 +29,7 @@ const esbuild=require('esbuild'),{randomBytes}=require('node:crypto');
   const exam={id:'browser-exam',title:'Synthetic browser test',durationMinutes:10,opensAt:Date.now()-1000,closesAt:Date.now()+3600000,questions:[{text:'Two plus two?',options:['Three','Four'],correctIndex:1}]};
   await service.execute(await (async()=>{const r=await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'instructor@example.test',password:testPassword,returnSecureToken:true})});return (await r.json()).idToken;})(),{action:'publishExam',instituteId:'brdbagiti-mumbai-01',workspaceId:'w1',exam});
   // Spawn asynchronously so the in-process static server remains responsive.
-  const result=await new Promise(resolve=>{const c=spawn(process.execPath,['node_modules/@playwright/test/cli.js','test'],{stdio:'inherit',env:{...process.env,ITI_EMULATOR_TEST_PASSWORD:testPassword}});c.on('exit',resolve);});
+  const result=await new Promise(resolve=>{const c=spawn(process.execPath,['node_modules/@playwright/test/cli.js','test',...(process.env.ITI_E2E_GREP?['--grep',process.env.ITI_E2E_GREP,...(repeat>1?['--repeat-each',String(repeat)]:[])]:[])],{stdio:'inherit',env:{...process.env,ITI_EMULATOR_TEST_PASSWORD:testPassword}});c.on('exit',resolve);});
   process.exitCode=result||0;
  }finally{api.kill();server.close();await db.terminate();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,0 +1,9 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),{JSDOM}=require('jsdom'),fs=require('node:fs');
+function fixture(){
+ const dom=new JSDOM('',{url:'https://synthetic.example',runScripts:'outside-only'}),w=dom.window;let resume,release,calls=0;const held=new Promise(r=>release=r);w.setTimeout=(fn,ms)=>{if(ms===100)resume=fn;return 1;};w.DATA={practicals:[{no:1,title:'Synthetic edited topic'}]};w.SESSION=null;w.App={};w.localStorage.setItem('iti-v15-role-v2','instructor');w.localStorage.setItem('iti-v15-email-v2','instructor@example.test');const auth={currentUser:{uid:'i'},authStateReady:async()=>{}};const M={getApps:()=>[{name:'iti-v15'}],getAuth:()=>auth,setPersistence:async()=>{},browserLocalPersistence:{}};
+ const V={ready:false,email:x=>String(x).toLowerCase(),modules:async()=>{await held;return M;},config:()=>({})};w.V15Sync=V;w.eval(fs.readFileSync('v15/v15-auth-roles-v2.js','utf8'));V.login=async()=>{calls++;};return {w,V,resume:()=>resume(),release,calls:()=>calls,close:()=>w.close()};
+}
+test('a delayed automatic resume cannot reload a manually completed session and its edits',async()=>{const f=fixture();try{const work=f.resume();f.V.ready=true;f.w.DATA.practicals[0].plan={objective:['New manual edit']};f.release();await work;assert.equal(f.calls(),0);assert.equal(f.w.DATA.practicals[0].plan.objective[0],'New manual edit');}finally{f.close();}});
+test('automatic resume abandons its old role/email selection after the user changes accounts',async()=>{const f=fixture();try{const work=f.resume();f.w.localStorage.setItem('iti-v15-role-v2','student');f.w.localStorage.setItem('iti-v15-email-v2','student@example.test');f.release();await work;assert.equal(f.calls(),0);}finally{f.close();}});
+test('an unchanged saved session still resumes normally',async()=>{const f=fixture();try{const work=f.resume();f.release();await work;assert.equal(f.calls(),1);}finally{f.close();}});
