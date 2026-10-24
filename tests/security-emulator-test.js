@@ -23,6 +23,12 @@ const {doc,setDoc,getDoc,updateDoc,deleteDoc,getDocs,collection,serverTimestamp}
  const otherTraining=env.authenticatedContext('other',{email:'other@example.test'}).firestore();
  await assert.rejects(training.restore({...trainingOptions,db:otherTraining,workspace:doc(otherTraining,ws),items:[deniedItem],uid:'other'}),e=>e.code==='permission-denied');
  assert.equal((await getDoc(doc(instructorLeave,ws+'/notices/backup-denied'))).exists(),false);
+ // Report register access is checked by Firebase, independently of client print/signature guards.
+ await yes(setDoc(doc(instructorLeave,ws+'/map_signatures/report-role-test'),{key:'report-role-test',data:{status:'pending',label:'Synthetic report',date:'2026-10-24'},updatedBy:'teacher'}));
+ for(const uid of ['s1','staff','other']){const deniedDb=env.authenticatedContext(uid,{email:uid+'@example.test'}).firestore();await no(setDoc(doc(deniedDb,ws+'/map_signatures/forged-'+uid),{key:'forged-'+uid,data:{status:'signed',signedBy:uid,label:'Synthetic denied sign'},updatedBy:uid}));}
+ await no(getDoc(doc(studentLeave,ws+'/map_signatures/report-role-test')));
+ await no(getDoc(doc(env.unauthenticatedContext().firestore(),ws+'/map_signatures/report-role-test')));
+ await yes(getDoc(doc(env.authenticatedContext('staff',{email:'staff@example.test'}).firestore(),ws+'/map_signatures/report-role-test')));
  const wrapper=(id,changes={})=>({data:{id,traineeId:'s1',type:'Medical',fromDate:'2031-01-31',toDate:'2031-02-01',reason:'Synthetic leave reason',certNote:'',status:'pending',appliedDate:'2031-01-01',...changes},updatedAt:'2031-01-01T00:00:00Z',updatedBy:'s1'});
  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),ws+'/trainees/s1'),{data:{id:'s1',name:'Synthetic'}}));
  for(const [id,changes] of [['forged',{status:'approved'}],['foreign',{traineeId:'s2'}],['large',{reason:'x'.repeat(2001)}],['extra',{role:'principal'}],['badtype',{reason:123}],['reviewer',{reviewedBy:'teacher'}]])await no(setDoc(doc(studentLeave,ws+'/leaves/'+id),wrapper(id,changes)));
