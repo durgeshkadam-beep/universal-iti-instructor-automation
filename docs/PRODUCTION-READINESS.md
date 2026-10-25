@@ -79,14 +79,14 @@ Offline mode supports changes to already-loaded data. A cold offline login canno
 6. Configure a protected GitHub `production` environment with required reviewers. The rules-deployment workflow is restricted to `main` and that environment. Existing repository-level Pages settings are outside this branch's control and were not changed.
 7. Approve a rollout, migration, backup/rollback and exam outage policy. The owner has approved proceeding, but these readiness gates still apply before executing a merge/deployment. This work has not performed either.
 
-Development tooling still has upstream dependency advisories; see the validation report for exact packages and severity. Production installs must use `npm ci --omit=dev --ignore-scripts`. Do not ship the Firebase CLI or emulator tooling with the backend.
+The 25 October dependency follow-up cleared the six known development-tool findings; both production and development-inclusive CI audits are required. This is a point-in-time advisory result, not a security certificate. See DEPENDENCY-MAINTENANCE.md for the scoped overrides and maintenance procedure. Production installs must use `npm ci --omit=dev --ignore-scripts`. Do not ship the Firebase CLI or emulator tooling with the backend.
 
 The production audit command retries only unavailable/malformed registry responses and fails on real findings or exhausted retries. Its JSON result is included in the CI validation artifact. Instructor invitation management is restricted to the student workspaces assigned to that instructor.
 
 
 ## Deployment package and target guard
 
-Build and test the backend container with `docker build -t iti-api .` and `node scripts/container-smoke.js` (the latter builds its own test image). CI runs the smoke check without credentials or database writes. The image installs production dependencies only, runs as the unprivileged Node user, binds `0.0.0.0` on injected `PORT`, and defaults to no AI. `/healthz` returns only an availability flag; it does not certify database access. Restrict the hosting service identity to the selected Firebase project. Configure `GCLOUD_PROJECT`, `ALLOWED_ORIGINS` and workload identity in the hosting account; never bake credentials into the image. Container hosting may require an account and billing; no hosting resources or paid services are provisioned by this repository.
+Build and test the backend container with `docker build -t iti-api .` and `node scripts/container-smoke.js` (the latter builds its own test image). CI runs the smoke check without credentials or database writes. The image installs production dependencies only, runs as the unprivileged Node user, binds `0.0.0.0` on injected `PORT`, and defaults to no AI. `/healthz` returns only an availability flag; it does not certify database access. Restrict the hosting service identity to the selected Firebase project. Configure `GCLOUD_PROJECT`, `ALLOWED_ORIGINS` and workload identity in the hosting account; never bake credentials into the image. Container hosting may require an account and billing; the existing isolated Render staging service uses the Free plan. No paid hosting resource has been added by this work; production hosting remains a separate decision.
 
 For a release, create a public-only configuration file outside the checkout:
 

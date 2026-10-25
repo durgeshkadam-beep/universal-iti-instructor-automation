@@ -5,8 +5,11 @@ if(!V)return;
 const role=()=>V.currentRole?.()||window.SESSION?.role||'';
 const el=(tag,value,parent)=>{const n=document.createElement(tag);if(value!=null)n.textContent=String(value);if(parent)parent.append(n);return n;};
 const error=(host,e)=>{host.textContent=e.message||String(e);};
-function examPublisher(host,status){
- const form=el('form',null,host);form.id='exam-publisher';form.style.cssText='display:grid;gap:12px';
+function examPublisher(host,status,current){
+ const form=el('form',null,host);
+ const active=()=>current()&&form.isConnected;
+ const stale=sent=>{if(status.isConnected)status.textContent=sent?'The previous request may have completed. Reopen its original workspace to check.':'The account or workspace changed. Reopen Tests before publishing.';};
+ form.id='exam-publisher';form.style.cssText='display:grid;gap:12px';
  el('p','Create your test, choose the correct answer for each question, and review before publishing. Published tests cannot be edited.',form);
  const controlStyle='display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;min-height:44px;padding:10px 12px;margin-top:5px;border:1px solid #b8cbd4;border-radius:12px;background:#fff;color:inherit;font:inherit';
  const field=(parent,label,type,max)=>{const wrap=el('label',label,parent);wrap.style.cssText='display:block;margin-bottom:12px';const input=el(type==='textarea'?'textarea':'input',null,wrap);input.style.cssText=controlStyle;if(type!=='textarea')input.type=type;else input.rows=3;input.required=true;if(max)input.maxLength=max;return input;};
@@ -29,27 +32,27 @@ function examPublisher(host,status){
   options.forEach((_,i)=>{const option=el('option','Option '+(i+1),answer);option.value=String(i);});
   const remove=el('button','Remove question',card);remove.type='button';remove.className='btn secondary';
   const entry={card,legend,text,options,answer,remove};entries.push(entry);
-  remove.onclick=()=>{if(entries.length===1)return;entries.splice(entries.indexOf(entry),1);card.remove();refresh();};refresh();
+  remove.onclick=()=>{if(!active()||entries.length===1)return;entries.splice(entries.indexOf(entry),1);card.remove();refresh();};refresh();
  }
- add.onclick=addQuestion;addQuestion();
+ add.onclick=()=>{if(active())addQuestion();};addQuestion();
  const review=el('label',null,form),checked=el('input',null,review);review.style.cssText='display:flex;align-items:flex-start;gap:10px;margin:12px 0';checked.type='checkbox';checked.required=true;checked.style.cssText='width:auto;flex-shrink:0;margin-top:4px';review.append(' I reviewed the questions, correct answers and test schedule.');
  const button=el('button','Publish protected exam',form);button.type='submit';button.className='btn primary';
  const examId='exam-'+crypto.randomUUID();let publishing=false;
  form.onsubmit=async event=>{
-  event.preventDefault();if(publishing||!form.reportValidity())return;
+  event.preventDefault();if(!active()){stale(false);return;}if(publishing||!form.reportValidity())return;
   const exam={id:examId,title:title.value.trim(),durationMinutes:Number(duration.value),opensAt:new Date(opens.value).getTime(),closesAt:new Date(closes.value).getTime(),questions:entries.map(q=>({text:q.text.value.trim(),options:q.options.map(o=>o.value.trim()),correctIndex:Number(q.answer.value)}))};
   if(!exam.title||exam.questions.some(q=>!q.text||q.options.some(o=>!o))){status.textContent='Enter a title, question and all four answer options.';return;}
   if(!Number.isFinite(exam.opensAt)||!Number.isFinite(exam.closesAt)||exam.closesAt<=exam.opensAt||exam.closesAt<=Date.now()){status.textContent='Closing time must be later than opening time and still in the future.';return;}
-  publishing=true;button.disabled=true;status.textContent='Publishing test…';
-  try{await V.backendRequest({action:'publishExam',exam});form.querySelectorAll('input,textarea,select,button').forEach(n=>{n.disabled=true;});status.textContent='Exam published with private answer key. Students can now open it during its scheduled time.';}
-  catch(e){status.textContent=(e.message||String(e))+' Your form is retained. If the connection failed, refresh the test list before creating another test.';button.disabled=false;}
+  publishing=true;const controls=[...form.querySelectorAll('input,textarea,select,button')],disabled=controls.map(n=>n.disabled);controls.forEach(n=>{n.disabled=true;});status.textContent='Publishing test…';
+  try{await V.backendRequest({action:'publishExam',exam});if(!active()){stale(true);return;}form.querySelectorAll('input,textarea,select,button').forEach(n=>{n.disabled=true;});status.textContent='Exam published with private answer key. Students can now open it during its scheduled time.';}
+  catch(e){if(active()){status.textContent=(e.message||String(e))+' Your form is retained. If the connection failed, refresh the test list before creating another test.';controls.forEach((n,i)=>{n.disabled=disabled[i];});}else stale(true);}
   finally{publishing=false;}
  };
  const advanced=el('details',null,host);el('summary','Advanced: publish a reviewed JSON question set',advanced);
  el('p','Use a unique ID and a reviewed schedule. JSON supports 2–6 options per question.',advanced);
  const input=el('textarea',null,advanced);input.rows=10;input.setAttribute('aria-label','Exam JSON');
  const raw=el('button','Publish JSON question set',advanced);raw.type='button';raw.className='btn secondary';
- raw.onclick=async()=>{raw.disabled=true;try{await V.backendRequest({action:'publishExam',exam:JSON.parse(input.value)});status.textContent='Exam published with private answer key.';}catch(e){error(status,e);}finally{raw.disabled=false;}};
+ raw.onclick=async()=>{if(!active()){stale(false);return;}raw.disabled=true;input.disabled=true;try{await V.backendRequest({action:'publishExam',exam:JSON.parse(input.value)});if(!active()){stale(true);return;}status.textContent='Exam published with private answer key.';}catch(e){if(active())error(status,e);else stale(true);}finally{if(active()){raw.disabled=false;input.disabled=false;}}};
 }
 V.backendRequest=async function(payload){
  if(!V.ready||!V.fb?.user)throw Error('Verified sign-in required.');
@@ -115,18 +118,21 @@ V.renderCareerCoach=function(){
  ai.onclick=async()=>{if(!consent.checked){output.textContent='Consent is required for external AI.';return;}ai.disabled=true;output.textContent='Preparing reviewable draft…';try{const out=await V.backendRequest({action:'ai',task:task.value,language:language.value,input:input.value,consent:true});output.textContent=(out.mode==='guided'?'Guided mode (AI disabled):\n':'AI draft — check accuracy:\n')+out.text;}catch(e){error(output,e);}finally{ai.disabled=false;}};
  }).catch(()=>{if(current())status.textContent='Optional AI configuration could not be checked. Free guided practice is ready.';});
 };
+const oldExamLoad=V.load?.bind(V);
+if(oldExamLoad)V.load=function(...args){this._examRenderGeneration=(this._examRenderGeneration||0)+1;return oldExamLoad(...args);};
 V.renderSecureExams=async function(){
  const host=document.getElementById('tab-exams');if(!host)return;
- const currentRole=role(),student=currentRole==='student';if(!student&&currentRole!=='instructor')return;
+ const currentRole=role(),student=currentRole==='student';
  const generation=V._examRenderGeneration=(V._examRenderGeneration||0)+1,workspace=V.workspaceId,uid=V.fb?.user?.uid;
- const current=()=>V._examRenderGeneration===generation&&role()===currentRole&&V.workspaceId===workspace&&V.fb?.user?.uid===uid;
- host.replaceChildren();el('h2',student?'Secure Class Tests':'Secure MCQ Examinations',host);
+ const current=()=>V.ready===true&&V._examRenderGeneration===generation&&role()===currentRole&&V.workspaceId===workspace&&V.fb?.user?.uid===uid;
+ host.replaceChildren();
+ if(!V.ready||(!student&&currentRole!=='instructor')){el('p',V.ready?'Tests are not available for this role.':'Wait for your workspace to finish loading.',host);return;}
+ el('h2',student?'Secure Class Tests':'Secure MCQ Examinations',host);
  el('p','Official scores are calculated only by the trusted backend. Answer keys are never sent to students. Tests require an online connection.',host);
  const status=el('p','',host);status.setAttribute('role','status');
+ const stale=sent=>{if(status.isConnected)status.textContent=sent?'The previous request may have completed. Reopen its original workspace to check.':'The account or workspace changed. Reopen Tests before continuing.';};
  if(!window.ITI_RUNTIME?.apiUrl){status.textContent='Online tests are not yet available on this site. Your other training activities remain available.';const back=el('button','Back to dashboard',host);back.className='btn secondary';back.onclick=()=>V.finalOpenTab('dashboard');return;}
- if(!student){
-  examPublisher(host,status);
- }
+ if(!student)examPublisher(host,status,current);
  try{
   const M=V.fb.M,c=M.collection(V.fb.db,'institutes',V.INSTITUTE_ID,'workspaces',V.workspaceId,'secureExams');
   const z=await M.getDocs(student?M.query(c,M.where('published','==',true)):c);
@@ -135,15 +141,19 @@ V.renderSecureExams=async function(){
   z.forEach(doc=>{
    const exam=doc.data(),card=el('section',null,host);card.className='card';el('h3',exam.title,card);el('p',exam.durationMinutes+' minutes • '+exam.questions.length+' questions',card);
    if(!student)return;
-   const start=el('button','Start / resume test',card);start.className='btn primary';
-   start.onclick=async()=>{start.disabled=true;try{
+   const active=()=>current()&&card.isConnected;
+   const start=el('button','Start / resume test',card);start.className='btn primary';let starting=false,started=false;
+   start.onclick=async()=>{if(!active()){stale(false);return;}if(starting||started)return;starting=true;start.disabled=true;try{
     const session=await V.backendRequest({action:'startExam',examId:doc.id});
+    if(!active()){stale(true);return;}started=true;
     if(session.result){el('p','Result: '+session.result.score+' / '+session.result.total,card);return;}
     start.remove();el('p','Submit by '+new Date(session.deadline).toLocaleString(),card);
-    const selections=[];
-    exam.questions.forEach((q,j)=>{const f=el('fieldset',null,card);el('legend',(j+1)+'. '+q.text,f);q.options.forEach((o,k)=>{const label=el('label',null,f);label.style.display='block';const radio=el('input',null,label);radio.type='radio';radio.name='exam-'+doc.id+'-'+j;radio.style.width='auto';radio.onchange=()=>{selections[j]=k;};label.append(' '+o);});});
-    const submit=el('button','Submit answers for server grading',card);submit.className='btn primary';submit.onclick=async()=>{submit.disabled=true;try{const out=await V.backendRequest({action:'submitExam',examId:doc.id,answers:exam.questions.map((_,j)=>selections[j]??null)});el('p','Result: '+out.result.score+' / '+out.result.total,card);card.querySelectorAll('input,button').forEach(n=>{n.disabled=true;});}catch(e){error(status,e);submit.disabled=false;}};
-   }catch(e){error(status,e);start.disabled=false;}};
+    const selections=[];let submitting=false,complete=false;
+    exam.questions.forEach((q,j)=>{const f=el('fieldset',null,card);el('legend',(j+1)+'. '+q.text,f);q.options.forEach((o,k)=>{const label=el('label',null,f);label.style.display='block';const radio=el('input',null,label);radio.type='radio';radio.name='exam-'+doc.id+'-'+j;radio.style.width='auto';radio.onchange=()=>{if(active()&&!submitting&&!complete)selections[j]=k;};label.append(' '+o);});});
+    const submit=el('button','Submit answers for server grading',card);submit.className='btn primary';
+    const lock=value=>card.querySelectorAll('input,button').forEach(n=>{n.disabled=value;});
+    submit.onclick=async()=>{if(!active()){stale(false);return;}if(submitting||complete)return;submitting=true;lock(true);try{const out=await V.backendRequest({action:'submitExam',examId:doc.id,answers:exam.questions.map((_,j)=>selections[j]??null)});if(!active()){stale(true);return;}complete=true;el('p','Result: '+out.result.score+' / '+out.result.total,card);}catch(e){if(active())error(status,e);else stale(true);}finally{submitting=false;if(active()&&!complete)lock(false);}};
+   }catch(e){if(active()){error(status,e);if(!started)start.disabled=false;}else stale(true);}finally{starting=false;}};
   });
  }catch(e){if(current())error(status,e);}
 };

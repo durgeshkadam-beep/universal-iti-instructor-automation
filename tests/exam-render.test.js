@@ -4,7 +4,7 @@ const {JSDOM}=require('jsdom');
 function setup(){
  const dom=new JSDOM('<section id="tab-exams"></section>',{url:'https://synthetic.example',runScripts:'outside-only'}),w=dom.window,pending=[];
  const M={collection:()=>({}),where:()=>({}),query:()=>({}),getDocs:()=>new Promise((resolve,reject)=>pending.push({resolve,reject}))};
- const V={currentRole:()=> 'student',workspaceId:'workspace-a',fb:{M,db:{},user:{uid:'synthetic-student'}}};
+ const V={ready:true,currentRole:()=> 'student',workspaceId:'workspace-a',fb:{M,db:{},user:{uid:'synthetic-student'}}};
  w.ITI_RUNTIME={apiUrl:'https://synthetic.example/api'};w.V15Sync=V;w.eval(fs.readFileSync('v15/v15-student-services.js','utf8'));
  const snapshot=title=>({empty:false,forEach:fn=>fn({id:'synthetic-exam',data:()=>({title,durationMinutes:1,questions:[]})})});
  return {dom,w,V,pending,snapshot};
