@@ -23,9 +23,16 @@
     "start:api": "node server/index.js",
     "audit:production": "node scripts/production-audit.js",
     "build:web": "node scripts/build-web.js",
-    "release:check": "node scripts/build-web.js --require-runtime"
+    "release:check": "node scripts/build-web.js --require-runtime",
+    "audit:all": "node scripts/production-audit.js --include-dev"
   },
   "overrides": {
-    "@grpc/grpc-js": "1.14.6"
+    "@grpc/grpc-js": "1.14.6",
+    "@google-cloud/pubsub": {
+      "@opentelemetry/core": "2.8.0"
+    },
+    "gaxios@6": {
+      "uuid": "11.1.1"
+    }
   }
 }
