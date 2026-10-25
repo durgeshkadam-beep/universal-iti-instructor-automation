@@ -31,6 +31,12 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
    return {aiConfigured};
   }
   const teacher=owner||['principal','instructor'].includes(member?.role);
+  if(action==='reviewLeave'){
+   requireValue(member?.active===true&&member.role==='instructor','Only the active assigned Instructor can review leave.',403);
+   requireValue(typeof body.leaveId==='string'&&/^[a-z0-9._@-]{1,180}$/.test(body.leaveId)&&!['.','..'].includes(body.leaveId)&&['approved','rejected'].includes(body.status),'Invalid leave review');
+   const {reviewLeave}=require('./leave-review'),{LeaveError}=require('../shared/leave');
+   try{return await reviewLeave({db,ws,uid:u.uid,leaveId:body.leaveId,status:body.status,now});}catch(e){if(e instanceof LeaveError)throw new ApiError(e.status,e.message);throw e;}
+  }
   if(action==='publishExam'){
    requireValue(teacher,'Instructor access required',403);await limit(u.uid,action);
    const e=body.exam;

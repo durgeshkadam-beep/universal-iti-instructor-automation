@@ -3,6 +3,8 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
 const {initializeTestEnvironment,assertSucceeds:yes,assertFails:no}=require('@firebase/rules-unit-testing');
 const {doc,setDoc,getDoc,updateDoc,deleteDoc,getDocs,collection,serverTimestamp}=require('firebase/firestore');
 (async()=>{
+ const {initializeApp,deleteApp}=require('firebase-admin/app'),{getFirestore}=require('firebase-admin/firestore');
+ const admin=initializeApp({projectId:'demo-universal-iti'},'leave-authority'),trusted=getFirestore(admin),service=require('../server/service').createService({db:trusted,verifyToken:async uid=>({uid})});
  const env=await initializeTestEnvironment({projectId:'demo-universal-iti',firestore:{rules:fs.readFileSync('firestore.rules','utf8')}}),base='institutes/security-test',ws=base+'/workspaces/w1';
  try{
  await env.withSecurityRulesDisabled(async c=>{const d=c.firestore();await setDoc(doc(d,base),{ownerUid:'owner',schemaVersion:15});await setDoc(doc(d,ws),{trade:'Synthetic'});for(const [uid,role,ids] of [['principal','principal',[]],['teacher','instructor',['w1']],['other','instructor',['w2']],['staff','staff',['w1']],['s1','student',['w1']],['s2','student',['w1']]])await setDoc(doc(d,base+'/members/'+uid),{uid,email:uid+'@example.test',role,active:true,owner:false,workspaceIds:ids,traineeId:uid});await setDoc(doc(d,base+'/access/principal@example.test'),{role:'principal',workspaceIds:[]});await setDoc(doc(d,ws+'/examKeys/e'),{answers:[1]});await setDoc(doc(d,ws+'/examSessions/e--s1'),{deadline:100});await setDoc(doc(d,ws+'/attendance/old'),{key:'2026-10-01',subKey:'s1',traineeId:'s1',data:'P'});await setDoc(doc(d,ws+'/submissions/private'),{key:'1',subKey:'s2',traineeId:'s2',data:'private'});});
@@ -32,14 +34,20 @@ const {doc,setDoc,getDoc,updateDoc,deleteDoc,getDocs,collection,serverTimestamp}
  const wrapper=(id,changes={})=>({data:{id,traineeId:'s1',type:'Medical',fromDate:'2031-01-31',toDate:'2031-02-01',reason:'Synthetic leave reason',certNote:'',status:'pending',appliedDate:'2031-01-01',...changes},updatedAt:'2031-01-01T00:00:00Z',updatedBy:'s1'});
  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),ws+'/trainees/s1'),{data:{id:'s1',name:'Synthetic'}}));
  for(const [id,changes] of [['forged',{status:'approved'}],['foreign',{traineeId:'s2'}],['large',{reason:'x'.repeat(2001)}],['extra',{role:'principal'}],['badtype',{reason:123}],['reviewer',{reviewedBy:'teacher'}]])await no(setDoc(doc(studentLeave,ws+'/leaves/'+id),wrapper(id,changes)));
+ for(const [id,changes] of [['calendar',{fromDate:'2031-02-30',toDate:'2031-03-01'}],['span',{fromDate:'2032-01-31',toDate:'2032-04-30'}],['applied-calendar',{appliedDate:'2031-02-30'}],['year-zero',{fromDate:'0000-01-01',toDate:'0000-01-01'}]])await no(setDoc(doc(studentLeave,ws+'/leaves/'+id),wrapper(id,changes)));
  await yes(setDoc(doc(studentLeave,ws+'/leaves/atomic'),wrapper('atomic')));
  await yes(setDoc(doc(studentLeave,ws+'/leaves/atomic'),wrapper('atomic'))); // idempotent pending retry
  await no(updateDoc(doc(studentLeave,ws+'/leaves/atomic'),{'data.status':'approved'}));
  await no(deleteDoc(doc(studentLeave,ws+'/leaves/atomic')));
  await no(getDoc(doc(env.authenticatedContext('s2').firestore(),ws+'/leaves/atomic')));
  await no(FM.getDocs(FM.collection(env.unauthenticatedContext().firestore(),ws+'/leaves')));
- const reviewLeave=(id,status='approved')=>workflow.review({M:FM,db:instructorLeave,workspace:doc(instructorLeave,ws),uid:'teacher',role:'instructor',leaveId:id,status});
+ const reviewLeave=(id,status='approved')=>service.execute('teacher',{action:'reviewLeave',instituteId:'security-test',workspaceId:'w1',leaveId:id,status});
  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),ws+'/attendanceLocks/2031-02'),{status:'submitted'}));
+ // A role-authorised client must not bypass the lock check/atomic review by writing status directly.
+ await no(updateDoc(doc(instructorLeave,ws+'/leaves/atomic'),{'data.status':'approved','data.reviewedBy':'teacher','data.reviewedAt':'2031-01-02T00:00:00Z',updatedBy:'teacher'}));
+ for(const who of ['owner','principal','teacher','staff','s1','other']){const raw=env.authenticatedContext(who,{email:who+'@example.test'}).firestore();for(const status of ['approved','rejected']){const id='forged-reviewed-'+who+'-'+status;await no(setDoc(doc(raw,ws+'/leaves/'+id),{...wrapper(id,{status,reviewedBy:who,reviewedAt:'2031-01-02T00:00:00Z'}),updatedBy:who}));}await no(deleteDoc(doc(raw,ws+'/leaves/atomic')));}
+ await assert.rejects(workflow.review({M:FM,db:instructorLeave,workspace:doc(instructorLeave,ws),uid:'teacher',role:'instructor',leaveId:'atomic',status:'rejected'}),e=>e.code==='permission-denied');
+ for(const who of ['owner','principal','staff','s1','other'])await assert.rejects(service.execute(who,{action:'reviewLeave',instituteId:'security-test',workspaceId:'w1',leaveId:'atomic',status:'approved'}));
  await assert.rejects(reviewLeave('atomic'),/locked/);
  assert.equal((await getDoc(doc(instructorLeave,ws+'/leaves/atomic'))).data().data.status,'pending');
  assert.equal((await getDoc(doc(instructorLeave,ws+'/attendance/2031-01-31--s1'))).exists(),false);
@@ -102,5 +110,5 @@ const {doc,setDoc,getDoc,updateDoc,deleteDoc,getDocs,collection,serverTimestamp}
  const newDb=env.authenticatedContext('new',{email:'new@example.test',email_verified:true}).firestore(),member={uid:'new',email:'new@example.test',role:'student',workspaceIds:['w1'],traineeId:'new',active:true,owner:false,activationProof:'hash'};
  await no(setDoc(doc(newDb,base+'/members/new'),{...member,owner:true}));await yes(setDoc(doc(newDb,base+'/members/new'),member));
  console.log('PASS security emulator: sensitive collection bypasses, 6 identities, locks/reopen/resubmit, invitation downgrade, submission theft, private plans, activation owner forgery.');
- }finally{await env.cleanup();}
+ }finally{await env.cleanup();await trusted.terminate();await deleteApp(admin);}
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -57,9 +57,11 @@ V.backendRequest=async function(payload){
  if(!url)throw Error('Secure backend is not configured. Ask the administrator; no-key practice remains available.');
  const u=new URL(url,location.href);
  if(u.protocol!=='https:'&&!(['localhost','127.0.0.1'].includes(u.hostname)&&['localhost','127.0.0.1'].includes(location.hostname)))throw Error('The API must use HTTPS.');
- const token=await V.fb.user.getIdToken();
- const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},signal:AbortSignal.timeout(55000),body:JSON.stringify({...payload,instituteId:V.INSTITUTE_ID,workspaceId:V.workspaceId})});
- const out=await r.json();if(!r.ok)throw Error(out.error||'Service unavailable');return out;
+ const user=V.fb.user,c={uid:user.uid,workspace:V.workspaceId,institute:V.INSTITUTE_ID,role:role()};
+ const current=()=>V.ready&&V.fb?.user?.uid===c.uid&&V.workspaceId===c.workspace&&V.INSTITUTE_ID===c.institute&&role()===c.role;
+ const token=await user.getIdToken();if(!current())throw Error('The account or workspace changed. Reopen this action.');
+ const r=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},signal:AbortSignal.timeout(55000),body:JSON.stringify({...payload,instituteId:c.institute,workspaceId:c.workspace})});
+ const out=await r.json();if(!current())throw Error('The account or workspace changed. The previous request may have completed; reload its workspace to check.');if(!r.ok)throw Error(out.error||'Service unavailable');return out;
 };
 const planRef=()=>V.fb.M.doc(V.fb.db,'institutes',V.INSTITUTE_ID,'workspaces',V.workspaceId,'studentPlans',V.fb.user.uid);
 V.saveStudentPlan=async function(selfRatings,plan){
