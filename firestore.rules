@@ -317,7 +317,7 @@ service cloud.firestore {
           allow get, list: if workspaceAllowed(inst, wid)
             && (isStaff(inst) || (isStudent(inst) && resource.data.status == 'active'));
           allow create: if workspaceAllowed(inst, wid) && isInstructor(inst)
-            && request.resource.data.keys().hasOnly(['kind','title','employer','city','cityKey','skills','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
+            && request.resource.data.keys().hasOnly(['kind','title','employer','city','cityKey','skills','practicalIds','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
             && request.resource.data.keys().hasAll(['title','employer','city','cityKey','skills','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
             && request.resource.data.get('kind','job') in ['job','apprenticeship']
             && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140
@@ -325,6 +325,8 @@ service cloud.firestore {
             && request.resource.data.city is string && request.resource.data.city.size() > 0 && request.resource.data.city.size() <= 80
             && request.resource.data.cityKey is string && request.resource.data.cityKey.size() > 0 && request.resource.data.cityKey.size() <= 80
             && request.resource.data.skills is list && request.resource.data.skills.size() > 0 && request.resource.data.skills.size() <= 16
+            && request.resource.data.get('practicalIds', []) is list
+            && request.resource.data.get('practicalIds', []).size() <= 30
             && request.resource.data.sourceUrl is string && request.resource.data.sourceUrl.matches('^https://[^ ]+$')
             && request.resource.data.sourceUrl.size() <= 500
             && request.resource.data.expiresAt is string && request.resource.data.expiresAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
