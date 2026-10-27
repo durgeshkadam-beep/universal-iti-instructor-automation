@@ -57,6 +57,10 @@ async function run(){
  assert.match(result,/If this email has a password-enabled account/,'generic response reveals no existence');
  assert.deepEqual(resets,['student001@iti.example.in']);
  assert.equal(V.ready,false,'password reset does not create an authenticated session');
+ for(const privileged of ['admin','principal']) {
+   await assert.rejects(()=>V.institutePasswordLogin('student001','CorrectPassword123!',privileged),/must use approved Google sign-in/);
+ }
+ assert.equal(auth.currentUser,null,'privileged role selection must not open Firebase password session');
 
  await assert.rejects(()=>V.institutePasswordLogin('student001','badpassword','student'),/Sign-in was not completed/);
  assert.equal(V.ready,false,'bad password cannot create an active user');
