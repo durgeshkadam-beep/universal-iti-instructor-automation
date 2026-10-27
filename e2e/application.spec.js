@@ -387,3 +387,15 @@ test('Student plan and self ratings restore from scoped cloud data in a fresh br
   expect(saved.plan.roleName).toBe(goal);expect(saved.plan.requiredIds).toEqual(['practical-2']);expect(saved.self['practical-1']).toBe('learning');expect(saved.legacy).toBe('1');
  }finally{await fresh.close();}
 });
+
+test('AI lesson JSON error hides the previous preview and saves no record',async({page})=>{
+ await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));
+ const before=await page.evaluate(()=>JSON.stringify({practicals:DATA.practicals,theory:DATA.theory}));
+ await page.evaluate(()=>InstructorAI.openManual('plan','Synthetic preview test',{}, {type:'theory',no:'synthetic-preview',item:{title:'Synthetic lesson preview'}}));
+ await page.locator('#aiResultText').fill(JSON.stringify({objective:['Synthetic objective'],materials:[],review:'Review',motivation:'Motivation',steps:[{topic:'Synthetic topic',information:'Synthetic information',spotHint:'Hint'}],questions:['Synthetic question'],summary:'Summary',assignment:'Assignment',nextLesson:'Next lesson'}));
+ await page.getByRole('button',{name:'Preview Result',exact:true}).click();await expect(page.locator('#aiPreviewBox')).toBeVisible();
+ await page.locator('#aiResultText').fill('{"questions":[ What are the hazards? ]}');
+ await page.getByRole('button',{name:'Preview Result',exact:true}).click();await expect(page.locator('#aiModalStatus')).toContainText('JSON error');await expect(page.locator('#aiPreviewBox')).toBeHidden();
+ expect(await page.evaluate(()=>JSON.stringify({practicals:DATA.practicals,theory:DATA.theory}))).toBe(before);
+ await page.locator('#aiModal').getByRole('button',{name:/Close/}).click();
+});

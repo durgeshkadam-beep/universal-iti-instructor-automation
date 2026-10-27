@@ -5,6 +5,7 @@ const requireValue=(ok,msg,status=400)=>{if(!ok)throw new ApiError(status,msg);}
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);
 const text=(x,n=500)=>String(x||'').trim().slice(0,n);
 const {offlineGuide,QUESTIONS,LANG}=require('../shared/guidance');
+const {schemas:teachingSchemas,parseTeaching}=require('./teaching-json');
 function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.now()}){
  async function authorize(token,inst,wid){
   requireValue(id(inst)&&id(wid),'Invalid institute or workspace');
@@ -78,6 +79,8 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
    requireValue(LANG[body.language],'Choose English, Marathi or Hindi');
    requireValue(typeof body.input==='string'&&body.input.length<=12000,'Input must be at most 12000 characters');
    if(body.task==='teaching')requireValue(teacher,'Instructor required',403);
+   const teachingType=body.teachingType||(body.input.includes('\"nextDemo\"')?'practical':body.input.includes('\"items\"')&&body.input.includes('\"trade\"')?'syllabus':'theory');
+   if(body.task==='teaching')requireValue(Object.hasOwn(teachingSchemas,teachingType),'Invalid teaching format');
    if(!config.provider||config.provider==='none')return {mode:'guided',text:offlineGuide(body.task,body.language,body.input)};
    requireValue(body.consent===true,'Consent required before sending text to AI');
    await limit(u.uid,'ai',Number(config.dailyLimit)||20);
@@ -89,11 +92,15 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
      response=await fetchImpl(new URL('/api/chat',config.ollamaUrl),{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(45000),body:JSON.stringify({model:config.model,stream:false,messages:[{role:'system',content:system},{role:'user',content:body.input}]})});
     }else if(config.provider==='gemini'){
      requireValue(config.apiKey&&config.model,'Server AI provider is not configured',503);
-     response=await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':config.apiKey},signal:AbortSignal.timeout(45000),body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:body.input}]}],generationConfig:{maxOutputTokens:2000,...(body.task==='teaching'?{responseMimeType:'application/json'}:{})}})});
+     response=await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':config.apiKey},signal:AbortSignal.timeout(45000),body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:body.input}]}],generationConfig:{maxOutputTokens:body.task==='teaching'?4096:2000,...(body.task==='teaching'?{responseMimeType:'application/json',responseJsonSchema:teachingSchemas[teachingType]}:{})}})});
     }else throw new ApiError(503,'Unsupported AI provider');
     requireValue(response.ok,'AI provider unavailable; use guided mode',503);
-    const out=await response.json(),answer=config.provider==='ollama'?out.message?.content:out.candidates?.[0]?.content?.parts?.map(x=>x.text||'').join('');
+    const out=await response.json(),answer=config.provider==='ollama'?out.message?.content:out.candidates?.[0]?.content?.parts?.filter(x=>x.thought!==true).map(x=>x.text||'').join('');
     requireValue(answer&&answer.length<=40000,'AI response unavailable',503);
+    if(body.task==='teaching'){
+     requireValue(!out.candidates?.[0]?.finishReason||out.candidates[0].finishReason==='STOP','AI lesson draft was incomplete. Retry with a shorter topic; no plan was saved.',503);
+     try{return {mode:'ai-draft',text:parseTeaching(answer,teachingType)};}catch(e){throw new ApiError(503,'AI returned an invalid lesson draft. Retry generation or use manual mode; no plan was saved.');}
+    }
     return {mode:'ai-draft',text:answer};
    }catch(e){if(e instanceof ApiError)throw e;throw new ApiError(503,'AI request failed. Use no-key guided practice.');}
   }
