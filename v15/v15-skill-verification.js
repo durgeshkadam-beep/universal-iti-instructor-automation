@@ -42,11 +42,11 @@ V.renderVerifiedSkillList=async function(){
   if(!container){container=element('section',null,'card');container.id='v15VerifiedSkills';host.append(container);}
   const heading=element('h3','✅ Instructor-verified skills');
   container.replaceChildren(heading,element('p','Loading verified skills…','muted'));
-  const uid=this.fb?.user?.uid,workspace=this.workspaceId;
+  const uid=this.fb?.user?.uid,workspace=this.workspaceId, institute=this.INSTITUTE_ID;
   if(!uid){notice(container,'Sign in with an approved Google account to see verified skills.');return;}
   try{
     const p=await this.getStudentSkillProfile(uid,workspace);
-    if(this.workspaceId!==workspace||role()!=='student'||!host.isConnected)return;
+    if(!this.ready||this.fb?.user?.uid!==uid||this.INSTITUTE_ID!==institute||this.workspaceId!==workspace||role()!=='student'||!host.isConnected)return;
     container.replaceChildren(heading);
     const skills=Object.entries(p?.skills||{}).filter(([,entry])=>entry?.status==='verified');
     if(!skills.length){container.append(element('p','No skills have been instructor-verified yet. Ask your instructor to assess your practical work.','muted'));return;}
@@ -60,7 +60,7 @@ V.renderVerifiedSkillList=async function(){
     }
     container.append(element('p','This is an institute practical assessment record, not an NCVT/DVET certificate.','muted'));
   }catch(e){
-    if(role()==='student'&&this.workspaceId===workspace)notice(container,'Verified skill records are unavailable. Ask your instructor or administrator to check Firestore access: '+(e.message||e));
+    if(this.ready&&this.fb?.user?.uid===uid&&this.INSTITUTE_ID===institute&&role()==='student'&&this.workspaceId===workspace&&host.isConnected)notice(container,'Verified skill records are unavailable. Ask your instructor or administrator to check Firestore access.');
   }
 };
 const priorStudentRender=V.renderSkillPassport;
