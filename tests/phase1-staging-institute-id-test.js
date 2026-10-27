@@ -35,6 +35,7 @@ const {JSDOM}=require('jsdom');
  await new Promise(r=>setTimeout(r,35));
  assert.equal(loginCount,1);
  assert.equal(providedEmail,'student@iti-staging.example.test');
+ assert.equal(w.localStorage.getItem('iti-v15-password-session'),'1','staging login keeps password in session only');
  assert.equal(V.fb.user.uid,'same-student-uid');
  assert.equal(signoutCount,0);
  assert.equal(w.document.getElementById('stagingPassword').value,'','password cleared');
