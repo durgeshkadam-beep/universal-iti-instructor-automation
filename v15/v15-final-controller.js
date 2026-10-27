@@ -20,7 +20,7 @@ const START={
   principal:[['users','Staff & Access','Review staff access and assignments.'],['inspection','Inspection & Compliance','Review submitted training records.'],['reports','Institute Reports','Open institute reports.']],
   instructor:[['attendance','Take Attendance','Open the daily attendance register.'],['skill-review','Verify Student Skills','Record practical evidence and progress.'],['modules','Plan Training','Organise your training modules.']],
   staff:[['notices','Read Notices','View institute announcements.'],['record-formats','Record Formats','Open the available record formats.'],['reports','View Reports','Review the available reports.']],
-  student:[['attendance','My Attendance','Check your attendance record.'],['skills','My Skills','View your skills and instructor verification.'],['career-coach','Career & Resume Practice','Practise in Marathi, Hindi or English.']]
+  student:[['attendance','My Attendance','Check your attendance record.'],['skills','My Skills','View your skills and instructor verification.'],['career-lens','See Your Skill’s Future','Link verified practicals to reviewed career examples.']]
 };
 const FOOTER={admin:'Technical administration • V15 FINAL',principal:'Principal oversight • V15 FINAL',instructor:'Instructor workspace • V15 FINAL',staff:'Staff read-only • V15 FINAL',student:'Student workspace • V15 FINAL'};
 const preserved=new Map();
