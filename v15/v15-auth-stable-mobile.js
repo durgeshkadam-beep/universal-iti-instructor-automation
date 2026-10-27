@@ -41,7 +41,7 @@ V.googleAuthority=async function(interactive=false){
     let app=M.getApps().find(x=>x.name==='iti-v15');
     if(!app)app=M.initializeApp(cfg,'iti-v15');
     const auth=M.getAuth(app);
-    await M.setPersistence(auth,M.browserLocalPersistence);
+    await M.setPersistence(auth,passwordSession()?M.browserSessionPersistence:M.browserLocalPersistence);
     const db=this.firestore(app,M);
 
     // Fast path: normal popup/saved sessions do not need the redirect-result round trip.
@@ -94,7 +94,7 @@ setTimeout(async()=>{
     if(localStorage.getItem(K.redirect)!=='1')return;
     const M=await V.modules(),cfg=V.config();let app=M.getApps().find(x=>x.name==='iti-v15');
     if(!app)app=M.initializeApp(cfg,'iti-v15');const auth=M.getAuth(app);
-    await M.setPersistence(auth,M.browserLocalPersistence);await ready(M,auth);
+    await M.setPersistence(auth,passwordSession()?M.browserSessionPersistence:M.browserLocalPersistence);await ready(M,auth);
     // Keep the marker only when a restored user is present; autoResume will finish it.
     if(!auth.currentUser){
       // Do not immediately clear here: getRedirectResult may still need to be consumed
