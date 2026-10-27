@@ -17,13 +17,13 @@ const {schemas,parseTeaching,providerSchema}=require('../server/teaching-json');
 const {restSchema}=require('../server/gemini-request');
 function sample(s){if(s.type==='object')return Object.fromEntries(Object.entries(s.properties).map(([k,v])=>[k,sample(v)]));if(s.type==='array')return [sample(s.items)];if(s.type==='number')return 1;return s.enum?.[0]||'Synthetic text';}
 for(const type of ['theory','practical','syllabus'])test('Gemini receives fixed '+type+' schema and returns validated JSON',async()=>{
- const value=sample(schemas[type]),s=service(JSON.stringify(value));const out=await s.api.execute('token',{...req,teachingType:type});assert.deepEqual(JSON.parse(out.text),value);assert.deepEqual(s.request().generationConfig.responseSchema,restSchema(type));assert.equal(s.request().generationConfig.responseMimeType,'application/json');
+ const value=sample(schemas[type]),s=service(JSON.stringify(value));const out=await s.api.execute('token',{...req,teachingType:type});assert.deepEqual(JSON.parse(out.text),value);assert(s.request().systemInstruction.parts[0].text.includes(JSON.stringify(providerSchema(type))));assert.equal(s.request().generationConfig.responseSchema,undefined);assert.equal(s.request().generationConfig.responseMimeType,'application/json');
 });
 test('wrong field types, extra fields and cut-off provider drafts are rejected',async()=>{
  const value=sample(schemas.theory);assert.throws(()=>parseTeaching(JSON.stringify({...value,questions:'bad'}),'theory'));assert.throws(()=>parseTeaching(JSON.stringify({...value,unexpected:'bad'}),'theory'));
  const s=service(JSON.stringify(value),'MAX_TOKENS');await assert.rejects(s.api.execute('token',req),e=>e.status===503&&e.message.includes('incomplete'));
 });
-test('older clients with the appended practical schema keep the correct format',async()=>{const value=sample(schemas.practical),s=service(JSON.stringify(value));const {teachingType,...legacy}=req;await s.api.execute('token',{...legacy,input:'Synthetic practical\nSchema: '+JSON.stringify(schemas.practical)});assert(s.request().generationConfig.responseSchema.properties.nextDemo);});
+test('older clients with the appended practical schema keep the correct format',async()=>{const value=sample(schemas.practical),s=service(JSON.stringify(value));const {teachingType,...legacy}=req;await s.api.execute('token',{...legacy,input:'Synthetic practical\nSchema: '+JSON.stringify(schemas.practical)});assert(s.request().systemInstruction.parts[0].text.includes('nextDemo'));});
 test('generation failure hides an old preview and preserves prior text for manual review',async()=>{
  const dom=new JSDOM('<textarea id="aiPromptText">Synthetic</textarea><textarea id="aiResultText">Previous manual text</textarea><div id="aiPreviewBox" style="display:block">Old preview</div><div id="aiModalStatus"></div><button id="aiGenerateBtn"></button>',{runScripts:'outside-only'}),w=dom.window;
  w.confirm=()=>true;w.ITI_RUNTIME={apiUrl:'https://example.test'};w.V15Sync={backendRequest:async()=>{throw Error('Invalid lesson draft')}};
