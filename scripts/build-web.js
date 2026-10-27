@@ -8,6 +8,8 @@ function validateRuntime(runtime,{required=false}={}){
  if(Object.keys(runtime).some(k=>!['apiUrl','firebaseConfig','staging','institutePasswordEnabled','instituteLoginDomain'].includes(k)))throw Error('Only public API URL, Firebase web config and staging flag are accepted; never supply secrets');
  if(runtime.staging!==undefined&&(runtime.staging!==true||!runtime.firebaseConfig?.projectId?.endsWith('-staging')))throw Error('Staging mode requires an explicitly isolated *-staging project');
  if(required&&(!runtime.firebaseConfig||(!runtime.apiUrl&&runtime.staging!==true)))throw Error('Explicit staging Firebase config and HTTPS API URL are required before release');
+ if(runtime.institutePasswordEnabled!==undefined&&typeof runtime.institutePasswordEnabled!=='boolean')throw Error('Password login flag must be boolean');
+ if(runtime.instituteLoginDomain!==undefined&&(!/^[a-z0-9](?:[a-z0-9.-]{1,180})\.[a-z]{2,24}$/.test(runtime.instituteLoginDomain)||runtime.instituteLoginDomain.includes('..')||(!runtime.staging&&/\.(invalid|test)$/.test(runtime.instituteLoginDomain))))throw Error('Institute login domain invalid or untrusted');
  if(runtime.apiUrl){const u=new URL(runtime.apiUrl);if(u.protocol!=='https:'||u.username||u.password||u.hash)throw Error('API URL must be HTTPS without credentials or a fragment');}
  if(runtime.firebaseConfig){
   const cfg=runtime.firebaseConfig,keys=['apiKey','authDomain','projectId','appId','storageBucket','messagingSenderId','measurementId'];
