@@ -5,7 +5,7 @@ const ROOT_ASSETS=['index.html','start.html','style.css','app.js','ai.js','cloud
 function validateRuntime(runtime,{required=false}={}){
  if(!runtime&&required)throw Error('Explicit staging Firebase config and HTTPS API URL are required before release');
  if(!runtime||typeof runtime!=='object'||Array.isArray(runtime))throw Error('Public runtime must be an object');
- if(Object.keys(runtime).some(k=>!['apiUrl','firebaseConfig','staging','institutePasswordEnabled','instituteLoginDomain'].includes(k)))throw Error('Only public API URL, Firebase web config and staging flag are accepted; never supply secrets');
+ if(Object.keys(runtime).some(k=>!['apiUrl','firebaseConfig','staging','institutePasswordEnabled','instituteLoginDomain','quickPinEnabled'].includes(k)))throw Error('Only public API URL, Firebase web config and staging flag are accepted; never supply secrets');
  if(runtime.staging!==undefined&&(runtime.staging!==true||!runtime.firebaseConfig?.projectId?.endsWith('-staging')))throw Error('Staging mode requires an explicitly isolated *-staging project');
  if(required&&(!runtime.firebaseConfig||(!runtime.apiUrl&&runtime.staging!==true)))throw Error('Explicit staging Firebase config and HTTPS API URL are required before release');
  if(runtime.institutePasswordEnabled!==undefined&&typeof runtime.institutePasswordEnabled!=='boolean')throw Error('Password login flag must be boolean');
