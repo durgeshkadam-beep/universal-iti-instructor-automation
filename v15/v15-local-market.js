@@ -185,6 +185,22 @@ V.renderInstructorMarketEditor=async function(){
     const input=el('input');input.id='market-'+key;input.placeholder=placeholder;input.maxLength=key==='sourceUrl'?500:300;
     form.append(input);inputs[key]=input;
   }
+  // Instructor reviews the exact practical -> job connection; students must never infer it from an AI guess.
+  const syllabus=(typeof DATA!=='undefined'&&Array.isArray(DATA.practicals)?DATA.practicals:[])
+    .filter(p=>p&&p.no!=null&&p.title).slice(0,200);
+  const mapping=el('fieldset');mapping.style.cssText='margin:14px 0;padding:12px;border:1px solid #dbe4ed;border-radius:8px';
+  mapping.append(el('legend','Related course practicals (optional, instructor-reviewed)'));
+  addNotice(mapping,'Only select practicals directly relevant to this job source. These links explain possible applications; they do not certify job eligibility.');
+  const practicalChecks=[];
+  const practicalBox=el('div');practicalBox.style.cssText='max-height:180px;overflow-y:auto';mapping.append(practicalBox);
+  syllabus.forEach(p=>{
+    const line=el('label');line.style.cssText='display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer';
+    const input=el('input');input.type='checkbox';input.value='practical-'+String(p.no);
+    input.style.width='auto';line.append(input,el('span','Practical '+p.no+': '+String(p.title)));
+    practicalBox.append(line);practicalChecks.push(input);
+  });
+  if(!practicalChecks.length)addNotice(mapping,'No practical syllabus loaded. You can still save the job source without a practical mapping.');
+  form.append(mapping);
   const lbl=el('label','Expiry date (from original posting)');lbl.htmlFor='market-expiresAt';form.append(lbl);
   const expiry=el('input');expiry.type='date';expiry.id='market-expiresAt';form.append(expiry);
   const save=el('button','Save instructor-reviewed opportunity','btn primary');save.type='button';form.append(save);
@@ -195,6 +211,7 @@ V.renderInstructorMarketEditor=async function(){
     const title=idText(inputs.title.value),employer=idText(inputs.employer.value);
     const city=niceCity(inputs.city.value),skills=uniqueSkills(inputs.skills.value.split(','));
     const sourceUrl=idText(inputs.sourceUrl.value),expiresAt=expiry.value;
+    const practicalIds=[...new Set(practicalChecks.filter(x=>x.checked).map(x=>x.value))].slice(0,30);
     if(!title||title.length>140||!employer||employer.length>140||!city||!skills.length||!allowedURL(sourceUrl)||sourceUrl.length>500||!validDate(expiresAt)||expiresAt<TODAY()){
       status.textContent='Enter a valid title, employer, city, required skills, original HTTPS source and future expiry date.';return;
     }
@@ -202,10 +219,10 @@ V.renderInstructorMarketEditor=async function(){
     save.disabled=true;status.textContent='Saving reviewed source…';
     try{
       const M=this.fb.M,uid=this.fb.user.uid;
-      await M.addDoc(col(),{kind:kind.value,title,employer,city,cityKey:canonical(city),skills,sourceUrl,expiresAt,status:'active',reviewedBy:uid,
+      await M.addDoc(col(),{kind:kind.value,title,employer,city,cityKey:canonical(city),skills,practicalIds,sourceUrl,expiresAt,status:'active',reviewedBy:uid,
         reviewedAt:M.serverTimestamp(),updatedBy:uid,updatedAt:M.serverTimestamp()});
       status.textContent='Saved. This listing is now visible to students in this workspace.';
-      Object.values(inputs).forEach(i=>{i.value='';});expiry.value='';
+      Object.values(inputs).forEach(i=>{i.value='';});expiry.value='';practicalChecks.forEach(x=>{x.checked=false;});
       await refresh();
     }catch(e){status.textContent='Could not save listing: '+(e.message||e);}
     finally{save.disabled=false;}
