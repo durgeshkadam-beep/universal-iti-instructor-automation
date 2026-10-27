@@ -1077,21 +1077,23 @@ const Users = {
 /* ===================== PRINT-READY RECORD FORMATS ===================== */
 const RecordFormats = {
   profile() {
-    const p = (typeof Inspection !== "undefined" && Inspection.load) ? Inspection.load() : {};
+    // V15 records use workspace metadata, never a different account's legacy
+    // browser-wide inspection profile or the bundled DTPO sample identity.
+    const p = !(typeof window!=="undefined" && window.__ITI_V15) && (typeof Inspection !== "undefined" && Inspection.load) ? Inspection.load() : {};
     const m = DATA.meta || {};
     return {
-      name: p.name || m.instructor || "Durgesh Dnyandev Kadam",
-      designation: p.designation || "Craft Instructor, DTP Trade",
-      trade: m.trade || "Desktop Publishing Operator (DTPO)",
-      batch: m.batch || "1st Year DTPO",
-      session: m.session || "2026-27",
-      institute: m.institute || "Bharat Ratna Dr. Babasaheb Ambedkar Government ITI, Mumbai-01"
+      name: m.instructor || p.name || (typeof SESSION!=="undefined" && SESSION?.role==='instructor' ? SESSION.name : '') || "Instructor not configured",
+      designation: m.designation || p.designation || "Craft Instructor",
+      trade: m.trade || "Trade not configured",
+      batch: m.batch || "Batch not configured",
+      session: m.session || "Session not configured",
+      institute: m.institute || p.institute || "Institute not configured"
     };
   },
   esc(v) {
     return String(v ?? "").replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
   },
-  record(type, no) {
+  record(type, no, planOverride) {
     const isDemo = type==="demo" || type==="practical";
     const list = isDemo ? (DATA.practicals||[]) : (DATA.theory||[]);
     const item = list.find(x=>x.no===no) || list.find(x=>String(x.no)===String(no)) || {};
@@ -1102,7 +1104,8 @@ const RecordFormats = {
       ? ((typeof OFFICIAL_DEMO_RECORDS!=="undefined" && OFFICIAL_DEMO_RECORDS[n]) || null)
       : ((typeof OFFICIAL_LESSON_RECORDS!=="undefined" && OFFICIAL_LESSON_RECORDS[n]) || null));
     const p=this.profile();
-    const custom=item.plan || {};
+    // Unsaved AI previews use the same document without changing the stored plan.
+    const custom=planOverride ?? item.plan ?? {};
     const d = official ? JSON.parse(JSON.stringify(official)) : {
       no:n, topic:item.title||"", unit:item.unit||item.module||"", time:isDemo?`${item.hours||7} Hours (Practical Period)`:`${item.hours||1} Hours (Theory Period)`,
       proposed:item.plannedDate||"", conducted:item.doneDate||"", objectives:[], questions:[], steps:[], next:""
@@ -1146,8 +1149,8 @@ const RecordFormats = {
   textSection(title, value){
     return `<div class="doc-section"><h4>${title}</h4><p>${this.esc(value||"—")}</p></div>`;
   },
-  renderDemo(no) {
-    const d=this.record("demo",no);
+  renderDemo(no, planOverride) {
+    const d=this.record("demo",no,planOverride);
     const rows=d.steps.map(r=>`<tr><td>${this.esc(r[0])}</td><td>${this.esc(r[1])}</td><td>${this.esc(r[2])}</td></tr>`).join("") || `<tr><td colspan="3">No procedure rows are stored for this demonstration.</td></tr>`;
     return `<article class="print-doc">${this.head("DEMONSTRATION PLAN",d)}${this.metaRows("demo",d)}
       ${this.bullets("PURPOSE / OBJECTIVE:",d.objectives)}
@@ -1157,8 +1160,8 @@ const RecordFormats = {
       ${this.textSection("NEXT DEMONSTRATION:",d.next)}
       ${this.signatures()}</article>`;
   },
-  renderLesson(no) {
-    const d=this.record("lesson",no);
+  renderLesson(no, planOverride) {
+    const d=this.record("lesson",no,planOverride);
     const rows=d.steps.map(r=>`<tr><td>${this.esc(r[0])}</td><td>${this.esc(r[1])}</td><td>${this.esc(r[2])}</td></tr>`).join("") || `<tr><td colspan="3">No teaching-step rows are stored for this lesson.</td></tr>`;
     return `<article class="print-doc">${this.head("LESSON PLAN",d)}${this.metaRows("lesson",d)}
       ${this.bullets("PURPOSE / OBJECTIVE:",d.objectives)}
@@ -1169,7 +1172,7 @@ const RecordFormats = {
       ${this.textSection("SUMMARY:",d.summary)}${this.textSection("ASSIGNMENT:",d.assignment)}${this.textSection("NEXT LESSON:",d.next)}
       ${this.signatures()}</article>`;
   },
-  render(type,no){ return (type==="demo"||type==="practical") ? this.renderDemo(no) : this.renderLesson(no); },
+  render(type,no,planOverride){ return (type==="demo"||type==="practical") ? this.renderDemo(no,planOverride) : this.renderLesson(no,planOverride); },
   signatures() {
     return `<div class="doc-signatures"><div>INSTRUCTOR<br><span>(Signature & Date)</span></div><div>GROUP INSTRUCTOR<br><span>(Signature & Date)</span></div><div>VICE-PRINCIPAL / PRINCIPAL<br><span>(Signature & Date)</span></div></div>
       <div class="doc-footer-credit">Universal ITI Instructor Automation • Designed & Developed by Durgesh Kadam</div>`;

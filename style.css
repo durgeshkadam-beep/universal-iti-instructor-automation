@@ -369,6 +369,22 @@ body.role-principal .tabs{justify-content:flex-start}
 .plan-preview-toolbar{display:flex;gap:8px;justify-content:flex-end;position:sticky;top:-18px;z-index:3;background:#fff;padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:12px}
 .plan-document-wrap{background:#e9edf2;padding:18px;border-radius:10px;overflow:auto}
 .plan-document-wrap .print-doc{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.12);padding:10mm;min-height:277mm}
+/* Teaching prompts and JSON editors must use the available modal width. */
+#aiModal .field{min-width:0;width:100%}
+#aiModal textarea{display:block;box-sizing:border-box;width:100%;max-width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-family:monospace;line-height:1.5;resize:vertical}
+#aiPreviewBox{min-width:0;max-width:100%}
+#aiModal .field-row{flex-wrap:wrap}
+#aiModal .ai-plan-preview{max-width:100%;margin-top:12px;color:#111}
+#aiModal .ai-plan-preview .print-doc{font-size:12px}
+#aiModal .ai-plan-preview table{font-size:inherit;line-height:1.4}
+@media(max-width:700px){
+  #aiModal .ai-plan-preview .print-doc{min-width:0;padding:12px}
+  #aiModal .ai-plan-preview .doc-meta tr{display:grid;grid-template-columns:1fr 1fr}
+  #aiModal .ai-plan-preview .doc-meta th,#aiModal .ai-plan-preview .doc-meta td{width:auto;overflow-wrap:anywhere}
+  #aiModal .ai-plan-preview .doc-table{table-layout:fixed}
+  #aiModal .ai-plan-preview .doc-table th,#aiModal .ai-plan-preview .doc-table td{overflow-wrap:anywhere}
+  #aiModal .ai-plan-preview .doc-signatures{gap:6px;font-size:9px}
+}
 .plan-materials{margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
 #planModal textarea{width:100%;padding:9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:.9em}
 @media(max-width:700px){.plan-modal-card{max-width:calc(100vw - 10px)!important;max-height:96vh;padding:10px!important}.plan-document-wrap{padding:4px}.plan-document-wrap .print-doc{padding:5mm;min-width:720px}.plan-preview-toolbar{top:-10px;justify-content:flex-start;flex-wrap:wrap}}
