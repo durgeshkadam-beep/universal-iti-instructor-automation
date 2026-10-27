@@ -92,7 +92,7 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
      response=await fetchImpl(new URL('/api/chat',config.ollamaUrl),{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(45000),body:JSON.stringify({model:config.model,stream:false,messages:[{role:'system',content:system},{role:'user',content:body.input}]})});
     }else if(config.provider==='gemini'){
      requireValue(config.apiKey&&config.model,'Server AI provider is not configured',503);
-     response=await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':config.apiKey},signal:AbortSignal.timeout(45000),body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:body.input}]}],generationConfig:{maxOutputTokens:body.task==='teaching'?4096:2000,...(body.task==='teaching'?{responseMimeType:'application/json',responseJsonSchema:providerSchema(teachingType)}:{})}})});
+     response=await require('./gemini-request').requestGemini(config,system,body.input,body.task==='teaching'?teachingType:null,fetchImpl);
     }else throw new ApiError(503,'Unsupported AI provider');
     if(!response.ok){const {providerError}=require('./ai-provider-error');throw new ApiError(503,await providerError(response));}
     const out=await response.json(),answer=config.provider==='ollama'?out.message?.content:out.candidates?.[0]?.content?.parts?.filter(x=>x.thought!==true).map(x=>x.text||'').join('');

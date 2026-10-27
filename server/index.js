@@ -17,6 +17,6 @@ if(require.main===module){
  const host=process.env.HOST||'127.0.0.1',port=Number(process.env.PORT)||8787;
  const server=http.createServer(handle);
  server.headersTimeout=10000;server.requestTimeout=15000;
- server.listen(port,host,()=>console.log('ITI API ready. Use HTTPS at the hosting proxy.'));
+ server.listen(port,host,()=>{console.log('ITI API ready. Use HTTPS at the hosting proxy.');require('./staging-ai-probe').runStagingProbe(config).catch(()=>console.log('STAGING_AI_PROBE FAIL: diagnostic unavailable'));});
 }
 module.exports={handle};
