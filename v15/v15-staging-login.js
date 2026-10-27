@@ -37,7 +37,7 @@ V.showRoleLogin=function(){
    const approved=document.getElementById('v15ExpectedEmail');if(approved)approved.value=email;
    await V.login({interactive:false});
    if(!V.ready||V.fb?.user?.uid!==auth.currentUser?.uid){await M.signOut(auth).catch(()=>{});throw Error('Selected role not approved');}
-  }catch(error){V.loginMsg('Staging sign-in failed. Check the supplied account credentials and selected role.',true);}
+  }catch(error){try{localStorage.removeItem('iti-v15-password-session');}catch(err){}V.loginMsg('Staging sign-in failed. Check the supplied account credentials and selected role.',true);}
   finally{button.disabled=false;}
  };
 };
