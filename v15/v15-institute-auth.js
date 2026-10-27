@@ -22,6 +22,28 @@ V.instituteIdentifierToEmail=function(identifier){
   if(!/^[a-z0-9][a-z0-9._-]{2,39}$/.test(id)||!domain())return null;
   return id+'@'+domain();
 };
+// Reset only an explicit, deliverable email address. Never infer that an Institute ID
+// alias owns a real inbox and never reveal whether the email is registered.
+V.requestInstitutePasswordReset=async function(address){
+  if(!enabled)throw Error('Password recovery is not enabled for this deployment.');
+  const email=String(address||'').trim().toLowerCase();
+  if(email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+     ||/\.(?:test|invalid|example)$/.test(email.split('@')[1]||''))
+    throw Error('Enter the full email address of an inbox you control. For Institute-ID-only accounts, contact your institute administrator.');
+  const generic='If this email has a password-enabled account and can receive mail, reset instructions will arrive. Otherwise, contact your institute administrator.';
+  try{
+    const M=await this.modules(),cfg=this.config();
+    let app=M.getApps().find(x=>x.name==='iti-v15');
+    if(!app)app=M.initializeApp(cfg,'iti-v15');
+    await M.sendPasswordResetEmail(M.getAuth(app),email);
+    return generic;
+  }catch(e){
+    if(['auth/network-request-failed','auth/too-many-requests','auth/quota-exceeded'].includes(e?.code))
+      throw Error('Password recovery is temporarily unavailable. Retry later or contact your institute administrator.');
+    // Do not leak account existence or Firebase Auth email enumeration hints.
+    return generic;
+  }
+};
 V.institutePasswordLogin=async function(identifier,password,role){
   if(!enabled)throw Error('Institute Password Login is not enabled for this deployment.');
   if(inProgress)return false;
@@ -79,6 +101,21 @@ V.showRoleLogin=function(){
   submit.textContent='Sign in securely';form.append(submit);
   const feedback=document.createElement('p');feedback.id='v15InstituteAuthStatus';feedback.setAttribute('role','status');
   feedback.className='muted';form.append(feedback);
+  const recover=document.createElement('button');recover.type='button';
+  recover.id='v15InstitutePasswordRecovery';recover.className='btn';
+  recover.textContent='Forgot password?';
+  form.append(recover);
+  recover.addEventListener('click',async()=>{
+    const address=id.value.trim(),value=email=>String(email||'').toLowerCase();
+    if(!address.includes('@')){
+      feedback.textContent='For an Institute ID without a working personal email inbox, ask the institute administrator to reset your account. Do not enter an unknown email.';
+      return;
+    }
+    recover.disabled=true;
+    try{feedback.textContent=await V.requestInstitutePasswordReset(value(address));}
+    catch(e){feedback.textContent=e.message;}
+    finally{recover.disabled=false;}
+  });
   const note=document.createElement('small');
   note.textContent='Accounts must be issued by your institute. A PIN cannot replace password sign-in. The selected role is verified on the server.';
   form.append(note);
