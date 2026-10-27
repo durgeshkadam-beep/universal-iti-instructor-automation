@@ -15,7 +15,14 @@ function expectedEmail(){return email(localStorage.getItem(K.email)||document.ge
 function setMsg(t,err=false){V.loginMsg?.(t,err);}
 function clearRedirect(){try{localStorage.removeItem(K.redirect);}catch(e){}}
 async function authReady(M,auth){if(typeof auth.authStateReady==='function'){try{await auth.authStateReady();return;}catch(e){}}await new Promise(resolve=>{let done=false,un=null;try{un=M.onAuthStateChanged(auth,()=>{if(done)return;done=true;try{un?.();}catch(e){}resolve();});}catch(e){resolve();return;}setTimeout(()=>{if(done)return;done=true;try{un?.();}catch(e){}resolve();},850);});}
-V.instituteInfo=async function(){const z=await this.startupRead(this.inst());return z.exists()?z.data():null;};
+V.instituteInfo=async function(){
+  const uid=this.fb?.user?.uid,instituteId=this.INSTITUTE_ID,projectId=this.fb?.app?.options?.projectId;
+  const z=await this.startupRead(this.inst()),info=z.exists()?z.data():null;
+  // Retain only display metadata from the already-authorised institute read.
+  // A late response must never replace another account/institute's header.
+  if(uid&&uid===this.fb?.user?.uid&&instituteId===this.INSTITUTE_ID&&projectId===this.fb?.app?.options?.projectId)this.instituteIdentity={uid,instituteId,projectId,name:typeof info?.name==='string'?info.name.trim().slice(0,300):''};
+  return info;
+};
 
 V.showRoleLogin=function(){
   const r=document.getElementById('loginRole'),rf=r?.closest('.field');if(r){const keep=selectedRole()||'instructor';r.innerHTML='<option value="admin">System Admin</option><option value="principal">Principal</option><option value="instructor">Instructor</option><option value="staff">Staff</option><option value="student">Student / Trainee</option>';r.value=LABEL[keep]?keep:'instructor';}if(rf){rf.style.display='';const l=rf.querySelector('label');if(l)l.textContent='Login as';}

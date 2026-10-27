@@ -1081,13 +1081,16 @@ const RecordFormats = {
     // browser-wide inspection profile or the bundled DTPO sample identity.
     const p = !(typeof window!=="undefined" && window.__ITI_V15) && (typeof Inspection !== "undefined" && Inspection.load) ? Inspection.load() : {};
     const m = DATA.meta || {};
+    const v=typeof window!=="undefined"&&window.__ITI_V15?window.V15Sync:null,identity=v?.instituteIdentity;
+    const institute=typeof m.institute==='string'?m.institute.trim():'';
+    const rootInstitute=identity&&identity.uid===v.fb?.user?.uid&&identity.instituteId===v.INSTITUTE_ID&&identity.projectId===v.fb?.app?.options?.projectId?identity.name:'';
     return {
       name: m.instructor || p.name || (typeof SESSION!=="undefined" && SESSION?.role==='instructor' ? SESSION.name : '') || "Instructor not configured",
       designation: m.designation || p.designation || "Craft Instructor",
       trade: m.trade || "Trade not configured",
       batch: m.batch || "Batch not configured",
       session: m.session || "Session not configured",
-      institute: m.institute || p.institute || "Institute not configured"
+      institute: institute || rootInstitute || p.institute || "Institute not configured"
     };
   },
   esc(v) {

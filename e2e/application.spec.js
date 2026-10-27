@@ -404,20 +404,20 @@ test('AI demonstration previews the complete document before approval on desktop
  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));
  const details=await page.evaluate(()=>{
   InstructorAI.getKey=()=>false; // Fixed synthetic draft; no external provider or quota use.
-  DATA.meta={...DATA.meta,institute:'Synthetic Preview ITI',instructor:'Synthetic Preview Instructor'};
+  DATA.meta={...DATA.meta,institute:'',instructor:'Synthetic Preview Instructor'};
   const item=DATA.practicals[0];InstructorAI.openPlanDraft('practical',item.no);
   return {no:item.no,title:item.title,before:JSON.stringify(DATA)};
  });
  const draft={objective:['Check a synthetic training layout'],tools:['Synthetic training diagram'],steps:[{procedure:'Inspect the synthetic layout before proceeding.',keyPoint:'Check the isolated training setup.',spotHint:'Point to the labelled training diagram.'}],questions:['What did you check first?'],nextDemo:'Synthetic follow-up layout'};
  await page.locator('#aiResultText').fill(JSON.stringify(draft));await page.getByRole('button',{name:'Preview Result',exact:true}).click();
  const preview=page.locator('#aiPreviewBox');
- for(const text of ['DEMONSTRATION PLAN','Synthetic Preview ITI','Synthetic Preview Instructor',details.title,...draft.objective,...draft.tools,...Object.values(draft.steps[0]),...draft.questions,draft.nextDemo,'GROUP INSTRUCTOR'])await expect(preview).toContainText(text);
+ for(const text of ['DEMONSTRATION PLAN','Synthetic ITI','Synthetic Preview Instructor',details.title,...draft.objective,...draft.tools,...Object.values(draft.steps[0]),...draft.questions,draft.nextDemo,'GROUP INSTRUCTOR'])await expect(preview).toContainText(text);
  expect(await page.evaluate(()=>JSON.stringify(DATA))).toBe(details.before);
  expect(await page.locator('#aiResultText').evaluate(el=>el.getBoundingClientRect().width>=el.parentElement.getBoundingClientRect().width-2)).toBeTruthy();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
  await preview.screenshot({path:'.tmp/full-ai-plan-'+test.info().project.name+'.png'});
  page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Approve & Keep'}).click();
  await expect(page.locator('#aiModal')).toBeHidden();await expect(page.locator('#planModal .plan-document-wrap')).toContainText(draft.steps[0].procedure);
- await expect(page.locator('#planModal .plan-document-wrap')).toContainText('Synthetic Preview ITI');
+ await expect(page.locator('#planModal .plan-document-wrap')).toContainText('Synthetic ITI');
  expect(await page.evaluate(no=>DATA.practicals.find(x=>String(x.no)===String(no)).planMeta.status,details.no)).toBe('approved');
 });
