@@ -9,6 +9,7 @@ const delay=()=>new Promise(done=>setTimeout(done,30));
     url:'https://example.test/final/',runScripts:'outside-only',pretendToBeVisual:true
   });
   const w=dom.window;w.alert=()=>{};w.confirm=()=>true;
+  w.DATA={practicals:[{no:1,title:'Print layout'},{no:2,title:'Typesetting'}]};
   let currentRole='student',seq=2;
   const records=[
     {id:'j1',title:'DTP Junior',employer:'Sample Press',city:'Mumbai',cityKey:'mumbai',skills:['photoshop','coreldraw'],sourceUrl:'https://example.org/j1',expiresAt:'2026-12-30',status:'active'},
@@ -59,9 +60,13 @@ const delay=()=>new Promise(done=>setTimeout(done,30));
   get('city').value='Ratnagiri';get('skills').value='CorelDRAW, Photoshop';
   get('sourceUrl').value='https://example.org/jobs/new';
   get('expiresAt').value='2026-12-25';
+  const mapPractical=w.document.querySelector('#tab-market-editor input[type="checkbox"][value="practical-1"]');
+  assert.ok(mapPractical,'instructor can connect real syllabus practicals to reviewed postings');
+  mapPractical.checked=true;
   w.document.querySelector('#tab-market-editor button').click();await delay();
   assert.equal(records.length,3,'instructor can create reviewed source without an AI key');
   const added=records[2];assert.equal(added.reviewedBy,'i1');assert.equal(added.status,'active');
+  assert.deepEqual(added.practicalIds,['practical-1'],'reviewed source persists chosen practical mapping');
   const withdraw=[...w.document.querySelectorAll('#tab-market-editor button')].find(b=>b.textContent==='Withdraw listing');
   assert.ok(withdraw,'instructor can withdraw incorrect postings');
   withdraw.click();await delay();
