@@ -98,6 +98,30 @@ const {doc,setDoc,updateDoc,getDoc,getDocs,collection,query,where,serverTimestam
     await assertSucceeds(getDoc(record));
     console.log('PASS Local Market rules: assigned students active-read, instructors reviewed-write, withdrawal secured.');
 
+    // A reviewed explanation of WHERE a practical is used is not a live vacancy.
+    const industryPath=base+'/workspaces/ws1/skillApplications/practical-1';
+    const industry=doc(ins,industryPath);
+    const note={
+      practicalId:'practical-1',skillTitle:'Layout design',
+      industry:'Printing and packaging',
+      applicationText:'A cited explanation of practical layout work in printing.',
+      sourceUrl:'https://example.org/skill-use-case',
+      reviewedBy:'instructor-1',reviewedAt:serverTimestamp()
+    };
+    await assertSucceeds(setDoc(industry,note));
+    await assertSucceeds(getDoc(doc(student,industryPath)));
+    await assertSucceeds(getDoc(doc(otherStudent,industryPath)));
+    await assertFails(setDoc(doc(student,industryPath),{...note,reviewedBy:'student-a'}));
+    await assertFails(setDoc(doc(outside,industryPath),{...note,reviewedBy:'instructor-2'}));
+    await assertFails(setDoc(doc(ins,base+'/workspaces/ws1/skillApplications/practical-2'),{
+      ...note,practicalId:'practical-1'
+    }));
+    await assertFails(setDoc(doc(ins,base+'/workspaces/ws1/skillApplications/practical-3'),{
+      ...note,practicalId:'practical-3',sourceUrl:'http://unsafe.example'
+    }));
+    console.log('PASS Skill Applications: only assigned instructor review, source link required, student read only.');
+
+
   }finally{
     await env.cleanup();
   }
