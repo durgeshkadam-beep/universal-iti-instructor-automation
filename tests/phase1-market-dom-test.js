@@ -66,7 +66,7 @@ const delay=()=>new Promise(done=>setTimeout(done,30));
   w.document.querySelector('#tab-market-editor button').click();await delay();
   assert.equal(records.length,3,'instructor can create reviewed source without an AI key');
   const added=records[2];assert.equal(added.reviewedBy,'i1');assert.equal(added.status,'active');
-  assert.deepEqual(added.practicalIds,['practical-1'],'reviewed source persists chosen practical mapping');
+  assert.deepEqual(Array.from(added.practicalIds),['practical-1'],'reviewed source persists chosen practical mapping');
   const withdraw=[...w.document.querySelectorAll('#tab-market-editor button')].find(b=>b.textContent==='Withdraw listing');
   assert.ok(withdraw,'instructor can withdraw incorrect postings');
   withdraw.click();await delay();
