@@ -31,6 +31,9 @@ async function test(){
   assert.equal(await V.quickPinSet(weak),false,'reject ascending/descending sequence '+weak);
  }
  assert.equal(await V.quickPinSet('1234'),false,'reject 4 digit PINs');
+ for(const weak of ['121212','123123','909090','456456']){
+  assert.equal(await V.quickPinSet(weak),false,'reject repeated short PIN motif '+weak);
+ }
  assert.equal(await V.quickPinSet('529174'),true,'allow explicitly set nontrivial six digit PIN');
  const key='iti-v15-local-quick-pin-v1:isolated-staging:teacher-a';
  const saved=w.localStorage.getItem(key);
