@@ -191,6 +191,7 @@ async function renderStudent(name){
   if(name==='skills')return V.renderSkillPassport?.();
   if(name==='skill-gap')return V.renderStudentSkillGap?.();
   if(name==='local-market')return V.renderStudentLocalMarket?.();
+  if(name==='career-lens')return V.renderSkillCareerLens?.();
   if(name==='dashboard')V.renderStudentDashboard?.();
   else renderLegacyInstructor(name);
   if(name==='notices')await V.injectInstituteNotices?.();
