@@ -32,6 +32,7 @@ V.showRoleLogin=function(){
    const auth=M.getAuth(app);await M.setPersistence(auth,M.browserSessionPersistence);
    await M.signInWithEmailAndPassword(auth,email,password);
    document.getElementById('stagingPassword').value='';
+   localStorage.setItem('iti-v15-password-session','1');
    localStorage.setItem('iti-v15-role-v2',role);localStorage.setItem('iti-v15-email-v2',email);
    const approved=document.getElementById('v15ExpectedEmail');if(approved)approved.value=email;
    await V.login({interactive:false});
