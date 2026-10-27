@@ -56,3 +56,15 @@ assert.match(verifyModule,/runTransaction/,'skill verification update is transac
 assert.match(loader,/v15\/v15-skill-verification\.js/,'new skill verification module loaded');
 assert.match(controller,/\['skill-review','✅ Verify Skills'\]/,'instructor skill verification navigation registered');
 console.log('PASS Firebase verified skills static access invariants.');
+
+
+const roleApplicationRules=rules.match(/match \/skillApplications\/\{practicalId\} \{([\s\S]*?)\n\s*\}/)?.[1]||'';
+assert.equal((rules.match(/match \/skillApplications\/\{practicalId\}/g)||[]).length,1,'exactly one sourced skill-application ruleset');
+assert.ok(rules.includes("practicalId.matches('^practical-[A-Za-z0-9_.-]{1,40}$')"),'practical key validation must remain syntactically complete');
+assert.ok(rules.split('\n').length<460,'unexpected Firestore rules growth suggests truncated expression/duplicate appendix');
+assert.match(roleApplicationRules,/request\.resource\.data\.reviewedBy == request\.auth\.uid/,'instructor must be attributed');
+assert.match(roleApplicationRules,/request\.resource\.data\.sourceUrl\.matches/,'workplace examples must contain HTTPS source');
+assert.match(rules,/section != 'skillApplications'/,'generic workspace writes cannot bypass sourced example restrictions');
+assert.match(loader,/v15\/v15-career-lens\.js/,'career lens loaded');
+assert.match(loader,/v15\/v15-pilot-evidence\.js/,'pilot evidence loaded');
+console.log('PASS EduSkill sourced skill application integrity and navigation contract.');
