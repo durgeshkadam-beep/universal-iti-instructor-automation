@@ -9,6 +9,7 @@ if(!V)return;
 
 const K={role:'iti-v15-role-v2',email:'iti-v15-email-v2',redirect:'iti-v15-redirect-v2'};
 let authorityPromise=null;
+function passwordSession(){try{return localStorage.getItem('iti-v15-password-session')==='1';}catch(e){return false;}}
 
 function expectedEmail(){return V.email(localStorage.getItem(K.email)||document.getElementById('v15ExpectedEmail')?.value||'');}
 function clearRedirect(){try{localStorage.removeItem(K.redirect);}catch(e){}}
