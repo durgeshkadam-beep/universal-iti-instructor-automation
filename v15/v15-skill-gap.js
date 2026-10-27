@@ -6,6 +6,7 @@
 'use strict';
 if(!V)return;
 const PREFIX='iti-v15-career-plan-v1-';
+let renderGeneration=0;
 const OPTIONS=new Set(['not-started','learning','can-demonstrate']);
 function currentRole(){return V.currentRole?.()||window.SESSION?.role||'';}
 function node(tag,text,cls){
@@ -85,6 +86,7 @@ function renderStats(host,requested,profile,self,topicMap,roleName){
 V.renderStudentSkillGap=async function(){
   const host=document.getElementById('tab-skill-gap');
   if(!host||currentRole()!=='student'||!this.ready)return;
+  const generation=++renderGeneration, institute=V.INSTITUTE_ID;
   host.replaceChildren();
   const h=node('div',null,'hero'),head=node('div',null,'hero-content');
   head.append(node('h2','🎯 Skill Gap & Learning Plan'));
@@ -92,6 +94,7 @@ V.renderStudentSkillGap=async function(){
   h.append(head);host.append(h);
   const id=identity();
   if(!id){host.append(node('div','An activated Student account linked to a trainee and Trade is required.','callout'));return;}
+  const active=()=>generation===renderGeneration&&V.ready&&currentRole()==='student'&&V.INSTITUTE_ID===institute&&identity()?.key===id.key&&host.isConnected;
   const topics=skills();
   if(!topics.length){host.append(node('div','Your instructor has not published practical topics for this Trade.','callout'));return;}
   const stored=read(id.key);
@@ -127,21 +130,22 @@ V.renderStudentSkillGap=async function(){
     if(typeof this.getStudentSkillProfile!=='function')throw Error('Verification service unavailable.');
     profile=await this.getStudentSkillProfile(id.uid,id.wid);
   }catch(e){
-    if(currentRole()==='student'&&identity()?.key===id.key){
+    if(active()){
       resultHost.replaceChildren(node('p','Cannot load verified skills. No percentage is shown because verification data is unavailable. Please retry later.','muted'));
     }
     return;
   }
-  if(currentRole()!=='student'||identity()?.key!==id.key||!host.isConnected)return;
+  if(!active())return;
   const topicMap=new Map(topics.map(t=>[t.id,t.name]));
   const redraw=()=>{
+    if(!active())return;
     const required=boxes.filter(b=>b.checked).map(b=>b.value);
     renderStats(resultHost,required,profile,selfRatings(id.uid,id.wid),topicMap,goal.value.trim().slice(0,80));
   };
   save.addEventListener('click',()=>{
     const requiredIds=boxes.filter(b=>b.checked).map(b=>b.value);
     if(!requiredIds.length){message.textContent='Select at least one practical.';return;}
-    if(currentRole()!=='student'||identity()?.key!==id.key)return;
+    if(!active())return;
     try{
       localStorage.setItem(id.key,JSON.stringify({roleName:goal.value.trim().slice(0,80),requiredIds,updatedAt:new Date().toISOString()}));
       message.textContent='Learning plan saved on this browser. Syncing private cloud copy…';
@@ -149,7 +153,7 @@ V.renderStudentSkillGap=async function(){
       redraw();
     }catch(e){message.textContent='This browser could not save your plan. Check storage permissions.';}
   });
-  reset.addEventListener('click',()=>{boxes.forEach(b=>{b.checked=true;});message.textContent='Full Trade syllabus selected. Click Save to keep this selection.';redraw();});
+  reset.addEventListener('click',()=>{if(!active())return;boxes.forEach(b=>{b.checked=true;});message.textContent='Full Trade syllabus selected. Click Save to keep this selection.';redraw();});
   boxes.forEach(b=>b.addEventListener('change',redraw));
   goal.addEventListener('input',redraw);
   redraw();
