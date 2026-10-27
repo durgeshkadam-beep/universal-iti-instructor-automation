@@ -312,6 +312,27 @@ service cloud.firestore {
           allow delete: if false;
         }
 
+        // Trade syllabus practicals -> instructor-reviewed workplace use cases.
+        // A source-linked use-case is not a job opening or certification.
+        match /skillApplications/{practicalId} {
+          allow get, list: if workspaceAllowed(inst, wid)
+            && (isStaff(inst) || isStudent(inst));
+          allow create, update: if workspaceAllowed(inst, wid) && isInstructor(inst)
+            && practicalId.matches('^practical-[A-Za-z0-9_-]{1,40}$')
+            && request.resource.data.keys().hasOnly(['practicalId','skillTitle','industry','applicationText','sourceUrl','reviewedBy','reviewedAt'])
+            && request.resource.data.keys().hasAll(['practicalId','skillTitle','industry','applicationText','sourceUrl','reviewedBy','reviewedAt'])
+            && request.resource.data.practicalId == practicalId
+            && request.resource.data.skillTitle is string && request.resource.data.skillTitle.size() > 0 && request.resource.data.skillTitle.size() <= 140
+            && request.resource.data.industry is string && request.resource.data.industry.size() > 0 && request.resource.data.industry.size() <= 100
+            && request.resource.data.applicationText is string && request.resource.data.applicationText.size() >= 10 && request.resource.data.applicationText.size() <= 500
+            && request.resource.data.sourceUrl is string
+            && request.resource.data.sourceUrl.size() > 8 && request.resource.data.sourceUrl.size() <= 500
+            && request.resource.data.sourceUrl.matches('^https://[^ ]+$')
+            && request.resource.data.reviewedBy == request.auth.uid
+            && request.resource.data.reviewedAt == request.time;
+          allow delete: if false;
+        }
+
         // Instructor-reviewed source postings; not an exhaustive city business census.
         match /careerOpportunities/{postingId} {
           allow get, list: if workspaceAllowed(inst, wid)
@@ -377,7 +398,8 @@ service cloud.firestore {
             || (isStudent(inst) && section != 'exams' && publicStudentSection(section)));
           allow create, update, delete: if genericSection(section) && workspaceAllowed(inst, wid) && isStaff(inst)
             && section != 'skillVerifications'
-            && section != 'careerOpportunities';
+            && section != 'careerOpportunities'
+            && section != 'skillApplications';
         }
       }
     }
