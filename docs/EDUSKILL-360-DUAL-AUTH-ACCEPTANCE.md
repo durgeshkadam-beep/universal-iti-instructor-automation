@@ -7,7 +7,9 @@ Date: 27 October 2026. Development branch only, PR #16. Not a production credent
 3. An independent **production-capable but OFF-by-default** module (`v15/v15-institute-auth.js`) provides an Institute ID or approved email + password form after `institutePasswordEnabled: true` is explicitly configured. The ID alias resolves to `id@instituteLoginDomain`, where the institute must own the domain and pre-provision the corresponding Firebase Auth account. Raw ID or role selection does not grant access.
 4. For an already approved Google/Firebase account, the optional `Add Password Login` action calls Firebase `linkWithCredential` for the SAME email and UID. It must not create a new unrelated account. A user whose password credential is already linked cannot register it again here. If linking fails, contact the institute—do not merge account databases by hand.
 5. Optional `quickPinEnabled: true` enables a device-local 6-digit Quick PIN **screen overlay**, stored as PBKDF2-SHA256 salted verifier, scoped to Firebase project+UID. It cannot sign in, get a token, restore a logged-out session or authorize Firestore access. After five wrong attempts the application signs out. Shared PCs should Sign Out, not use PIN.
-6. Passwords are only passed to Firebase Auth; no PIN or password is written to Firestore or the repository. Passwords are not copied to localStorage.
+6. Password-authenticated sessions use Firebase browser **session** persistence, while normal Google login keeps its existing persistence. The mode flag clears after failed authentication, Google login selection and logout.
+
+Passwords are only passed to Firebase Auth; no PIN or password is written to Firestore or the repository. Passwords are not copied to localStorage.
 7. All core ITI workflows and the five-role permissions are unchanged. UID identity remains the anchor for Skill Passport, attendance, marks and learning plans.
 
 ## Important limitation: Institute ID is an alias, not a stand-alone authentication service
