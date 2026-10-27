@@ -47,7 +47,8 @@ V.renderSkillCareerLens=async function(){
   body.append(make('h2','🔎 Skill-to-Career Lens'));
   body.append(make('p','Learn a practical → get instructor verification → discover source-linked career examples → choose your next learning action.'));
   hero.append(body);host.append(hero);
-  host.append(make('p','Examples below come ONLY from instructor-reviewed job/apprenticeship sources linked to your practical. Not a city-wide company count, occupational standard, placement assurance or AI prediction.','callout'));
+  host.append(make('p','Workplace applications are entered by instructors with a source link. Current job examples must also be explicitly mapped by an instructor. Neither is a certification, city-wide company count, placement assurance or AI prediction.','callout'));
+
   const identity=state();
   if(!identity){host.append(make('p','An approved Student account linked to a trainee and workspace is required.','muted'));return;}
   const topics=syllabus();
@@ -82,9 +83,11 @@ V.renderSkillCareerLens=async function(){
         M.collection(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',this.workspaceId,'careerOpportunities'),
         M.where('status','==','active')
       );
-      const [profile,snapshot]=await Promise.all([
+      const applicationRef=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',this.workspaceId,'skillApplications',pid);
+      const [profile,snapshot,applicationSnap]=await Promise.all([
         this.getStudentSkillProfile(this.fb.user.uid,this.workspaceId),
-        M.getDocs(recordsQuery)
+        M.getDocs(recordsQuery),
+        M.getDoc(applicationRef)
       ]);
       if(state()!==identity||serial!==sequence||!host.isConnected)return;
       const records=[];
@@ -97,7 +100,21 @@ V.renderSkillCareerLens=async function(){
       results.append(make('p',verified
         ?'Next step: review relevant workplace examples below and discuss advanced practice with your instructor.'
         :'Next step: practise this skill and request direct assessment from your instructor. Self-rating alone does not verify competence.','muted'));
-      results.append(make('h4','4. Reviewed career/apprenticeship examples'));
+      results.append(make('h4','4. Where this skill is used'));
+      const app=applicationSnap.exists()?applicationSnap.data():null;
+      if(app&&app.practicalId===pid&&typeof app.applicationText==='string'
+         &&typeof app.industry==='string'&&typeof this.marketIsValidSourceUrl==='function'
+         &&this.marketIsValidSourceUrl(app.sourceUrl)){
+        const card=make('div',null,'field-row');card.style.cssText='padding:10px 0;border-bottom:1px solid #dce4ed';
+        card.append(make('strong','Industry / workplace: '+app.industry));
+        card.append(make('p',app.applicationText,'muted'));
+        card.append(make('p','Instructor-reviewed educational example. This is not a vacancy or proof of current hiring.','muted'));
+        const link=make('a','Read original supporting source ↗');link.href=app.sourceUrl;
+        link.rel='noopener noreferrer';link.target='_blank';card.append(link);results.append(card);
+      }else{
+        results.append(make('p','No instructor-reviewed workplace application has been published for this practical. Ask your instructor for a real, sourced example.','muted'));
+      }
+      results.append(make('h4','5. Reviewed current job/apprenticeship examples'));
       if(!found.sourceCount){
         results.append(make('p','No instructor-mapped, current source is recorded for this practical'+(chosenCity?' in '+chosenCity:'')+'. This does NOT mean the skill has no industry value. Ask your instructor for a real example and original source link.','muted'));
       }else{
