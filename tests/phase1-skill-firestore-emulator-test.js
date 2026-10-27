@@ -69,7 +69,7 @@ const {doc,setDoc,updateDoc,getDoc,getDocs,collection,query,where,serverTimestam
     const record=doc(ins,base+'/'+market+'/entry-1');
     const validated={
       title:'Junior DTP Operator',employer:'Sample Press',city:'Mumbai',cityKey:'mumbai',
-      skills:['coreldraw','photoshop'],sourceUrl:'https://example.org/jobs/1',
+      skills:['coreldraw','photoshop'],practicalIds:['practical-1'],sourceUrl:'https://example.org/jobs/1',
       expiresAt:'2026-12-30',status:'active',
       reviewedBy:'instructor-1',reviewedAt:serverTimestamp(),
       updatedBy:'instructor-1',updatedAt:serverTimestamp()
@@ -86,7 +86,13 @@ const {doc,setDoc,updateDoc,getDoc,getDocs,collection,query,where,serverTimestam
     await assertFails(setDoc(doc(ins,base+'/'+market+'/bad-url'),{
       ...validated,sourceUrl:'http://unsafe.example'
     }));
-    await assertFails(updateDoc(record,{title:'Altered after approval',updatedAt:serverTimestamp(),updatedBy:'instructor-1'}));
+    await assertFails(setDoc(doc(ins,base+'/'+market+'/too-many-practicals'),{
+      ...validated,practicalIds:Array.from({length:31},(_,i)=>'practical-'+i)
+    }));
+    await assertFails(setDoc(doc(student,base+'/'+market+'/forged-mapping'),{
+      ...validated,reviewedBy:'student-a',updatedBy:'student-a',practicalIds:['practical-2']
+    }));
+        await assertFails(updateDoc(record,{title:'Altered after approval',updatedAt:serverTimestamp(),updatedBy:'instructor-1'}));
     await assertSucceeds(updateDoc(record,{status:'withdrawn',updatedAt:serverTimestamp(),updatedBy:'instructor-1'}));
     await assertFails(getDoc(doc(student,base+'/'+market+'/entry-1')));
     await assertSucceeds(getDoc(record));
