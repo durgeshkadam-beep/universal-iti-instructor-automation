@@ -1,29 +1,51 @@
 # Prototype acceptance status — 27 October 2026
 
-## Verified source and evidence
+## Current verified application source
 
-Source `8005c3455fadfa4306098e7f5370d8fe8c41c869` passed [CI 40490452467](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/actions/runs/40490452467): 147 native tests, regression scripts, all three actual Auth/Firestore/backend Emulator suites, 48 desktop/mobile browser cases (2.7 minutes), public build, container smoke and production/development-inclusive audits. All steps succeeded. These are automated local-Emulator acceptance results, not hosted Google/MFA/provider acceptance.
+Application source `0f01524c246e4b1c1676c29567c6fd15cf374c5f` passed [CI 40530975943](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/actions/runs/40530975943): **194 native tests**, the additional regression scripts, all three Auth/Firestore/backend Emulator suites, **54 desktop/mobile browser cases**, public build, container smoke, and production/development-inclusive dependency audits. Every required step succeeded. These are synthetic automated acceptance results; they do not certify production readiness or every hosted user journey.
+
+Work remains on branch `phase1/security-student-career-20261021` in draft [PR #16](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/pull/16). No main merge or production deployment is certified. Later documentation-only commits do not change the application source identified above.
+
+## Deployment and live evidence
+
+| Component | Verified state | Evidence boundary |
+|---|---|---|
+| Firebase staging website | https://universal-iti-dk-staging.web.app/v15/ | Fresh public `ai.js`, `app.js` and `style.css` matched the complete-plan-preview source `96869ea9754c1e5b22ed37d9d9f18aff20d956fb` during 27 October verification. Subsequent application changes were backend-only. This does not prove an already-open browser tab has reloaded those files. |
+| Render staging API | `universal-iti-staging-api`, Free service; application source `0f01524...` live | Cleanup deployment `dep-dbgc6v6c6qcc73evv0gg` is live. Its post-deploy health check returned HTTP 200. A health check is not a model-generation or authenticated-save test. |
+| Gemini teaching generation | Server-configured `gemini-3.5-flash-lite`; key remains on the backend | Fixed synthetic theory and practical probes both returned HTTP 200 and passed strict teaching JSON validation at 15:29 UTC / 20:59 IST on 27 October. The temporary startup probe was then disabled. No student records or user prompts were used. |
+| Instructor's own browser | Synthetic skill verification/save/reload and a generated multimeter draft were visible in owner-supplied screenshots | The latest screenshot still displayed the old count-only preview. Final full-document review/save/reopen/PDF acceptance on the intended device remains pending. |
+
+The earlier `gemini-3.1-flash-lite` model returned an explicit high-demand HTTP 503 during a fixed synthetic test. Changing models within the confirmed free-tier setup produced the successful probes above; this is no uptime guarantee. One explicit provider 503 is retried once after two seconds, within the original 45-second total request deadline. Quota/access errors and ambiguous network failures are not automatically repeated. A recovered request consumes one application allowance.
+
+The app currently permits **50 AI attempts per authenticated UID per UTC day**, including failed requests. It resets at 00:00 UTC / 05:30 IST. The operator's AI Studio screenshot showed 500 requests/day, 15 requests/minute and 250,000 input tokens/minute for the selected model. Those provider limits are shared across the project and can change; the app's per-user cap does not enlarge them. No paid billing or compute upgrade was enabled in this work.
+
+## Acceptance by role
 
 | Area | Automated acceptance | Remaining hosted acceptance |
 |---|---|---|
-| System Admin | Authenticated role, every exposed route, mobile containment; other roles cannot open Admin console | Approved real owner session and external admin integrations |
-| Principal | Authenticated role/routes/mobile; attendance reopen in cross-month leave transaction | Intended-device Google session and institute procedures |
-| Instructor | Role/routes/mobile; verification, syllabus/plans/materials, reports, leave review, secure MCQ authoring, queue and backup flows | Owner supplied synthetic verification/save and subsequent loaded-row screenshots; other hosted paths need current-release checks |
-| Staff | Authenticated role/routes/mobile; backend/rules restrictions | Separate authorised staging Staff session |
-| Student | Own skill record from Instructor, private plan save, multilingual keyless guidance, server MCQ grading, private collection denial, role/routes/mobile | Fresh authorised Student session on the deployed storage-isolation release |
+| System Admin | Authenticated role/routes/mobile; other roles denied technical Admin console | Existing authorised owner session and intended administrative integrations on the current release |
+| Principal | Authenticated role/routes/mobile; cross-month leave/attendance reopening boundaries | Independent intended-device login, institute approval procedures and current-release review |
+| Instructor | Skill verification; reviewed plans/materials; reports; leave review; secure MCQ authoring; queue and training backup flows | Full plan header/content, save/reopen and PDF on the intended device; physical printing and external integrations |
+| Staff | Authenticated role/routes/mobile; backend/rules restrictions | Existing authorised synthetic Staff identity on the current hosted release |
+| Student | Instructor-verified skills; self-rating separation; private plan save/fresh-browser cloud hydration; Marathi/Hindi/English guided assistance; protected MCQ grading; private-data denials | Fresh authorised synthetic Student session on the deployed storage-isolation release, including Passport → Skill Gap → Learning Plan save/reload |
 
-A new browser scenario additionally checks self-rating plus a selected subset of practicals and a unique career goal surviving a completely fresh browser context through authenticated cloud hydration. It plants an ambiguous legacy pending draft and checks that it remains untouched and cannot overwrite the current institute cloud plan. The scenario is not counted as passing until its full CI run succeeds.
+Earlier hosted five-role and MCQ checks are recorded in [STAGING-TEST-GUIDE.md](STAGING-TEST-GUIDE.md). They are historical evidence, not a substitute for acceptance of the current release.
 
-## Hosting status
+## Completed and verified
 
-The owner deployed context-safety source `0d6d2d1c159776c9f80f1b82d7a8a98f87e5eb64` to `universal-iti-dk-staging`; four fresh hosted modules matched that source. The storage-isolation update `8005c3455fadfa4306098e7f5370d8fe8c41c869` is approved for staging Hosting only and its CI passed. A release must be verified by fresh public asset hashes. There is no authorised Firebase CLI account in the current Work executor. A Google session in an unrelated Cloud Shell does not authenticate this executor. No main merge, production rules release or production deployment is certified.
+- Browser Student storage is scoped by project, institute, UID, workspace and trainee. Ambiguous legacy drafts are retained without automatic import/upload. Fresh-browser cloud restoration and stale-account/workspace responses are covered by tests.
+- Unsaved AI lesson/demonstration drafts use the existing complete document template: institute, instructor, trade, batch/session, unit, topic, schedule, objectives, materials/tools, procedure/information, safety/key points, spot hints, questions and signatures. Preview does not write records. Save/Approve is explicit; stale identity/workspace/topic drafts cannot be saved.
+- The bundled 58 DTPO lesson and 119 demonstration records were inspected as format references. Their trade-specific content is not reused for unrelated trades. Current V15 headers use workspace metadata; missing fields are identified rather than filled with another account's legacy profile.
+- The provider request asks for usable demonstration procedures and four-phase lesson teaching detail. Generated content still requires instructor review; schema validation cannot certify technical correctness.
+- Attendance lock, server-only leave approval, protected exam keys/results, role restrictions, account-scoped queues, training-only backup/restore and common report/PDF paths have automated acceptance coverage in the linked CI.
+- Marathi/Hindi/English structured career, resume-outline and text-interview practice works without a provider key. Optional generative Student-task quality is not certified by the teaching-only live probes.
 
-## Configuration blockers and limits
+## Pending and blocked
 
-- **Live role testing:** The owner uses Instructor only. Admin/Principal/Staff/Student tests require separate existing synthetic identities and their secure sign-in, or an authorised operator running an acceptance harness. Never promote the owner's Instructor session or reset real-user credentials for a demo. No synthetic passwords are included in this report.
-- **MFA:** Firebase TOTP requires Firebase Authentication with Identity Platform and verified email. Project configuration, factor enrollment, challenge/recovery UX and backend/rules enforcement must be validated together. Google-only privileged login is not proof that this application enforces MFA. No project upgrade, billing change, factor enrollment or production authentication change has been made. Official reference: https://firebase.google.com/docs/auth/web/totp-mfa . Provider-account 2-step verification is not a substitute for application-level enforcement.
-- **Recovery:** Explicit real-email password reset is implemented behind the opt-in password-login configuration. Institute-ID-only/non-deliverable aliases have no safe automatic email recovery. Administrative identity proof, reset authority, audit, revocation and anti-lockout procedures require a separately reviewed design. Do not merge Firebase UIDs or grant recovery authority from a browser role selection.
-- **Backups:** Training-only export/preview/create-only restore is tested; it excludes trainees, attendance, marks, exams, accounts and files. Full disaster recovery is not implemented. Real Drive OAuth/upload, OS download handling and physical printing remain independent acceptance checks. No credentials or private learner records should be added to public archives.
-- **Generative AI:** Server adapters, consent, authentication, quotas and disabled-mode behavior exist. No configured external key/model host or live provider quality acceptance is available. Keyless Marathi/Hindi/English career/resume/text-interview templates work. A provider/model, server-side secret or model host and approved quotas are required before generated responses can honestly be shown. Do not add keys to browser config, GitHub or chat; do not silently enable paid compute/API usage.
+- **Independent live role acceptance:** Only the owner's Instructor account is available in this interaction. Use existing synthetic identities through secure sign-in; do not promote that account or reset real-user credentials for a demo.
+- **Production MFA and recovery:** Application-enforced privileged MFA, account recovery/anti-lockout design and intended-device enrollment/recovery acceptance remain outstanding. Google login alone is not evidence of application-level MFA enforcement. Institute-ID aliases without a deliverable email have no safe automatic email-recovery flow.
+- **Backup/integrations:** Training-resource export/preview/create-only restore excludes trainee records, attendance, marks, exams, accounts and files. Full disaster recovery is not implemented. Actual Drive OAuth/upload, OS download handling and physical printing remain separate acceptance checks.
+- **Hosting automation:** Automatic GitHub-to-Firebase staging deployment is not configured. Cloud Shell is used for publishing updates, not for keeping the website or AI running. No Firebase CLI login is available to the Work executor; its local execution/browser environment is currently unavailable. GitHub/Render connectors remain usable for repository/status work.
+- **Impact and employment evidence:** No measured time saving, placement improvement, employer relationship, live vacancy or certification is claimed without evidence. Source-linked opportunities and pilot measurements must be checked and dated.
 
-This report deliberately distinguishes implementation, emulator acceptance, owner screenshots and hosted acceptance. It is not a production release certificate.
+See [DEMO-WALKTHROUGH.md](DEMO-WALKTHROUGH.md) for the demonstration sequence, acceptance observations and presentation outline. This is a tested staging prototype, not a production release certificate.

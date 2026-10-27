@@ -1,5 +1,7 @@
 # Isolated staging test site
 
+> **Current status — 27 October 2026:** see [FINAL-ACCEPTANCE-STATUS.md](FINAL-ACCEPTANCE-STATUS.md) and [DEMO-WALKTHROUGH.md](DEMO-WALKTHROUGH.md). Application source `0f01524c246e4b1c1676c29567c6fd15cf374c5f` passed CI with **194 native tests and 54 desktop/mobile browser cases**, Emulator suites, build/container checks and both audits. Optional Gemini teaching generation is configured on the staging backend; fixed synthetic theory/practical probes passed. Keyless assistance remains available. Older dated test counts below describe historical releases, not additional current-release acceptance. Current hosted role/device and production limitations are in the acceptance report.
+
 URL: https://universal-iti-dk-staging.web.app/v15/
 
 Created with owner authorization on 22 October 2026. Project: `universal-iti-dk-staging`. Its Standard Firestore database is in `asia-south1` (Mumbai), reports `freeTier: true`, and billing is disabled. The original project `universal-iti-auto-dk` and main were not modified.
@@ -20,7 +22,7 @@ Synthetic fixtures include one DTP workspace, one trainee, two practicals, a wel
 
 ## Backend limitations
 
-`config/staging.public.json` now selects the deployed Render HTTPS API. Hosted MCQ publishing/grading passed authenticated API acceptance with synthetic data. Answer keys remain private and there is no client grading fallback. Marathi/Hindi/English structured guidance, resume outlines and interview practice remain available without an AI key. Generative AI is disabled until a provider/model is configured. No paid instance or AI subscription was enabled.
+`config/staging.public.json` now selects the deployed Render HTTPS API. Hosted MCQ publishing/grading passed authenticated API acceptance with synthetic data. Answer keys remain private and there is no client grading fallback. Marathi/Hindi/English structured guidance, resume outlines and interview practice remain available without an AI key. Optional Gemini generation is now configured on the secure staging backend. Fixed synthetic teaching probes passed; this is not a guarantee of provider availability or Student-task quality. No paid compute or API billing upgrade was enabled.
 
 ## Reproduce deployment
 
@@ -55,9 +57,9 @@ The first live browser attempt exposed a slow-connection startup failure. Member
 
 The operator renewed authentication and restored the five private synthetic passwords. No owner transfer, production membership change or real-student update occurred. Backend code and package metadata return HTTP 404. Billing remains disabled. GitHub CI run 206 (39797131007) passed for the deployed startup/navigation baseline, including tests, container smoke, permission tests, browser tests and the production audit. Later backend deployment-guard validation is recorded separately in the work report.
 
-The [Render staging backend](RENDER-STAGING.md) is connected and deployed on the Free plan with automatic deploys off and no AI provider. The owner authorized its private staging identity. The startup guard refuses wrong-project credentials/origins and emulator overrides. The frontend now targets https://universal-iti-staging-api.onrender.com/api. Free instances can sleep and take time to wake; this is a synthetic demonstration, not dependable scheduled production-exam hosting.
+The [Render staging backend](RENDER-STAGING.md) is connected and deployed on the Free plan with automatic deploys off. Optional Gemini generation was subsequently configured; see the current acceptance report. The owner authorized its private staging identity. The startup guard refuses wrong-project credentials/origins and emulator overrides. The frontend now targets https://universal-iti-staging-api.onrender.com/api. Free instances can sleep and take time to wake; this is a synthetic demonstration, not dependable scheduled production-exam hosting.
 
-This is staging acceptance coverage, not a production-readiness certification. Hosted MCQs now use the deployed trusted HTTPS backend. Optional generative AI still needs a configured provider/model and backend secret; none is enabled. Real Google popup/device acceptance, external document imports/printing/Drive, migration/backup and all institute-specific legacy forms retain the release limitations described in the production-readiness guide.
+This is staging acceptance coverage, not a production-readiness certification. Hosted MCQs now use the deployed trusted HTTPS backend. Optional generative AI now has a server-side provider/model and secret; see the current acceptance report for live evidence and limits. Real Google popup/device acceptance, external document imports/printing/Drive, migration/backup and all institute-specific legacy forms retain the release limitations described in the production-readiness guide.
 
 
 ## Test the hosted MCQ flow
@@ -76,8 +78,9 @@ This is staging acceptance coverage, not a production-readiness certification. H
 4. Reload and reopen the attempt: the saved result must remain the same. A failed
    network request must display an error; retry online rather than relying on a
    browser-calculated score. Free-service wake-up may need a retry.
-5. Continue skills/career practice without an AI key. Generated AI responses are
-   not enabled on this staging service.
+5. Continue keyless skills/career practice without a personal AI key. Optional
+   generated drafts use the configured backend and require consent and quota.
+   Live teaching probes do not certify every Student-task response.
 
 
 23 October hosted MCQ/mobile acceptance passed through the real publisher and
@@ -123,8 +126,9 @@ AI status follow-up: the capability response contains only `aiConfigured`, requi
 active workspace authorization, and does not probe/call the model provider. Keys,
 model names and private URLs stay on the backend. Provider configuration is not a
 health/quality/quota guarantee. Marathi/Hindi/English guided practice is available
-while the lookup runs and after a lookup failure. Generative AI remains disabled
-on this staging service; no external provider key or paid account was configured.
+while the lookup runs and after a lookup failure. The earlier disabled-provider checks remain valid for no-key deployments.
+The current staging backend has optional Gemini configured; the key remains on
+the server and no paid API billing upgrade was enabled.
 
 ### Leave requests and locked attendance (prototype rules)
 
