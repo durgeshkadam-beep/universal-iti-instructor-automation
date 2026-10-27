@@ -161,7 +161,7 @@ test('staging password form rejects bad credentials and authenticates assigned s
   V.modules=async()=>M;V.config=()=>cfg;V.fb.M=M;
   const app=M.initializeApp(cfg,'iti-v15'),auth=M.getAuth(app),db=M.getFirestore(app);
   M.connectAuthEmulator(auth,'http://127.0.0.1:9099',{disableWarnings:true});M.connectFirestoreEmulator(db,'127.0.0.1',8080);
-  window.ITI_RUNTIME={staging:true,firebaseConfig:{projectId:'demo-iti-staging'},apiUrl:''};
+  window.ITI_RUNTIME={staging:true,instituteLoginDomain:'example.test',firebaseConfig:{projectId:'demo-iti-staging'},apiUrl:''};
  });
  await page.addScriptTag({url:'/v15/v15-staging-login.js'});
  await expect(page.locator('#stagingNotice')).toContainText('Synthetic test data');
@@ -174,6 +174,7 @@ test('staging password form rejects bad credentials and authenticates assigned s
  expect(await page.evaluate(()=>V15Sync.ready)).toBeFalsy();
  expect(await page.evaluate(()=>V15Sync.fb.auth.currentUser)).toBeNull(); // Rejected role must also clear the authenticated session.
  await page.locator('#loginRole').selectOption('student');
+ await page.locator('#v15ExpectedEmail').fill('student'); // Institute ID shorthand maps to existing Firebase Auth identity.
  await page.locator('#stagingPassword').fill(testPassword);await page.locator('#stagingSignIn').click();
  await expect(page.locator('#appShell')).toBeVisible();expect(await page.evaluate(()=>V15Sync.currentRole())).toBe('student');
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
