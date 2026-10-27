@@ -13,7 +13,7 @@ Passwords are only passed to Firebase Auth; no PIN or password is written to Fir
 7. All core ITI workflows and the five-role permissions are unchanged. UID identity remains the anchor for Skill Passport, attendance, marks and learning plans.
 
 ## Important limitation: Institute ID is an alias, not a stand-alone authentication service
-An arbitrary Roll Number is NOT automatically an authenticated account. To support it securely, the institute must first provision the user's Firebase Auth identity and corresponding member and role mapping. A production ID like `dtp2026-001` would require a controlled matching email alias such as `dtp2026-001@<institute-owned-domain>`. Staging aliases use the non-deliverable `.test` suffix and are only for synthetic users. **Password recovery for non-deliverable aliases requires a separately designed authenticated administrator reset workflow**; standard email reset must only target an inbox the account holder controls. No such reset UI is shipped now.
+An arbitrary Roll Number is NOT automatically an authenticated account. To support it securely, the institute must first provision the user's Firebase Auth identity and corresponding member and role mapping. A production ID like `dtp2026-001` would require a controlled matching email alias such as `dtp2026-001@<institute-owned-domain>`. Staging aliases use the non-deliverable `.test` suffix and are only for synthetic users. **Password recovery for non-deliverable aliases requires a separately designed authenticated administrator reset workflow**. The new `Forgot password?` button in the opt-in production login sends Firebase Auth reset instructions **only when the user explicitly enters a full email for an inbox they control**; it never constructs an alias from an Institute ID and never confirms account existence. Synthetic `.test` addresses are refused; staging test accounts still require a privately authorised Admin reset. Admin-managed recovery for ID-only trainees is not implemented.
 
 For existing Google users, the safe first version is **Google OR the same real email + a linked password**. Adding an unrelated ID alias to that Google account requires an identity-linking / provisioning design tested against the same UID. Never create a second Firebase account for one trainee.
 
@@ -42,6 +42,7 @@ Replace the example with an **actual domain owned and controlled by the institut
 - Sign in with the approved Google account, ensure linked provider uses the same UID if enabling a password.
 - Opt in to Quick PIN, choose a nontrivial six-digit PIN and click Quick Lock. Verify unlock works only while the same account is signed in, wrong attempts trigger signout, refresh does not expose a standalone PIN login and shared PCs remain signed out.
 - Test Chrome Android, popup Google auth, mobile keyboard/input labels, logout and re-login.
+- In opt-in real-email password mode: request reset with an actual inbox and confirm delivery; ensure ID-only entries cannot send resets to synthetic/non-deliverable aliases, and generic responses reveal no account membership.
 - Confirm no real student data, personal PINs or passwords were committed.
 
 ## Acceptance status
