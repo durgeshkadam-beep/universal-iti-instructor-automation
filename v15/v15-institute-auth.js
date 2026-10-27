@@ -37,6 +37,7 @@ V.institutePasswordLogin=async function(identifier,password,role){
     await M.setPersistence(auth,M.browserSessionPersistence);
     const sign=await M.signInWithEmailAndPassword(auth,email,password);
     if(!sign?.user?.uid||String(sign.user.email||'').toLowerCase()!==email)throw Error(message);
+    localStorage.setItem('iti-v15-password-session','1');
     localStorage.setItem(PREFIX+'role-v2',role);
     localStorage.setItem(PREFIX+'email-v2',email);
     const roleInput=document.getElementById('loginRole');if(roleInput)roleInput.value=role;
