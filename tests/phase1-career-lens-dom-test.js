@@ -4,10 +4,10 @@ const fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');
 const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
 (async()=>{
-  const dom=new JSDOM('<!doctype html><html><body><section id="tab-career-lens"></section></body></html>',{
+  const dom=new JSDOM('<!doctype html><html><body><section id="tab-career-lens"></section><section id="tab-skill-applications"></section></body></html>',{
     url:'https://example.test/v15/',runScripts:'outside-only',pretendToBeVisual:true
   });
-  const w=dom.window;
+  const w=dom.window;w.confirm=()=>true;
   w.DATA={practicals:[{no:1,title:'Text layout'},{no:2,title:'Print proofing'}]};
   let uid='student-a',workspace='dtp-2026',role='student';
   const records=[
@@ -16,7 +16,13 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
     {title:'Prepress trainee',employer:'Proofers',city:'Pune',skills:['proofing'],kind:'job',
       status:'active',practicalIds:['practical-2'],sourceUrl:'https://example.org/career/2',expiresAt:'2026-12-15'}
   ];
+  let application={practicalId:'practical-1',industry:'Printing and packaging',
+    applicationText:'Production layout used in a cited printing workflow.',
+    sourceUrl:'https://example.org/workplace-practical-1'};
   const M={
+    doc:(_db,...args)=>({id:args.at(-1)}),
+    async getDoc(ref){return {exists:()=>ref.id==='practical-1',data:()=>({...application})};},
+    async setDoc(ref,data){assert.equal(ref.id,'practical-1');application={...data};},
     collection:(_db,...paths)=>({path:paths.join('/')}),
     where:(field,operator,value)=>({field,operator,value}),
     query:(col,where)=>({...col,where}),
@@ -35,6 +41,7 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
   const host=w.document.querySelector('#tab-career-lens');
   const results=w.document.querySelector('#v15LensResults');
   assert.match(results.textContent,/Instructor-verified skill/);
+  assert.match(results.textContent,/Printing and packaging/,'instructor-cited real-world practical application visible');
   assert.match(results.textContent,/1 active institute-reviewed example/);
   assert.equal(results.querySelector('a')?.href,'https://example.org/career/1');
   w.document.querySelector('#v15LensCity').value='Ratnagiri';
@@ -54,7 +61,18 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
   uid='student-b';V.fb.user.uid=uid;V.member.traineeId='trainee-b';
   await V.renderSkillCareerLens();
   assert.match(w.document.querySelector('#v15LensResults').textContent,/Instructor verification not yet recorded/,'second student cannot inherit first verification');
-  role='instructor';await V.renderSkillCareerLens();
+  role='instructor';V.fb.user.uid='instructor-a';
+  await V.renderInstructorSkillApplications();
+  const editor=w.document.getElementById('tab-skill-applications');
+  assert.match(editor.textContent,/Skill Applications/);
+  const industry=w.document.getElementById('v15AppIndustry');
+  industry.value='Packaging design';
+  w.document.getElementById('v15AppExplanation').value='Instructor-reviewed packaging application for practical work.';
+  w.document.getElementById('v15AppSource').value='https://example.org/workplace-reviewed';
+  editor.querySelector('button').click();await tick();
+  assert.equal(application.industry,'Packaging design','instructor may publish a sourced real-world use case');
+  assert.equal(application.reviewedBy,'instructor-a');
+  await V.renderSkillCareerLens();
   w.close();
   console.log('PASS Career Lens DOM: reviewed sources, verified status, city filtering, no-data warning, routes and account switch.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
