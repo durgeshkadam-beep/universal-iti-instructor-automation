@@ -20,7 +20,7 @@ const {JSDOM}=require('jsdom');
  };
  const V={ready:false,fb:{M,auth,user:null},email:x=>String(x||'').toLowerCase().trim(),validEmail:x=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x),
   modules:async()=>M,config:()=>w.ITI_RUNTIME.firebaseConfig,showRoleLogin:()=>{},loginMsg:()=>{},
-  login:async()=>{loginCount++;providedEmail=w.localStorage.getItem('iti-v15-email-v2');V.fb.user=auth.currentUser;V.ready=true;}
+  login:async()=>{loginCount++;providedEmail=w.localStorage.getItem('iti-v15-email-v2');V.fb.user=auth.currentUser;V.ready=w.document.getElementById('loginRole').value==='student';}
  };
  w.V15Sync=V;
  w.eval(fs.readFileSync(path.join(__dirname,'../v15/v15-staging-login.js'),'utf8'));
@@ -39,6 +39,19 @@ const {JSDOM}=require('jsdom');
  assert.equal(V.fb.user.uid,'same-student-uid');
  assert.equal(signoutCount,0);
  assert.equal(w.document.getElementById('stagingPassword').value,'','password cleared');
+ // A wrong-role sign-in MUST sign out the Firebase user and clear the stale
+ // active marker, not merely display an error while leaving a token behind.
+ V.ready=false;V.fb.user=null;auth.currentUser=null;
+ w.document.getElementById('loginRole').value='instructor';
+ w.document.getElementById('v15ExpectedEmail').value='student';
+ w.document.getElementById('stagingPassword').value='CorrectTestPassword123!';
+ w.document.getElementById('stagingSignIn').click();
+ await new Promise(r=>setTimeout(r,55));
+ assert.equal(V.ready,false,'wrong institute role cannot open dashboard');
+ assert.equal(auth.currentUser,null,'wrong-role rejection must end Auth session');
+ assert.equal(V.fb.user,null,'member data must not retain rejected identity');
+ assert.ok(signoutCount>=1,'wrong role triggers Firebase signout');
+ assert.equal(w.localStorage.getItem('iti-v15-password-session'),null,'rejected session marker cleared');
  w.close();
  console.log('PASS staging Institute ID aliases: existing synthetic accounts, same Auth UID, no bypass or credentials in source.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
