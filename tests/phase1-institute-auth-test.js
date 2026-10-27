@@ -9,7 +9,7 @@ async function run(){
  });
  const w=dom.window;
  w.ITI_RUNTIME={institutePasswordEnabled:true,instituteLoginDomain:'iti.example.in'};
- let ready=false,role='student',signedInUid='auth-student',loggedInEmail='',signouts=0,linked=0;
+ let ready=false,role='student',signedInUid='auth-student',loggedInEmail='',signouts=0,linked=0,resets=[];
  const auth={currentUser:null};
  const user={uid:signedInUid,email:'student001@iti.example.in',
    providerData:[{providerId:'google.com'}]};
@@ -23,6 +23,7 @@ async function run(){
    auth.currentUser=user;return {user};
   },
   async signOut(){signouts++;auth.currentUser=null;},
+  async sendPasswordResetEmail(_auth,email){resets.push(email);},
   EmailAuthProvider:{credential:(email,pwd)=>({email,pwd})},
   async linkWithCredential(signed,cred){linked++;assert.equal(signed.uid,user.uid);assert.equal(cred.email,signed.email);return {user:signed};}
  };
@@ -46,6 +47,17 @@ async function run(){
  for(const bad of ['a','../x','@evil.com','hello world','admin/secret','foo@example','x'.repeat(41)])assert.equal(V.instituteIdentifierToEmail(bad),null,'reject invalid ID '+bad);
  assert.ok(w.document.querySelector('#v15InstitutePasswordForm'),'password login shown only with explicit feature flag');
  assert.match(w.document.querySelector('#v15InstitutePasswordForm').textContent,/Institute ID \/ Password/);
+
+ assert.ok(w.document.getElementById('v15InstitutePasswordRecovery'),'password recovery UI exists');
+ for(const invalid of ['student001','foo@iti-staging.example.test','student@invalid.invalid','foo@example.test','']) {
+   await assert.rejects(()=>V.requestInstitutePasswordReset(invalid),/full email address/i);
+ }
+ assert.deepEqual(resets,[],'an Institute ID alone cannot trigger reset email to unowned alias');
+ const result=await V.requestInstitutePasswordReset('student001@iti.example.in');
+ assert.match(result,/If this email has a password-enabled account/,'generic response reveals no existence');
+ assert.deepEqual(resets,['student001@iti.example.in']);
+ assert.equal(V.ready,false,'password reset does not create an authenticated session');
+
  await assert.rejects(()=>V.institutePasswordLogin('student001','badpassword','student'),/Sign-in was not completed/);
  assert.equal(V.ready,false,'bad password cannot create an active user');
  const ok=await V.institutePasswordLogin('student001','CorrectPassword123!','student');
