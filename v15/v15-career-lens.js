@@ -139,4 +139,73 @@ V.renderSkillCareerLens=async function(){
   action.addEventListener('click',load);
   await load();
 };
+
+V.renderInstructorSkillApplications=async function(){
+  if(!this.ready||role()!=='instructor')return;
+  const host=document.getElementById('tab-skill-applications');if(!host)return;
+  host.replaceChildren(make('h2','🏭 Skill Applications — Instructor Review'));
+  host.append(make('p','Explain where one practical is used in real workplaces, with an original HTTPS source. This is guidance, NOT a job advertisement, certification or guaranteed placement. Never invent evidence.','callout'));
+  const topics=syllabus();
+  if(!topics.length){host.append(make('p','Load an approved practical syllabus before publishing workplace examples.','muted'));return;}
+  const M=this.fb?.M;
+  if(!M||!this.fb.db||!this.fb.user?.uid){host.append(make('p','Verified Instructor sign-in is required.','muted'));return;}
+  const wid=this.workspaceId,uid=this.fb.user.uid;
+  const same=()=>this.ready&&role()==='instructor'&&this.workspaceId===wid&&this.fb.user?.uid===uid&&host.isConnected;
+  const form=make('section',null,'card');host.append(form);
+  function field(labelText,id,tag='input'){
+    const label=make('label',labelText);label.htmlFor=id;form.append(label);
+    const node=make(tag);node.id=id;form.append(node);return node;
+  }
+  const practical=field('Choose a practical','v15AppPractical','select');
+  for(const item of topics){const opt=make('option','Practical '+item.no+' · '+item.title);opt.value=item.id;practical.append(opt);}
+  const industry=field('Industry or workplace','v15AppIndustry');industry.maxLength=100;
+  industry.placeholder='Describe the workplace (not a company placement promise)';
+  const explanation=field('How this practical is used at work','v15AppExplanation','textarea');
+  explanation.rows=4;explanation.maxLength=500;
+  explanation.placeholder='Explain the specific real-world application, based on a source';
+  const source=field('Supporting original HTTPS link','v15AppSource');source.type='url';source.maxLength=500;
+  source.placeholder='https://...';
+  const buttons=make('div');buttons.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-top:12px';
+  const save=make('button','Publish reviewed application','btn primary');save.type='button';buttons.append(save);
+  form.append(buttons);
+  const status=make('p','','muted');status.setAttribute('role','status');form.append(status);
+  let sequence=0;
+  const load=async()=>{
+    const current=++sequence,pid=practical.value;
+    industry.value='';explanation.value='';source.value='';
+    status.textContent='Looking for a previously reviewed example…';
+    try{
+      const ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',wid,'skillApplications',pid);
+      const doc=await M.getDoc(ref);
+      if(!same()||current!==sequence||practical.value!==pid)return;
+      if(doc.exists()){
+        const data=doc.data();
+        industry.value=String(data.industry||'');explanation.value=String(data.applicationText||'');
+        source.value=String(data.sourceUrl||'');
+        status.textContent='Existing source-linked example loaded; review it before making changes.';
+      }else status.textContent='No example published yet for this practical.';
+    }catch(e){if(same()&&sequence===current)status.textContent='Cannot read reviewed example. No changes were saved.';}
+  };
+  practical.addEventListener('change',load);
+  save.addEventListener('click',async()=>{
+    if(!same())return;
+    const pid=practical.value,title=topics.find(p=>p.id===pid)?.title||'';
+    const sector=industry.value.trim(),description=explanation.value.trim(),link=source.value.trim();
+    if(!title||title.length>140||!sector||sector.length>100||description.length<10||description.length>500||
+       typeof this.marketIsValidSourceUrl!=='function'||!this.marketIsValidSourceUrl(link)||link.length>500){
+      status.textContent='Enter a real workplace, a specific explanation of 10–500 characters and a valid HTTPS source. Nothing saved.';return;
+    }
+    if(!confirm('Have you reviewed the original source and confirmed this application is accurate?'))return;
+    save.disabled=true;status.textContent='Saving reviewed example…';
+    try{
+      const ref=M.doc(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces',wid,'skillApplications',pid);
+      await M.setDoc(ref,{practicalId:pid,skillTitle:title,industry:sector,applicationText:description,sourceUrl:link,
+        reviewedBy:uid,reviewedAt:M.serverTimestamp()});
+      if(same())status.textContent='Source-backed workplace example saved. Students can read it in Skill-to-Career Lens.';
+    }catch(e){if(same())status.textContent='Could not save the example. Check permission and try again; no success is claimed.';}
+    finally{if(same())save.disabled=false;}
+  });
+  await load();
+};
+
 })(window.V15Sync);
