@@ -1,6 +1,7 @@
 {
   "staging": true,
   "instituteLoginDomain": "iti-staging.example.test",
+  "quickPinEnabled": true,
   "apiUrl": "https://universal-iti-staging-api.onrender.com/api",
   "firebaseConfig": {
     "projectId": "universal-iti-dk-staging",
