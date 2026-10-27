@@ -19,7 +19,7 @@ const {JSDOM}=require('jsdom');
       'practical-2':{status:'learning'}
     }})
   };
-  w.V15Sync=V;
+  w.V15Sync=V;V.INSTITUTE_ID=V.INSTITUTE_ID||'iti-a';V.member=V.member||{traineeId:'t1'};V.fb.app={options:{projectId:'project-a'}};w.eval(fs.readFileSync('v15/v15-student-storage.js','utf8'));
   w.eval(fs.readFileSync(path.join(__dirname,'../v15/v15-skill-gap.js'),'utf8'));
   await V.renderStudentSkillGap();
   let host=w.document.querySelector('#tab-skill-gap');
@@ -34,7 +34,7 @@ const {JSDOM}=require('jsdom');
   role.value='Sample DTP Operator';
   const save=[...host.querySelectorAll('button')].find(x=>x.textContent.includes('Save personal'));
   save.click();
-  const key='iti-v15-career-plan-v1-student-a-dtp-2026-trainee-a';
+  const key=V.studentStorageKeys().goalKey;
   const saved=JSON.parse(w.localStorage.getItem(key));
   assert.equal(saved.roleName,'Sample DTP Operator');
   assert.deepEqual(saved.requiredIds,['practical-1','practical-2']);

@@ -8,12 +8,7 @@ if(!V)return;
 let renderGeneration=0;
 const OPTIONS=[['not-started','Not started'],['learning','Learning'],['can-demonstrate','I can demonstrate']];
 function role(){return V.currentRole?.()||window.SESSION?.role||'';}
-function storeKey(){
-  const uid=String(V.fb?.user?.uid||'');
-  const wid=String(V.workspaceId||'');
-  if(!uid||!wid)return null;
-  return 'iti-v15-student-skill-self-v1-'+encodeURIComponent(uid)+'-'+encodeURIComponent(wid);
-}
+function storeKey(){return V.studentStorageKeys?.()?.selfKey||null;}
 function read(){
   const key=storeKey();if(!key)return {};
   try{const d=JSON.parse(localStorage.getItem(key)||'{}');return d&&typeof d==='object'&&!Array.isArray(d)?d:{};}catch(e){return {};}
@@ -30,7 +25,8 @@ V.renderSkillPassport=function(){
   const host=document.getElementById('tab-skills');
   if(!host||!V.ready||role()!=='student')return;
   const generation=++renderGeneration, uid=V.fb?.user?.uid, workspace=V.workspaceId, institute=V.INSTITUTE_ID;
-  const current=()=>generation===renderGeneration&&V.ready&&role()==='student'&&V.fb?.user?.uid===uid&&V.workspaceId===workspace&&V.INSTITUTE_ID===institute&&host.isConnected;
+  const storageKey=storeKey();
+  const current=()=>!!storageKey&&storeKey()===storageKey&&generation===renderGeneration&&V.ready&&role()==='student'&&V.fb?.user?.uid===uid&&V.workspaceId===workspace&&V.INSTITUTE_ID===institute&&host.isConnected;
   host.replaceChildren();
   const hero=el('div',null,'hero');
   const body=el('div',null,'hero-content');
@@ -39,6 +35,7 @@ V.renderSkillPassport=function(){
   hero.append(body);host.append(hero);
   const notice=el('div','Instructor-verified skills appear below when available. Do not use this page as an official skills certificate.','callout');
   host.append(notice);
+  const legacyNotice=V.studentStorageNotice?.();if(legacyNotice)host.append(el('p',legacyNotice,'callout'));
   const saved=read(),list=el('div',null,'card');
   list.append(el('h3','Practical-based self assessment'));
   const items=(Array.isArray(DATA?.practicals)?DATA.practicals:[]).filter(x=>x&&x.title&&x.no!=null);

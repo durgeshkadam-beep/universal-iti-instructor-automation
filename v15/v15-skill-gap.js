@@ -15,13 +15,7 @@ function node(tag,text,cls){
   if(cls)e.className=cls;
   return e;
 }
-function identity(){
-  const uid=String(V.fb?.user?.uid||'');
-  const wid=String(V.workspaceId||'');
-  const trainee=String(V.member?.traineeId||'');
-  if(!uid||!wid||!trainee)return null;
-  return {uid,wid,trainee,key:PREFIX+encodeURIComponent(uid)+'-'+encodeURIComponent(wid)+'-'+encodeURIComponent(trainee)};
-}
+function identity(){const k=V.studentStorageKeys?.();return k?{...k,key:k.goalKey}:null;}
 function skills(){
   const seen=new Set();
   return (Array.isArray(DATA?.practicals)?DATA.practicals:[])
@@ -33,13 +27,7 @@ function skills(){
 function read(key){
   try{const d=JSON.parse(localStorage.getItem(key)||'null');return d&&typeof d==='object'&&!Array.isArray(d)?d:null;}catch(e){return null;}
 }
-function selfRatings(uid,wid){
-  try{
-    const key='iti-v15-student-skill-self-v1-'+encodeURIComponent(uid)+'-'+encodeURIComponent(wid);
-    const x=JSON.parse(localStorage.getItem(key)||'{}');
-    return x&&typeof x==='object'&&!Array.isArray(x)?x:{};
-  }catch(e){return {};}
-}
+function selfRatings(){const k=V.studentStorageKeys?.();return k?(read(k.selfKey)||{}):{};}
 V.calculateSkillGap=function(requiredIds,profile,self){
   const ids=[...new Set((Array.isArray(requiredIds)?requiredIds:[]).filter(x=>typeof x==='string'&&x.startsWith('practical-')))];
   const verified=new Set(Object.entries(profile?.skills||{})
@@ -97,6 +85,7 @@ V.renderStudentSkillGap=async function(){
   const active=()=>generation===renderGeneration&&V.ready&&currentRole()==='student'&&V.INSTITUTE_ID===institute&&identity()?.key===id.key&&host.isConnected;
   const topics=skills();
   if(!topics.length){host.append(node('div','Your instructor has not published practical topics for this Trade.','callout'));return;}
+  const legacyNotice=V.studentStorageNotice?.();if(legacyNotice)host.append(node('p',legacyNotice,'callout'));
   const stored=read(id.key);
   const keys=new Set(topics.map(t=>t.id));
   const selected=stored&&Array.isArray(stored.requiredIds)

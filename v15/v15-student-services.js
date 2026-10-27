@@ -73,10 +73,9 @@ V.saveStudentPlan=async function(selfRatings,plan){
 };
 V.syncStudentPlan=async function(){
  if(role()!=='student'||!V.ready)return;
- const ws=V.workspaceId,uid=V.fb.user.uid,tid=V.member.traineeId,institute=V.INSTITUTE_ID;
- const current=()=>V.ready&&role()==='student'&&ws===V.workspaceId&&uid===V.fb?.user?.uid&&tid===V.member?.traineeId&&institute===V.INSTITUTE_ID;
- const selfKey='iti-v15-student-skill-self-v1-'+encodeURIComponent(uid)+'-'+encodeURIComponent(ws);
- const goalKey='iti-v15-career-plan-v1-'+encodeURIComponent(uid)+'-'+encodeURIComponent(ws)+'-'+encodeURIComponent(tid);
+ const keys=V.studentStorageKeys?.();if(!keys)throw Error('Student storage identity is not ready.');
+ const {selfKey,goalKey}=keys;
+ const current=()=>V.ready&&role()==='student'&&V.studentStorageKeys?.()?.goalKey===goalKey;
  const persist=async()=>{
   if(!current())throw Error('Student identity changed. Reopen your learning plan.');
   localStorage.setItem(goalKey+'-pending','1');
