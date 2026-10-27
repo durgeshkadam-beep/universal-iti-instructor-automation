@@ -211,7 +211,8 @@ V.renderInstructorMarketEditor=async function(){
     const title=idText(inputs.title.value),employer=idText(inputs.employer.value);
     const city=niceCity(inputs.city.value),skills=uniqueSkills(inputs.skills.value.split(','));
     const sourceUrl=idText(inputs.sourceUrl.value),expiresAt=expiry.value;
-    const practicalIds=[...new Set(practicalChecks.filter(x=>x.checked).map(x=>x.value))].slice(0,30);
+    const practicalIds=[...new Set(practicalChecks.filter(x=>x.checked).map(x=>x.value))];
+    if(practicalIds.length>30){status.textContent='Select at most 30 related practicals per reviewed source. Nothing was saved.';return;}
     if(!title||title.length>140||!employer||employer.length>140||!city||!skills.length||!allowedURL(sourceUrl)||sourceUrl.length>500||!validDate(expiresAt)||expiresAt<TODAY()){
       status.textContent='Enter a valid title, employer, city, required skills, original HTTPS source and future expiry date.';return;
     }
