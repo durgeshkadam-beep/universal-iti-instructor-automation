@@ -13,10 +13,10 @@ test('invalid manual JSON hides the old preview instead of displaying it as curr
  w.eval(fs.readFileSync('ai.js','utf8')+'\nwindow.ai=InstructorAI;');w.ai.state.pending={kind:'plan',type:'theory',item:{title:'Synthetic'}};w.ai.previewResult();
  assert.equal(w.document.querySelector('#aiPreviewBox').style.display,'none');dom.window.close();
 });
-const {schemas,parseTeaching}=require('../server/teaching-json');
+const {schemas,parseTeaching,providerSchema}=require('../server/teaching-json');
 function sample(s){if(s.type==='object')return Object.fromEntries(Object.entries(s.properties).map(([k,v])=>[k,sample(v)]));if(s.type==='array')return [sample(s.items)];if(s.type==='number')return 1;return s.enum?.[0]||'Synthetic text';}
 for(const type of ['theory','practical','syllabus'])test('Gemini receives fixed '+type+' schema and returns validated JSON',async()=>{
- const value=sample(schemas[type]),s=service(JSON.stringify(value));const out=await s.api.execute('token',{...req,teachingType:type});assert.deepEqual(JSON.parse(out.text),value);assert.deepEqual(s.request().generationConfig.responseJsonSchema,schemas[type]);assert.equal(s.request().generationConfig.responseMimeType,'application/json');
+ const value=sample(schemas[type]),s=service(JSON.stringify(value));const out=await s.api.execute('token',{...req,teachingType:type});assert.deepEqual(JSON.parse(out.text),value);assert.deepEqual(s.request().generationConfig.responseJsonSchema,providerSchema(type));assert.equal(s.request().generationConfig.responseMimeType,'application/json');
 });
 test('wrong field types, extra fields and cut-off provider drafts are rejected',async()=>{
  const value=sample(schemas.theory);assert.throws(()=>parseTeaching(JSON.stringify({...value,questions:'bad'}),'theory'));assert.throws(()=>parseTeaching(JSON.stringify({...value,unexpected:'bad'}),'theory'));
@@ -32,4 +32,9 @@ test('Gemini thought parts cannot corrupt the structured teaching JSON',async()=
  const value=sample(schemas.theory),d={exists:true,data:()=>({ownerUid:'u'})},ref={get:async()=>d,collection(){return this},doc(){return this}};
  const api=createService({db:{doc:()=>ref,runTransaction:async fn=>fn({get:async()=>({exists:false}),set(){}})},verifyToken:async()=>({uid:'u'}),config:{provider:'gemini',model:'synthetic',apiKey:'synthetic-test-only'},fetchImpl:async()=>({ok:true,json:async()=>({candidates:[{finishReason:'STOP',content:{parts:[{thought:true,text:'Non-JSON internal commentary'},{text:JSON.stringify(value)}]}}]})})});
  assert.deepEqual(JSON.parse((await api.execute('token',req)).text),value);
+});
+
+test('provider schema omits unsupported length keywords while local validation stays bounded',()=>{
+ assert(!JSON.stringify(providerSchema('theory')).includes('maxLength'));
+ const value=sample(schemas.theory);value.summary='x'.repeat(4001);assert.throws(()=>parseTeaching(JSON.stringify(value),'theory'));
 });

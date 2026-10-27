@@ -5,7 +5,7 @@ const requireValue=(ok,msg,status=400)=>{if(!ok)throw new ApiError(status,msg);}
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);
 const text=(x,n=500)=>String(x||'').trim().slice(0,n);
 const {offlineGuide,QUESTIONS,LANG}=require('../shared/guidance');
-const {schemas:teachingSchemas,parseTeaching}=require('./teaching-json');
+const {schemas:teachingSchemas,parseTeaching,providerSchema}=require('./teaching-json');
 function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.now()}){
  async function authorize(token,inst,wid){
   requireValue(id(inst)&&id(wid),'Invalid institute or workspace');
@@ -92,9 +92,9 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
      response=await fetchImpl(new URL('/api/chat',config.ollamaUrl),{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(45000),body:JSON.stringify({model:config.model,stream:false,messages:[{role:'system',content:system},{role:'user',content:body.input}]})});
     }else if(config.provider==='gemini'){
      requireValue(config.apiKey&&config.model,'Server AI provider is not configured',503);
-     response=await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':config.apiKey},signal:AbortSignal.timeout(45000),body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:body.input}]}],generationConfig:{maxOutputTokens:body.task==='teaching'?4096:2000,...(body.task==='teaching'?{responseMimeType:'application/json',responseJsonSchema:teachingSchemas[teachingType]}:{})}})});
+     response=await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':config.apiKey},signal:AbortSignal.timeout(45000),body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:body.input}]}],generationConfig:{maxOutputTokens:body.task==='teaching'?4096:2000,...(body.task==='teaching'?{responseMimeType:'application/json',responseJsonSchema:providerSchema(teachingType)}:{})}})});
     }else throw new ApiError(503,'Unsupported AI provider');
-    requireValue(response.ok,'AI provider unavailable; use guided mode',503);
+    if(!response.ok){const {providerError}=require('./ai-provider-error');throw new ApiError(503,await providerError(response));}
     const out=await response.json(),answer=config.provider==='ollama'?out.message?.content:out.candidates?.[0]?.content?.parts?.filter(x=>x.thought!==true).map(x=>x.text||'').join('');
     requireValue(answer&&answer.length<=40000,'AI response unavailable',503);
     if(body.task==='teaching'){

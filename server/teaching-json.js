@@ -226,4 +226,9 @@ function parseTeaching(text,type){
  if(!valid(value,schemas[type]))throw Error('Invalid teaching structure');
  return JSON.stringify(value);
 }
-module.exports={schemas,parseTeaching};
+// Keep local length checks, but send only documented Gemini schema keywords.
+function providerSchema(type){
+ const clean=s=>Object.fromEntries(Object.entries(s).filter(([k])=>k!=='maxLength').map(([k,v])=>[k,Array.isArray(v)?v.map(x=>x&&typeof x==='object'?clean(x):x):v&&typeof v==='object'?clean(v):v]));
+ return clean(schemas[type]);
+}
+module.exports={schemas,parseTeaching,providerSchema};
