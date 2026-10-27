@@ -27,6 +27,8 @@ V.showRoleLogin=function(){
   const button=document.getElementById('stagingSignIn'),email=stageEmail(document.getElementById('v15ExpectedEmail')?.value),password=document.getElementById('stagingPassword').value,role=document.getElementById('loginRole')?.value;
   if(!email||!password)return V.loginMsg('Enter your approved synthetic Institute ID/email and password.',true);
   button.disabled=true;
+  V.loginMsg('Verifying staging credentials and assigned role…');
+  let signInAuth=null,signInModules=null;
   try{
    const M=await V.modules();let app=M.getApps().find(x=>x.name==='iti-v15');if(!app)app=M.initializeApp(V.config(),'iti-v15');
    const auth=M.getAuth(app);await M.setPersistence(auth,M.browserSessionPersistence);
