@@ -14,7 +14,9 @@ function valid(row){
   return row&&Object.hasOwn(tasks,row.task)&&Object.hasOwn(methods,row.method)
     &&Number.isInteger(Number(row.batchSize))&&Number(row.batchSize)>=1&&Number(row.batchSize)<=200
     &&Number.isFinite(Number(row.minutes))&&Number(row.minutes)>0&&Number(row.minutes)<=300
-    &&/^\d{4}-\d{2}-\d{2}$/.test(String(row.date||''));
+    &&/^\d{4}-\d{2}-\d{2}$/.test(String(row.date||''))
+    &&!Number.isNaN(Date.parse(row.date+'T00:00:00Z'))
+    &&new Date(row.date+'T00:00:00Z').toISOString().slice(0,10)===row.date;
 }
 const round=x=>Math.round(x*10)/10;
 V.calculatePilotTimeSavings=function(rows,task,batchSize){
