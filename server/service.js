@@ -18,8 +18,10 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
   return {u,member,owner,ws};
  }
  async function limit(uid,task,max=30){
-  const day=new Date(now()).toISOString().slice(0,10),key=createHash('sha256').update(uid+'|'+task+'|'+day).digest('hex');
-  await db.runTransaction(async tx=>{const ref=db.doc('apiLimits/'+key),z=await tx.get(ref),n=z.exists?z.data().count:0;requireValue(n<max,'Daily request limit reached',429);tx.set(ref,{count:n+1,expiresAt:new Date(now()+172800000)});});
+  const time=now(),day=new Date(time).toISOString().slice(0,10),key=createHash('sha256').update(uid+'|'+task+'|'+day).digest('hex');
+  const reset=new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().replace('T',' ').replace(':00.000Z',' UTC');
+  const message=task==='ai'?`Daily AI request limit reached (${max} attempts, including failed requests). Resets at ${reset}. Use manual mode or keyless guidance.`:'Daily request limit reached';
+  await db.runTransaction(async tx=>{const ref=db.doc('apiLimits/'+key),z=await tx.get(ref),n=z.exists?z.data().count:0;requireValue(n<max,message,429);tx.set(ref,{count:n+1,expiresAt:new Date(time+172800000)});});
  }
  return {async execute(token,body){
   const {action,instituteId,workspaceId}=body||{};
