@@ -27,6 +27,9 @@ async function test(){
  assert.equal(V.quickPinLock(),false,'cannot lock until own PIN is set');
  assert.equal(await V.quickPinSet('000000'),false,'reject easy repeated PIN');
  assert.equal(await V.quickPinSet('123456'),false,'reject trivial sequence');
+ for(const weak of ['234567','765432','789012','210987','890123']){
+  assert.equal(await V.quickPinSet(weak),false,'reject ascending/descending sequence '+weak);
+ }
  assert.equal(await V.quickPinSet('1234'),false,'reject 4 digit PINs');
  assert.equal(await V.quickPinSet('529174'),true,'allow explicitly set nontrivial six digit PIN');
  const key='iti-v15-local-quick-pin-v1:isolated-staging:teacher-a';
