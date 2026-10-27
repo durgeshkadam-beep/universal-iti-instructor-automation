@@ -11,3 +11,7 @@ test('REST structured teaching output uses documented responseFormat exclusively
 test('fixed synthetic probe redacts the configured key from provider diagnostics',async()=>{
  const logs=[];await runStagingProbe(config,{env,log:x=>logs.push(x),fetchImpl:async()=>({ok:false,status:400,clone:()=>({json:async()=>({error:{message:'Unknown name responseFormat '+config.apiKey}})}),json:async()=>({})})});assert(logs[0].includes('Unknown name responseFormat'));assert(!logs[0].includes(config.apiKey));
 });
+
+test('comparison mode has two bounded fixed calls and no learner context',async()=>{
+ let calls=0;const logs=[];await runStagingProbe(config,{env:{...env,AI_STAGING_PROBE:'synthetic-format-comparison-v1'},log:x=>logs.push(x),fetchImpl:async(url,init)=>{calls++;const body=JSON.parse(init.body);assert.equal(body.generationConfig.maxOutputTokens,512);return {ok:true,json:async()=>({candidates:[{content:{parts:[{text:calls===1?'OK':'{"ok":true}'}]}}]})};}});assert.equal(calls,2);assert(logs.every(x=>x.includes('PASS')));assert(!JSON.stringify(logs).includes(config.apiKey));
+});
