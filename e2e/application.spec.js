@@ -170,7 +170,9 @@ test('staging password form rejects bad credentials and authenticates assigned s
  await expect(page.locator('#v15LoginStatus')).toContainText('Staging sign-in failed');
  expect(await page.evaluate(()=>V15Sync.ready)).toBeFalsy();
  await page.locator('#loginRole').selectOption('admin');await page.locator('#stagingPassword').fill(testPassword);await page.locator('#stagingSignIn').click();
- await expect(page.locator('#v15LoginStatus')).toContainText('registered as Student');expect(await page.evaluate(()=>V15Sync.ready)).toBeFalsy();
+ await expect(page.locator('#v15LoginStatus')).toContainText('Staging sign-in failed');
+ expect(await page.evaluate(()=>V15Sync.ready)).toBeFalsy();
+ expect(await page.evaluate(()=>V15Sync.fb.auth.currentUser)).toBeNull(); // Rejected role must also clear the authenticated session.
  await page.locator('#loginRole').selectOption('student');
  await page.locator('#stagingPassword').fill(testPassword);await page.locator('#stagingSignIn').click();
  await expect(page.locator('#appShell')).toBeVisible();expect(await page.evaluate(()=>V15Sync.currentRole())).toBe('student');
