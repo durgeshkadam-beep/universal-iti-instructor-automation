@@ -31,6 +31,8 @@ async function derivation(pin,salt){
 function validPin(pin){
  if(!/^\d{6}$/.test(pin))return false;
  if(/^(\d)\1{5}$/.test(pin))return false;
+ // Block short repeated motifs such as 121212 and 123123.
+ if(/^([0-9]{2})\1{2}$/.test(pin)||/^([0-9]{3})\1$/.test(pin))return false;
  // Reject every ascending/descending six-digit run, including wrapped runs (e.g. 789012).
  const digits=Array.from(pin,Number);
  if([1,-1].some(step=>digits.every((digit,i)=>i===0||digit===(digits[i-1]+step+10)%10)))return false;
