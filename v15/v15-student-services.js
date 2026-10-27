@@ -73,21 +73,22 @@ V.saveStudentPlan=async function(selfRatings,plan){
 };
 V.syncStudentPlan=async function(){
  if(role()!=='student'||!V.ready)return;
- const ws=V.workspaceId,uid=V.fb.user.uid,tid=V.member.traineeId;
+ const ws=V.workspaceId,uid=V.fb.user.uid,tid=V.member.traineeId,institute=V.INSTITUTE_ID;
+ const current=()=>V.ready&&role()==='student'&&ws===V.workspaceId&&uid===V.fb?.user?.uid&&tid===V.member?.traineeId&&institute===V.INSTITUTE_ID;
  const selfKey='iti-v15-student-skill-self-v1-'+encodeURIComponent(uid)+'-'+encodeURIComponent(ws);
  const goalKey='iti-v15-career-plan-v1-'+encodeURIComponent(uid)+'-'+encodeURIComponent(ws)+'-'+encodeURIComponent(tid);
  const persist=async()=>{
-  if(role()!=='student'||ws!==V.workspaceId||uid!==V.fb.user?.uid)throw Error('Student identity changed. Reopen your learning plan.');
+  if(!current())throw Error('Student identity changed. Reopen your learning plan.');
   localStorage.setItem(goalKey+'-pending','1');
   const selfText=localStorage.getItem(selfKey)||'{}',planText=localStorage.getItem(goalKey)||'{}';
-  const run=()=>V.saveStudentPlan(JSON.parse(selfText),JSON.parse(planText));
+  const run=()=>{if(!current())throw Error('Student identity changed. Reopen your learning plan.');return V.saveStudentPlan(JSON.parse(selfText),JSON.parse(planText));};
   const pending=(V._planSave||Promise.resolve()).catch(()=>{}).then(run);V._planSave=pending;
   await pending;
-  if((localStorage.getItem(selfKey)||'{}')===selfText&&(localStorage.getItem(goalKey)||'{}')===planText)localStorage.removeItem(goalKey+'-pending');
+  if(current()&&(localStorage.getItem(selfKey)||'{}')===selfText&&(localStorage.getItem(goalKey)||'{}')===planText)localStorage.removeItem(goalKey+'-pending');
  };
  V.persistStudentPlan=persist;
  const snap=await V.fb.M.getDoc(planRef());
- if(role()!=='student'||ws!==V.workspaceId||uid!==V.fb.user?.uid)return;
+ if(!current())return;
  if(snap.exists()&&!localStorage.getItem(goalKey+'-pending')){
   const d=snap.data();localStorage.setItem(selfKey,JSON.stringify(d.selfRatings||{}));localStorage.setItem(goalKey,JSON.stringify(d.plan||{}));
  }

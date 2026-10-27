@@ -5,6 +5,7 @@
 (function(V){
 'use strict';
 if(!V)return;
+let renderGeneration=0;
 const OPTIONS=[['not-started','Not started'],['learning','Learning'],['can-demonstrate','I can demonstrate']];
 function role(){return V.currentRole?.()||window.SESSION?.role||'';}
 function storeKey(){
@@ -28,6 +29,8 @@ function el(tag,text,className){
 V.renderSkillPassport=function(){
   const host=document.getElementById('tab-skills');
   if(!host||!V.ready||role()!=='student')return;
+  const generation=++renderGeneration, uid=V.fb?.user?.uid, workspace=V.workspaceId, institute=V.INSTITUTE_ID;
+  const current=()=>generation===renderGeneration&&V.ready&&role()==='student'&&V.fb?.user?.uid===uid&&V.workspaceId===workspace&&V.INSTITUTE_ID===institute&&host.isConnected;
   host.replaceChildren();
   const hero=el('div',null,'hero');
   const body=el('div',null,'hero-content');
@@ -56,7 +59,7 @@ V.renderSkillPassport=function(){
     const select=el('select');select.setAttribute('aria-label','Self assessment for practical '+String(item.no));
     for(const [value,title] of OPTIONS){const option=el('option',title);option.value=value;select.append(option);}
     select.value=OPTIONS.some(x=>x[0]===saved[id])?saved[id]:'not-started';
-    select.addEventListener('change',()=>{const all=read();all[id]=select.value;try{write(all);V.persistStudentPlan?.().catch(()=>alert('Saved on this browser; cloud sync pending. Reconnect and reopen My Skills.'));}catch(e){alert('Could not save on this device: '+e.message);}});
+    select.addEventListener('change',()=>{if(!current()||!select.isConnected)return;const all=read();all[id]=select.value;try{write(all);V.persistStudentPlan?.().catch(()=>alert('Saved on this browser; cloud sync pending. Reconnect and reopen My Skills.'));}catch(e){alert('Could not save on this device: '+e.message);}});
     row.append(label,select);entries.append(row);rows.push({row,labelText:(String(item.no)+' '+item.title).toLowerCase()});
   }
   function filter(){
