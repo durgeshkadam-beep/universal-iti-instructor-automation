@@ -52,6 +52,7 @@ V.institutePasswordLogin=async function(identifier,password,role){
   }catch(e){
     const auth=this.fb?.auth;
     if(auth&&!this.ready)await this.fb.M?.signOut(auth).catch(()=>{});
+    if(!this.ready)try{localStorage.removeItem('iti-v15-password-session');}catch(err){}
     if(e?.message==='Account not authorized for the selected role. Contact the institute.')throw e;
     throw Error(message);
   }finally{inProgress=false;}
