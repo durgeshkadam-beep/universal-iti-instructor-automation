@@ -50,6 +50,11 @@ V.institutePasswordLogin=async function(identifier,password,role){
   const email=this.instituteIdentifierToEmail(identifier);
   if(!email||typeof password!=='string'||!password||!['admin','principal','instructor','staff','student'].includes(role))
     throw Error('Enter your Institute ID or approved email, password, and role.');
+  // Privileged accounts remain Google-only until a separately audited MFA
+  // policy and recovery mechanism is available. Selecting another role cannot
+  // bypass the authoritative Firebase membership/role verification.
+  if(role==='admin'||role==='principal')
+    throw Error('Admin and Principal must use approved Google sign-in. Password sign-in for privileged accounts requires additional security and is not enabled.');
   inProgress=true;
   try{
     const M=await this.modules(),config=this.config();
