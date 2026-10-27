@@ -52,6 +52,7 @@ async function run(){
  assert.equal(ok,true);assert.equal(V.fb.user.uid,signedInUid,'same UID preserved');
  assert.equal(loggedInEmail,user.email,'Firebase user is the account identity');
  assert.equal(V.ready,true);
+ assert.equal(w.localStorage.getItem('iti-v15-password-session'),'1','institute password chooses browser-session persistence');
  assert.equal(w.localStorage.getItem('iti-v15-role-v2'),'student');
  assert.equal(w.localStorage.getItem('iti-v15-email-v2'),user.email);
  assert.equal(w.localStorage.getItem('CorrectPassword123!'),null,'no password in localStorage');
