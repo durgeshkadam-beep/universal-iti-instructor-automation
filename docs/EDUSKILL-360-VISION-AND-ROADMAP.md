@@ -27,6 +27,16 @@ The draft phase1 branch includes five authorized role portals, trainee practical
 
 These are **software acceptance checks**, not an independent institutional field pilot. No real placement or teacher-time outcome has been measured.
 
+## 27 October 2026 — implemented initial innovation vertical slices (development branch only)
+
+**Student Skill-to-Career Lens** is now a distinct Student dashboard quick action and menu page. It joins the activated trainee's instructor-verified practical status, the currently loaded trade syllabus and **only** current reviewed job/apprenticeship links that an Instructor explicitly mapped to that practical. Students can voluntarily filter city/district. No new student PII or provider API key is stored. Empty mapping means **no tracked examples**, not worthless skills or no companies. Source dates and original links are visible; external job availability is not guaranteed.
+
+**Instructor Job Sources** now accepts optional syllabus-practical mappings when publishing a real HTTPS posting. The Firestore guard bounds mapping count and allows only authorized Instructor creation; existing records without mappings still work. This is not a new authoritative occupational-standard database or permission to invent jobs.
+
+**Instructor Pilot Evidence** collects real elapsed time observations for attendance and reports grouped by task and batch size, with before/using-app methods. It computes a descriptive difference only when both groups have observations, warns about small samples and exports a CSV. It is device-local, account/workspace-scoped and contains no trainee details; it does **not** establish independent, published or statistically valid time savings. No result should be copied to an application without actual approved field data and review.
+
+These new features are source changes on Draft PR #16; staging deployment, real account validation and production release remain separate, gated activities. The listed pilot targets continue to be **proposed**, not achieved.
+
 ## Delivery gates for the next development sessions
 | Priority | Build and test | Definition of done |
 | --- | --- | --- |
