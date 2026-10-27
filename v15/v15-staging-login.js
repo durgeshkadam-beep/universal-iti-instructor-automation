@@ -31,7 +31,7 @@ V.showRoleLogin=function(){
   let signInAuth=null,signInModules=null;
   try{
    const M=await V.modules();let app=M.getApps().find(x=>x.name==='iti-v15');if(!app)app=M.initializeApp(V.config(),'iti-v15');
-   const auth=M.getAuth(app);await M.setPersistence(auth,M.browserSessionPersistence);
+   const auth=M.getAuth(app);signInAuth=auth;signInModules=M;await M.setPersistence(auth,M.browserSessionPersistence);
    await M.signInWithEmailAndPassword(auth,email,password);
    document.getElementById('stagingPassword').value='';
    localStorage.setItem('iti-v15-password-session','1');
