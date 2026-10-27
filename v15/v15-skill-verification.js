@@ -6,6 +6,7 @@
 'use strict';
 if(!V)return;
 const COLLECTION='skillVerifications';
+let instructorRenderGeneration=0;
 function role(){return V.currentRole?.()||window.SESSION?.role||'';}
 function element(tag,text,cls){
   const e=document.createElement(tag);
@@ -72,6 +73,9 @@ V.renderInstructorSkillVerification=async function(){
   if(!this.ready||role()!=='instructor')return;
   const host=document.getElementById('tab-skill-review');
   if(!host)return;
+  const generation=++instructorRenderGeneration;
+  const actor=this.fb?.user?.uid, institute=this.INSTITUTE_ID, workspace=this.workspaceId;
+  const contextIsCurrent=()=>generation===instructorRenderGeneration&&this.ready&&this.fb?.user?.uid===actor&&this.INSTITUTE_ID===institute&&this.workspaceId===workspace&&role()==='instructor'&&host.isConnected;
   host.replaceChildren(element('h2','✅ Instructor Skill Verification'));
   host.append(element('p','Verify assessed practical skills of activated students in your current Trade / Session / Batch. Only verified records are shared to students.','muted'));
   const summary=element('div',null,'card');host.append(summary);
@@ -80,7 +84,7 @@ V.renderInstructorSkillVerification=async function(){
     validate();
     const M=this.fb.M,ws=this.workspaceId;
     const snap=await M.getDocs(M.collection(this.fb.db,'institutes',this.INSTITUTE_ID,'members'));
-    if(this.workspaceId!==ws||role()!=='instructor')return;
+    if(!contextIsCurrent())return;
     const candidates=[];
     snap.forEach(doc=>{
       const m=doc.data();
@@ -105,7 +109,7 @@ V.renderInstructorSkillVerification=async function(){
       details.append(element('p','Loading practical assessment status…','muted'));
       try{
         const profile=await this.getStudentSkillProfile(student.uid,ws);
-        if(requestId!==sequence||ws!==this.workspaceId||role()!=='instructor')return;
+        if(requestId!==sequence||!contextIsCurrent())return;
         details.replaceChildren();
         const topics=practicals();
         if(!topics.length){details.append(element('p','No practical syllabus published for this workspace.','muted'));return;}
@@ -125,7 +129,7 @@ V.renderInstructorSkillVerification=async function(){
           const button=element('button',current?.status==='verified'?'Update verification':'Verify assessed skill','btn primary');
           button.type='button';row.append(button);
           button.addEventListener('click',async()=>{
-            if(role()!=='instructor'||ws!==this.workspaceId){alert('Workspace or role changed. Reopen this page.');return;}
+            if(!contextIsCurrent()||requestId!==sequence||sel.value!==student.uid){alert('Account, workspace or student changed. Reopen this page.');return;}
             const info=evidence.value.trim();
             if(info.length<5){alert('Provide assessment evidence (at least 5 characters).');return;}
             button.disabled=true;
@@ -134,20 +138,22 @@ V.renderInstructorSkillVerification=async function(){
               const ref=profileRef(student.uid,ws);
               await M.runTransaction(this.fb.db,async trx=>{
                 const old=await trx.get(ref);
+                if(!contextIsCurrent()||requestId!==sequence||sel.value!==student.uid)throw new Error('Assessment context changed. Reopen this page.');
                 const previous=old.exists()?old.data():null;
                 if(previous&&(previous.studentUid!==student.uid||previous.traineeId!==student.traineeId||previous.workspaceId!==ws))throw new Error('Student skill profile identity mismatch.');
                 const skills={...(previous?.skills||{})};
-                skills[key]={title:String(item.title).slice(0,140),status:'verified',evidence:info,verifiedBy:this.fb.user.uid,verifiedAt:M.serverTimestamp()};
-                trx.set(ref,{studentUid:student.uid,traineeId:student.traineeId,workspaceId:ws,skills,updatedAt:M.serverTimestamp(),updatedBy:this.fb.user.uid});
+                skills[key]={title:String(item.title).slice(0,140),status:'verified',evidence:info,verifiedBy:actor,verifiedAt:M.serverTimestamp()};
+                trx.set(ref,{studentUid:student.uid,traineeId:student.traineeId,workspaceId:ws,skills,updatedAt:M.serverTimestamp(),updatedBy:actor});
               });
+              if(!contextIsCurrent()||requestId!==sequence||sel.value!==student.uid)return;
               button.textContent='Verified ✓';evidence.value='';
               const msg=element('p','Saved to Firebase. Student can view this verification on My Skills.','muted');row.append(msg);
-            }catch(e){button.disabled=false;button.textContent=oldLabel;alert('Verification not saved: '+(e.message||e));}
+            }catch(e){if(contextIsCurrent()&&requestId===sequence&&sel.value===student.uid){button.disabled=false;button.textContent=oldLabel;alert('Verification not saved: '+(e.message||e));}}
           });
           details.append(row);
         }
-      }catch(e){notice(details,'Unable to load skill verification: '+(e.message||e));}
+      }catch(e){if(contextIsCurrent()&&requestId===sequence)notice(details,'Unable to load skill verification: '+(e.message||e));}
     });
-  }catch(e){notice(summary,'Could not open Instructor Skill Verification: '+(e.message||e));}
+  }catch(e){if(contextIsCurrent())notice(summary,'Could not open Instructor Skill Verification: '+(e.message||e));}
 };
 })(window.V15Sync);
