@@ -361,3 +361,29 @@ test('obsolete MCQ controls send no requests while current controls still publis
  await student.evaluate(()=>V15Sync.renderSecureExams());await student.evaluate(()=>window.oldMCQSubmit());expect(calls.filter(x=>x==='submitExam')).toHaveLength(0);await card.getByRole('button',{name:'Start / resume test',exact:true}).click();await expect(card.locator('input[type=radio]')).toHaveCount(4);await card.getByLabel('Two',{exact:true}).check();await card.getByRole('button',{name:'Submit answers for server grading',exact:true}).click();await expect(card).toContainText('Result: 1 / 1');expect(calls.filter(x=>x==='submitExam')).toHaveLength(1);
  }finally{await context.close();}
 });
+
+test('Student plan and self ratings restore from scoped cloud data in a fresh browser',async({page,browser})=>{
+ await login(page,'student');await page.evaluate(()=>V15Sync.finalOpenTab('skills'));
+ await page.getByLabel('Self assessment for practical 1').selectOption('learning');
+ await page.evaluate(()=>V15Sync.finalOpenTab('skill-gap'));
+ const goal='Synthetic private goal '+test.info().project.name+' '+Date.now();
+ await page.locator('#v15CareerRole').fill(goal);
+ for(const box of await page.locator('#tab-skill-gap input[type=checkbox]').all())await box.uncheck();
+ await page.getByLabel('Include Practical 2: Typography',{exact:true}).check();
+ await page.getByRole('button',{name:'Save personal learning plan',exact:true}).click();
+ await expect(page.locator('#tab-skill-gap')).toContainText('Private learning plan synced');
+ const fresh=await browser.newContext({viewport:page.viewportSize(),serviceWorkers:'block'});
+ try{
+  const student=await fresh.newPage();await login(student,'student');
+  await student.evaluate(()=>{const V=V15Sync,k=V.studentStorageKeys();localStorage.setItem(k.legacyGoal,JSON.stringify({roleName:'Unscoped legacy goal',requiredIds:['practical-1']}));localStorage.setItem(k.legacyGoal+'-pending','1');});
+  await student.evaluate(()=>V15Sync.finalOpenTab('skills'));
+  await expect(student.getByLabel('Self assessment for practical 1')).toHaveValue('learning');
+  await student.evaluate(()=>V15Sync.finalOpenTab('skill-gap'));
+  await expect(student.locator('#v15CareerRole')).toHaveValue(goal);
+  await expect(student.getByLabel('Include Practical 1: Layout basics',{exact:true})).not.toBeChecked();
+  await expect(student.getByLabel('Include Practical 2: Typography',{exact:true})).toBeChecked();
+  await expect(student.locator('#tab-skill-gap')).toContainText('older browser draft is retained');
+  const saved=await student.evaluate(async()=>{const V=V15Sync,k=V.studentStorageKeys(),s=await V.fb.M.getDocFromServer(V.fb.M.doc(V.fb.db,'institutes',V.INSTITUTE_ID,'workspaces',V.workspaceId,'studentPlans',V.fb.user.uid));return {plan:s.data().plan,self:s.data().selfRatings,legacy:localStorage.getItem(k.legacyGoal+'-pending')};});
+  expect(saved.plan.roleName).toBe(goal);expect(saved.plan.requiredIds).toEqual(['practical-2']);expect(saved.self['practical-1']).toBe('learning');expect(saved.legacy).toBe('1');
+ }finally{await fresh.close();}
+});
