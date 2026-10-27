@@ -8,7 +8,13 @@ async function runStagingProbe(config,{env=process.env,fetchImpl=fetch,log=conso
  for(const type of ['theory','practical']){
   try{
    const r=await requestGemini(config,'This is a synthetic integration test. Return a short teaching draft matching the schema. Use no personal information.','Synthetic topic: electrical workshop safety. Three concise objectives, three steps and three questions. No institute or learner records are supplied.',type,fetchImpl);
-   if(!r.ok){log('STAGING_AI_PROBE '+type+' FAIL '+await providerError(r));return;}
+   if(!r.ok){
+    let detail='';
+    // Only this operator's fixed synthetic request can emit a redacted diagnostic.
+    // Never use this diagnostic path for user prompts or normal API requests.
+    try{const b=await r.clone().json();detail=String(b.error?.message||'').split(config.apiKey).join('[REDACTED]').replace(/https?:\/\/[^\s]+/g,'[URL]').replace(/[A-Za-z0-9_-]{32,}/g,'[REDACTED]').slice(0,500);}catch(e){}
+    log('STAGING_AI_PROBE '+type+' FAIL '+await providerError(r)+(detail?' | synthetic diagnostic: '+detail:''));return;
+   }
    const o=await r.json(),c=o.candidates?.[0];
    if(c?.finishReason!=='STOP')throw Error('Incomplete');
    parseTeaching((c.content?.parts||[]).filter(p=>!p.thought).map(p=>p.text||'').join(''),type);
