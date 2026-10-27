@@ -204,6 +204,7 @@ async function renderRole(r,name){
   if(r==='instructor'){
     if(name==='exams')return V.renderSecureExams?.();
     if(name==='skill-review')return V.renderInstructorSkillVerification?.();
+    if(name==='skill-applications')return V.renderInstructorSkillApplications?.();
     if(name==='market-editor')return V.renderInstructorMarketEditor?.();
     if(name==='pilot-impact')return V.renderPilotTimeEvidence?.();
     renderLegacyInstructor(name);
