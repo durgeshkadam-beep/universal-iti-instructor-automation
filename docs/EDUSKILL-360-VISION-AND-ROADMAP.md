@@ -31,9 +31,20 @@ These are **software acceptance checks**, not an independent institutional field
 
 **Student Skill-to-Career Lens** is now a distinct Student dashboard quick action and menu page. It joins the activated trainee's instructor-verified practical status, the currently loaded trade syllabus and **only** current reviewed job/apprenticeship links that an Instructor explicitly mapped to that practical. Students can voluntarily filter city/district. No new student PII or provider API key is stored. Empty mapping means **no tracked examples**, not worthless skills or no companies. Source dates and original links are visible; external job availability is not guaranteed.
 
+**Instructor Skill Applications** now accepts one source-linked, Instructor-reviewed workplace-use explanation per published practical, stored in the assigned workspace under `skillApplications`. The Student Lens reads that educational example even when there are no current job advertisements. It is not an automatically verified fact or vacancy; instructors must provide credible, current sources and correct mistakes. Student writes are denied by Firestore rules. Both the new security collection and app script must be staged **together** before real-account testing.
+
 **Instructor Job Sources** now accepts optional syllabus-practical mappings when publishing a real HTTPS posting. The Firestore guard bounds mapping count and allows only authorized Instructor creation; existing records without mappings still work. This is not a new authoritative occupational-standard database or permission to invent jobs.
 
 **Instructor Pilot Evidence** collects real elapsed time observations for attendance and reports grouped by task and batch size, with before/using-app methods. It computes a descriptive difference only when both groups have observations, warns about small samples and exports a CSV. It is device-local, account/workspace-scoped and contains no trainee details; it does **not** establish independent, published or statistically valid time savings. No result should be copied to an application without actual approved field data and review.
+
+**Manual staging acceptance sequence (not yet passed for these new screens):**
+1. On the isolated staging Firebase project, deploy the matching `firestore.rules` **before** or together with the tested client bundle, never publish to production.
+2. Log in as an approved Instructor in a synthetic workspace. Open **Skill Applications**, choose a syllabus practical, enter one accurately attributed workplace use and a source HTTPS link; reload to check persistence.
+3. Use **Job Sources** to add a genuinely reviewed or explicitly synthetic test vacancy with a mapping to that practical; never claim the sample posting is a live offer.
+4. Log in as a synthetic Student linked to the same workspace. From the dashboard, open **Skill to Career** and verify the correct skill status, workplace example, optional city filter, active job link and missing-data warnings.
+5. Test as Student that direct SDK writes to `skillApplications`, `skillVerifications` and `careerOpportunities` are denied. Repeat after switching to an unrelated workspace.
+6. Open **Pilot Evidence** as Instructor, record *real pilot observations only* (or clearly labelled synthetic records in staging), check task/batch-matched comparisons and exported CSV. Verify no output is described as a verified impact.
+7. Verify mobile overflow, screen reader labels, offline-after-login behavior, no unrelated student data and original job URL reachability. Record failures and re-run before considering pilot readiness.
 
 These new features are source changes on Draft PR #16; staging deployment, real account validation and production release remain separate, gated activities. The listed pilot targets continue to be **proposed**, not achieved.
 
