@@ -46,15 +46,15 @@ function failureReport(error,stage){
  };
  return {project:PROJECT,readOnly:true,ok:false,stage,code,hint:hints[code],dataChanged:false};
 }
-async function createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,accessToken}){
+async function createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,accessToken,projectId=PROJECT}){
  // Use the Google Cloud client's supported OAuth adapter, not an Admin custom credential.
  const refresh=async()=>({access_token:await accessToken(),expiry_date:Date.now()+300000});
  const client=new OAuth2Client();
  client.eagerRefreshThresholdMillis=30000;
  client.refreshHandler=refresh;
  client.setCredentials(await refresh());
- const auth=new GoogleAuth({projectId:PROJECT,authClient:client});
- return new Firestore({projectId:PROJECT,auth});
+ const auth=new GoogleAuth({projectId,authClient:client});
+ return new Firestore({projectId,auth});
 }
 async function main(){
  let stage='dependencies',db;
