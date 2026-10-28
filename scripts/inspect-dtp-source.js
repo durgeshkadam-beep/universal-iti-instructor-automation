@@ -27,11 +27,12 @@ async function inspect(db){
 }
 function failureReport(error,stage){
  // Never print raw provider errors: they can contain resource paths or credentials.
- const raw=String(error?.code||'UNKNOWN').toUpperCase().replace(/-/g,'_');
+ const raw=String(error?.code||'UNKNOWN').toUpperCase().replace(/^FIRESTORE\//,'').replace(/-/g,'_');
  const codes={'7':'PERMISSION_DENIED','16':'UNAUTHENTICATED','5':'NOT_FOUND','14':'UNAVAILABLE','4':'DEADLINE_EXCEEDED'};
- let code=codes[raw]||(['PERMISSION_DENIED','UNAUTHENTICATED','NOT_FOUND','UNAVAILABLE','DEADLINE_EXCEEDED','MODULE_NOT_FOUND','INSTITUTE_MISSING','GCLOUD_LOGIN_REQUIRED'].includes(raw)?raw:'UNKNOWN');
+ let code=codes[raw]||(['PERMISSION_DENIED','UNAUTHENTICATED','NOT_FOUND','UNAVAILABLE','DEADLINE_EXCEEDED','MODULE_NOT_FOUND','INSTITUTE_MISSING','GCLOUD_LOGIN_REQUIRED','INVALID_CREDENTIAL'].includes(raw)?raw:'UNKNOWN');
  if(/SERVICE_DISABLED|accessNotConfigured|API has not been used/i.test(String(error?.message||'')))code='FIRESTORE_API_DISABLED';
  const hints={
+  INVALID_CREDENTIAL:'The Firestore SDK rejected the credential adapter. Update this inventory script; changing database permissions will not fix this SDK error.',
   PERMISSION_DENIED:'The active Google Cloud account lacks Firestore read access. Firebase CLI login alone does not authorize gcloud. Do not change database rules.',
   UNAUTHENTICATED:'The Google Cloud credential was rejected. Authenticate gcloud with the existing authorized project account.',
   GCLOUD_LOGIN_REQUIRED:'gcloud could not obtain an access token. Run gcloud auth login with your existing authorized project account, then retry.',
@@ -45,20 +46,30 @@ function failureReport(error,stage){
  };
  return {project:PROJECT,readOnly:true,ok:false,stage,code,hint:hints[code],dataChanged:false};
 }
+async function createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,accessToken}){
+ // Use the Google Cloud client's supported OAuth adapter, not an Admin custom credential.
+ const refresh=async()=>({access_token:await accessToken(),expiry_date:Date.now()+300000});
+ const client=new OAuth2Client();
+ client.refreshHandler=refresh;
+ client.setCredentials(await refresh());
+ const auth=new GoogleAuth({projectId:PROJECT,authClient:client});
+ return new Firestore({projectId:PROJECT,auth});
+}
 async function main(){
  let stage='dependencies',db;
  try{
-  const {execFileSync}=require('node:child_process'),{initializeApp}=require('firebase-admin/app'),{getFirestore}=require('firebase-admin/firestore');
-  const credential={getAccessToken:async()=>{
-   try{return {access_token:execFileSync('gcloud',['auth','print-access-token'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim(),expires_in:300};}
-   catch{throw Object.assign(Error('Google Cloud login unavailable'),{code:'GCLOUD_LOGIN_REQUIRED'});}
-  }};
-  stage='google-cloud-login';await credential.getAccessToken();
+  const {execFileSync}=require('node:child_process'),{Firestore}=require('firebase-admin/firestore'),{GoogleAuth,OAuth2Client}=require('google-auth-library');
+  const accessToken=async()=>{
+   try{const token=execFileSync('gcloud',['auth','print-access-token'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();
+    if(!token)throw Error('Empty token');return token;
+   }catch{throw Object.assign(Error('Google Cloud login unavailable'),{code:'GCLOUD_LOGIN_REQUIRED'});}
+  };
+  stage='google-cloud-login';
+  db=await createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,accessToken});
   stage='firestore-read';
-  const app=initializeApp({projectId:PROJECT,credential},'read-only-dtp-inventory');db=getFirestore(app);
   console.log(JSON.stringify(await inspect(db),null,2));
  }catch(error){console.error(JSON.stringify(failureReport(error,stage),null,2));process.exitCode=1;}
  finally{if(db)await db.terminate();}
 }
 if(require.main===module)main().catch(()=>{console.error(JSON.stringify(failureReport(null,'cleanup'),null,2));process.exitCode=1;});
-module.exports={summary,inspect,failureReport};
+module.exports={summary,inspect,failureReport,createInventoryDatabase};
