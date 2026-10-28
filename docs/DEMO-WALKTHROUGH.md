@@ -1,6 +1,6 @@
 # Universal EduSkill 360 — demonstration walkthrough
 
-Prepared against application source `0f01524c246e4b1c1676c29567c6fd15cf374c5f`, 27 October 2026. Use the [current acceptance report](FINAL-ACCEPTANCE-STATUS.md) for evidence and limitations.
+Prepared against tested application source `093bb8a732ce0e44bf2c7c06eeba1929f5afd4a1`, 28 October 2026. The institute-header fallback in that source awaits Hosting deployment. Use the [current acceptance report](FINAL-ACCEPTANCE-STATUS.md) for evidence and limitations.
 
 ## Before presenting
 
@@ -36,6 +36,12 @@ A demonstration must not mark an exercise conducted merely because AI generated 
 7. Record device/browser, source/release, synthetic topic identifier, observed result and test date. Never include credentials, API keys or personal learner data in the evidence.
 
 If the old count-only preview remains, preserve the unsaved draft before refreshing. A provider 503 is a different issue: it means generation failed temporarily; the application must not show an earlier preview as a new successful draft.
+
+## Observed synthetic Instructor acceptance
+
+The preceding cloud-browser session generated Practical Plan 3 in Electrician / 2026–27 / TEST, displayed the complete 10-row document, saved it as AI DRAFT / Version 1, and retained it after a full reload and reopening. Print / Save PDF opened the print-ready document. The draft remains unapproved and was not marked conducted. Reuse that saved draft for the presentation after technical review instead of spending requests to regenerate it.
+
+The institute name was missing from workspace metadata even though an authorised institute record supplied a name. Source `093bb8a...` fixes this fallback with project/account/institute checks and regression coverage; its deployment and final hosted header check are pending. Do not type an invented institute name for the demonstration.
 
 ## Presentation content: six slides
 
