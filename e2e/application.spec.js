@@ -164,7 +164,7 @@ test('staging password form rejects bad credentials and authenticates assigned s
   window.ITI_RUNTIME={staging:true,instituteLoginDomain:'example.test',firebaseConfig:{projectId:'demo-iti-staging'},apiUrl:''};
  });
  await page.addScriptTag({url:'/v15/v15-staging-login.js'});
- await expect(page.locator('#stagingNotice')).toContainText('Synthetic test data');
+ await expect(page.locator('#stagingNotice')).toContainText('Institute records — authorised access only.');
  await page.locator('#loginRole').selectOption('student');await page.locator('#v15ExpectedEmail').fill('student@example.test');
  await page.locator('#stagingPassword').fill(testPassword+'invalid');await page.locator('#stagingSignIn').click();
  await expect(page.locator('#v15LoginStatus')).toContainText('Staging sign-in failed');
@@ -449,4 +449,16 @@ test('split-up complete plan persists to cloud and a fresh Student calendar with
   await expect.poll(()=>page.evaluate(()=>V15Sync.queueRead().length),{timeout:20000}).toBe(0);
   await page.evaluate(async data=>{const V=V15Sync,remove=Object.fromEntries(['trainingPlan','scheduleMode','scheduleStartDate','scheduleEndDate','tradeSource','syllabusImportedAt','officialPlanPack'].filter(key=>!Object.hasOwn(data.meta,key)).map(key=>[key,V.fb.M.deleteField()]));if(Object.keys(remove).length)await V.fb.M.updateDoc(V.ws(),remove);},original);
  }
+});
+
+test('dashboard next topics follow training order after lexical cloud loading',async({page})=>{
+ await login(page,'instructor');
+ await page.evaluate(()=>{
+  DATA.practicals=[{no:1,sequence:1,title:'Synthetic first'},{no:10,sequence:10,title:'Synthetic tenth'},{no:100,sequence:100,title:'Synthetic hundredth'},{no:2,sequence:2,title:'Synthetic second'}];
+  DATA.theory=[{no:10,sequence:10,title:'Synthetic tenth lesson'},{no:1,sequence:1,title:'Synthetic first lesson'},{no:2,sequence:2,title:'Synthetic second lesson'}];
+  V15Sync.finalOpenTab('dashboard');
+ });
+ const items=page.locator('#dashRoadmap li');
+ await expect(items).toHaveText([/Demo 1:/,/Demo 2:/,/Demo 10:/,/Lesson 1:/,/Lesson 2:/,/Lesson 10:/]);
+ await expect(page.locator('#syllabusBarWrap')).toContainText('Next practical: Demo 1');
 });

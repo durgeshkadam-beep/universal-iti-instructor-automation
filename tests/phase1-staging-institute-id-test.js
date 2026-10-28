@@ -24,6 +24,8 @@ const {JSDOM}=require('jsdom');
  };
  w.V15Sync=V;
  w.eval(fs.readFileSync(path.join(__dirname,'../v15/v15-staging-login.js'),'utf8'));
+ assert.match(w.document.getElementById('stagingNotice').textContent,/Institute records/);
+ assert.doesNotMatch(w.document.getElementById('stagingNotice').textContent,/Synthetic test data only/);
  assert.equal(V.stagingIdToEmail('student'),'student@iti-staging.example.test');
  assert.equal(V.stagingIdToEmail('INSTRUCTOR'),'instructor@iti-staging.example.test');
  assert.equal(V.stagingIdToEmail('../admin'),null);

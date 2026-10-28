@@ -49,6 +49,6 @@ V.showRoleLogin=function(){
 };
 const banner=document.createElement('div');banner.id='stagingNotice';banner.setAttribute('role','status');
 banner.style.cssText='padding:10px 16px;background:#fff1c2;color:#593c00;text-align:center;font:14px/1.5 sans-serif;overflow-wrap:anywhere';
-banner.textContent='STAGING • Synthetic test data only. '+(runtime.apiUrl?'':'Secure online exams and generative AI await backend hosting. Guided assistance remains available.');
+banner.textContent='STAGING • Institute records — authorised access only. '+(runtime.apiUrl?'':'Secure online exams and generative AI await backend hosting. Guided assistance remains available.');
 document.body.prepend(banner);document.title+=' — STAGING';V.showRoleLogin();
 })(window.V15Sync);

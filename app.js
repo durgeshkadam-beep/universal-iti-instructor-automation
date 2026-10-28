@@ -2179,6 +2179,10 @@ let _chartSyllabus=null, _chartAttendance=null;
 
 /* ===================== DASHBOARD ===================== */
 const Dashboard = {
+  pendingTopics(records){
+    const rank=item=>{const seq=Number(item.sequence),no=Number(item.no);return Number.isFinite(seq)&&seq>0?seq:Number.isFinite(no)&&no>0?no:Number.MAX_SAFE_INTEGER;};
+    return records.filter(item=>item.status!=="completed").sort((a,b)=>rank(a)-rank(b)||String(a.no??'').localeCompare(String(b.no??''),undefined,{numeric:true}));
+  },
   render(){
     const isPrincipal = SESSION?.role === "principal";
     const principalPanel = document.getElementById("principalDashboard");
@@ -2248,17 +2252,18 @@ const Dashboard = {
       ? `<div class="notice"><span class="date">${latest.date}</span><h4>${latest.title}</h4><p>${latest.body||""}</p></div>`
       : `<p class="muted">No notices posted yet.</p>`;
 
-    const nextPracs = DATA.practicals.filter(p=>p.status!=="completed").slice(0,3);
-    const nextTheory = DATA.theory.filter(t=>t.status!=="completed").slice(0,3);
-    const dateTag = d => d? ` <span class="muted">(planned ${d})</span>` : ` <span class="muted">(no planned date set)</span>`;
+    const nextPracs = Dashboard.pendingTopics(DATA.practicals).slice(0,3);
+    const nextTheory = Dashboard.pendingTopics(DATA.theory).slice(0,3);
+    const roadmapText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const dateTag = d => d? ` <span class="muted">(planned ${roadmapText(d)})</span>` : ` <span class="muted">(no planned date set)</span>`;
     document.getElementById("dashRoadmap").innerHTML = `
       <p class="stat-label" style="margin-bottom:4px">Next Practicals</p>
       <ul style="margin:0 0 12px;padding-left:18px;font-size:.9em">
-        ${nextPracs.map(p=>`<li>Demo ${p.no}: ${p.title}${dateTag(p.plannedDate)}</li>`).join("") || '<li class="muted">All practicals complete!</li>'}
+        ${nextPracs.map(p=>`<li>Demo ${roadmapText(p.no)}: ${roadmapText(p.title)}${dateTag(p.plannedDate)}</li>`).join("") || '<li class="muted">All practicals complete!</li>'}
       </ul>
       <p class="stat-label" style="margin-bottom:4px">Next Theory Topics</p>
       <ul style="margin:0;padding-left:18px;font-size:.9em">
-        ${nextTheory.map(t=>`<li>Lesson ${t.no}: ${t.title}${dateTag(t.plannedDate)}</li>`).join("") || '<li class="muted">All theory complete!</li>'}
+        ${nextTheory.map(t=>`<li>Lesson ${roadmapText(t.no)}: ${roadmapText(t.title)}${dateTag(t.plannedDate)}</li>`).join("") || '<li class="muted">All theory complete!</li>'}
       </ul>
     `;
 
@@ -2268,11 +2273,11 @@ const Dashboard = {
       : `<p class="muted">Nothing pending. Registers you generate from Reports will appear here until marked signed.</p>`;
 
     const bar = document.createElement("div");
-    const nextPrac = DATA.practicals.find(p=>p.status!=="completed");
+    const nextPrac = nextPracs[0];
     bar.innerHTML = `<div style="background:#e2e6ea;border-radius:8px;height:22px;overflow:hidden">
       <div style="background:var(--brass);height:100%;width:${pct}%"></div></div>
       <p class="muted" style="margin-top:6px">${combinedDone} of ${combinedTotal||'0'} items (practical + theory) marked complete.
-      ${nextPrac? 'Next practical: Demo '+nextPrac.no : ''}</p>`;
+      ${nextPrac? 'Next practical: Demo '+roadmapText(nextPrac.no) : ''}</p>`;
     document.getElementById("syllabusBarWrap").innerHTML="";
     document.getElementById("syllabusBarWrap").appendChild(bar);
   },
