@@ -15,3 +15,16 @@ test('inventory discovers shared and legacy DTP records using read methods only'
 test('missing institute stops inventory without further access',async()=>{
  await assert.rejects(inspect({doc:()=>({get:async()=>({exists:false})})}),/Institute missing/);
 });
+
+const {failureReport}=require('../scripts/inspect-dtp-source');
+test('safe inventory diagnostics classify permission, auth, dependencies and service errors',()=>{
+ for(const [code,expected] of [[7,'PERMISSION_DENIED'],[16,'UNAUTHENTICATED'],['MODULE_NOT_FOUND','MODULE_NOT_FOUND'],['GCLOUD_LOGIN_REQUIRED','GCLOUD_LOGIN_REQUIRED'],['INSTITUTE_MISSING','INSTITUTE_MISSING']]){
+  const result=failureReport({code,message:'secret token and private learner'},'firestore-read');
+  assert.equal(result.code,expected);assert.equal(result.dataChanged,false);assert(!JSON.stringify(result).includes('secret'));
+ }
+ assert.equal(failureReport({message:'SERVICE_DISABLED private path'},'firestore-read').code,'FIRESTORE_API_DISABLED');
+});
+test('unknown diagnostics never reflect arbitrary error codes, messages or stacks',()=>{
+ const result=failureReport({code:'PRIVATE_CREDENTIAL',message:'private student',stack:'secret'},'dependencies');
+ assert.equal(result.code,'UNKNOWN');assert(!JSON.stringify(result).includes('PRIVATE_CREDENTIAL'));assert(!JSON.stringify(result).includes('private student'));
+});
