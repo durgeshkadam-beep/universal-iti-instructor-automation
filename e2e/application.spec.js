@@ -461,4 +461,7 @@ test('dashboard next topics follow training order after lexical cloud loading',a
  const items=page.locator('#dashRoadmap li');
  await expect(items).toHaveText([/Demo 1:/,/Demo 2:/,/Demo 10:/,/Lesson 1:/,/Lesson 2:/,/Lesson 10:/]);
  await expect(page.locator('#syllabusBarWrap')).toContainText('Next practical: Demo 1');
+ await expect(page.locator('#heroSub')).not.toContainText('undefined');
+ await expect(page.locator('#brandSub')).toContainText('Synthetic ITI');
+ await expect(page.locator('.instructor-profile-dashboard h3')).toContainText('Synthetic instructor');
 });

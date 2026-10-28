@@ -1431,11 +1431,10 @@ const App = {
     document.getElementById("loginScreen").style.display="none";
     document.getElementById("appShell").style.display="block";
     document.getElementById("whoName").textContent = `${SESSION.name} (${SESSION.role})`;
-    document.getElementById("brandSub").textContent = DATA.meta.institute;
     const hourNow = new Date().getHours();
     const greetWord = hourNow<12?"Good morning":hourNow<17?"Good afternoon":"Good evening";
     document.getElementById("heroGreeting").textContent = `${greetWord}, ${SESSION.name.split(" ")[0]}`;
-    document.getElementById("heroSub").textContent = `${DATA.meta.trade} — ${DATA.meta.batch} · ${DATA.meta.institute} · ${SESSION.name}`;
+    Dashboard.renderIdentity();
 
     const role = SESSION.role;
     const isInstructor = role==="instructor";
@@ -2179,11 +2178,27 @@ let _chartSyllabus=null, _chartAttendance=null;
 
 /* ===================== DASHBOARD ===================== */
 const Dashboard = {
+  escape(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));},
+  renderIdentity(){
+    const profile=RecordFormats.profile();
+    const brand=document.getElementById('brandSub'),hero=document.getElementById('heroSub');
+    if(brand)brand.textContent=profile.institute;
+    if(hero)hero.textContent=`${profile.trade} — ${profile.batch} · ${profile.institute} · ${SESSION?.name||'Signed-in account'}`;
+    const card=document.querySelector('.instructor-profile-dashboard');
+    if(card&&typeof window!=='undefined'&&window.__ITI_V15){
+      card.hidden=SESSION?.role!=='instructor';
+      const name=card.querySelector('h3'),detail=card.querySelector('p'),avatar=card.querySelector('.profile-avatar');
+      if(name)name.textContent=profile.name;
+      if(detail)detail.textContent=`${profile.designation} — ${profile.trade} • ${profile.institute}`;
+      if(avatar)avatar.textContent=profile.name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+    }
+  },
   pendingTopics(records){
     const rank=item=>{const seq=Number(item.sequence),no=Number(item.no);return Number.isFinite(seq)&&seq>0?seq:Number.isFinite(no)&&no>0?no:Number.MAX_SAFE_INTEGER;};
     return records.filter(item=>item.status!=="completed").sort((a,b)=>rank(a)-rank(b)||String(a.no??'').localeCompare(String(b.no??''),undefined,{numeric:true}));
   },
   render(){
+    Dashboard.renderIdentity();
     const isPrincipal = SESSION?.role === "principal";
     const principalPanel = document.getElementById("principalDashboard");
     if(principalPanel) principalPanel.style.display = isPrincipal ? "block" : "none";
@@ -2202,7 +2217,7 @@ const Dashboard = {
       // Principal should not see the instructor's operational dashboard widgets.
       ["dashCards","chartSyllabus","chartAttendance","dashLatestNotice","dashRoadmap","pendingSigList","syllabusBarWrap"].forEach(id=>{ const el=document.getElementById(id); if(el) { const holder=el.closest('.card')||el; holder.style.display='none'; }});
       document.getElementById("heroGreeting").textContent = "Principal Dashboard";
-      document.getElementById("heroSub").textContent = `${DATA.meta.institute} · ${instructors.length} instructor account${instructors.length===1?'':'s'}`;
+      document.getElementById("heroSub").textContent = `${RecordFormats.profile().institute} · ${instructors.length} instructor account${instructors.length===1?'':'s'}`;
       return;
     }
     ["dashCards","chartSyllabus","chartAttendance","dashLatestNotice","dashRoadmap","pendingSigList","syllabusBarWrap"].forEach(id=>{ const el=document.getElementById(id); if(el) { const holder=el.closest('.card')||el; holder.style.display=''; }});
@@ -2249,12 +2264,12 @@ const Dashboard = {
 
     const latest = DATA.notices[0];
     document.getElementById("dashLatestNotice").innerHTML = latest
-      ? `<div class="notice"><span class="date">${latest.date}</span><h4>${latest.title}</h4><p>${latest.body||""}</p></div>`
+      ? `<div class="notice"><span class="date">${Dashboard.escape(latest.date||"Date not recorded")}</span><h4>${Dashboard.escape(latest.title||"Untitled notice")}</h4><p>${Dashboard.escape(latest.body||"")}</p></div>`
       : `<p class="muted">No notices posted yet.</p>`;
 
     const nextPracs = Dashboard.pendingTopics(DATA.practicals).slice(0,3);
     const nextTheory = Dashboard.pendingTopics(DATA.theory).slice(0,3);
-    const roadmapText=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const roadmapText=Dashboard.escape;
     const dateTag = d => d? ` <span class="muted">(planned ${roadmapText(d)})</span>` : ` <span class="muted">(no planned date set)</span>`;
     document.getElementById("dashRoadmap").innerHTML = `
       <p class="stat-label" style="margin-bottom:4px">Next Practicals</p>
@@ -3645,8 +3660,6 @@ const UniversalSyllabus = {
     DATA.meta.trade=this.state.trade||DATA.meta.trade; DATA.meta.officialPlanPack=/desktop publishing|dtpo|\bdtp\b/i.test(DATA.meta.trade||'')?'DTPO':'NONE'; DATA.practicals=ps; DATA.theory=ts; DATA.modules=[...moduleMap.values()]; DATA.meta.tradeSource=this.state.sourceName; DATA.meta.syllabusImportedAt=todayISO();
     saveData();
     Practicals.render(); Theory.render(); Schedule.render(); Dashboard.render(); if(typeof InstructorAI!=='undefined'){InstructorAI.refreshTopicPicker();InstructorAI.renderToday();}
-    document.getElementById('brandSub').textContent=DATA.meta.institute;
-    document.getElementById('heroSub').textContent=`${DATA.meta.trade} — ${DATA.meta.batch} · ${DATA.meta.institute}`;
     this.status('Syllabus applied to the main register. Generate the alternate schedule from Split-up Syllabus if you want those dates there too.','ok');
     alert('Syllabus applied successfully.');
   },
@@ -3684,8 +3697,6 @@ const UniversalSyllabus = {
     DATA.practicals.forEach(p=>{if(p.plannedDate){const d=new Date(p.plannedDate+'T00:00:00'); p.week=this.weekLabel(d);}});
     DATA.theory.forEach(t=>{if(t.plannedDate){const d=new Date(t.plannedDate+'T00:00:00'); t.week=this.weekLabel(d);}});
     saveData(); Practicals.render(); Theory.render(); Schedule.render(); Dashboard.render(); if(typeof InstructorAI!=='undefined'){InstructorAI.refreshTopicPicker();InstructorAI.renderToday();} if(typeof ModuleManager!=='undefined')ModuleManager.refresh();
-    document.getElementById('brandSub').textContent=DATA.meta.institute;
-    document.getElementById('heroSub').textContent=`${DATA.meta.trade} — ${DATA.meta.batch} · ${DATA.meta.institute}`;
     this.status(`Training plan saved: ${DATA.modules.length} modules, ${ps.length} practicals, ${ts.length} theory topics and ${this.state.calendar.length} calendar rows.${this._unscheduled?' '+this._unscheduled+' topics are not fully allocated; review the session date range.':''}`,this._unscheduled?'info':'ok');
     alert('Training plan saved. Open Module Manager, Practicals, Theory and Split-up Syllabus to review allocations and any remaining topics.');
   },
