@@ -12,6 +12,19 @@ function stageEmail(id){
  return stageDomain&&/^[a-z0-9][a-z0-9._-]{2,39}$/.test(text)?text+'@'+stageDomain:null;
 }
 V.stagingIdToEmail=stageEmail;
+V.stagingFailureMessage=function(error,stage){
+ const messages={
+  'auth/invalid-credential':'Credentials were not accepted. Use the matching demo ID and password.',
+  'auth/user-not-found':'Credentials were not accepted. Use the matching demo ID and password.',
+  'auth/wrong-password':'Credentials were not accepted. Use the matching demo ID and password.',
+  'auth/network-request-failed':'Firebase could not be reached. Check the connection before retrying.',
+  'auth/too-many-requests':'Firebase temporarily limited attempts. Stop retrying and wait.',
+  'auth/operation-not-allowed':'Password sign-in is unavailable for this Firebase project.',
+  'auth/user-disabled':'This account is disabled. Ask the institute administrator.',
+  'auth/web-storage-unsupported':'Browser session storage is unavailable. Check browser storage settings.'
+ };
+ return 'Staging sign-in failed. '+(messages[error?.code]||(stage==='institute-access'?'Firebase credentials were accepted, but institute role/workspace access did not finish.':'Authentication could not finish. No role permissions were granted.'));
+};
 V.showRoleLogin=function(){
  show.call(this);
  const card=document.querySelector('#loginScreen .login-card');
@@ -28,11 +41,12 @@ V.showRoleLogin=function(){
   if(!email||!password)return V.loginMsg('Enter your approved synthetic Institute ID/email and password.',true);
   button.disabled=true;
   V.loginMsg('Verifying staging credentials and assigned role…');
-  let signInAuth=null,signInModules=null;
+  let signInAuth=null,signInModules=null,stage='credentials';
   try{
    const M=await V.modules();let app=M.getApps().find(x=>x.name==='iti-v15');if(!app)app=M.initializeApp(V.config(),'iti-v15');
    const auth=M.getAuth(app);signInAuth=auth;signInModules=M;await M.setPersistence(auth,M.browserSessionPersistence);
    await M.signInWithEmailAndPassword(auth,email,password);
+   stage='institute-access';
    document.getElementById('stagingPassword').value='';
    localStorage.setItem('iti-v15-password-session','1');
    localStorage.setItem('iti-v15-role-v2',role);localStorage.setItem('iti-v15-email-v2',email);
@@ -42,7 +56,8 @@ V.showRoleLogin=function(){
   }catch(error){
    if(!V.ready&&signInAuth){try{await signInModules.signOut(signInAuth);}catch(e){}if(V.fb)V.fb.user=null;}
    try{localStorage.removeItem('iti-v15-password-session');}catch(err){}
-   V.loginMsg('Staging sign-in failed. Check the supplied account credentials and selected role.',true);
+   document.getElementById('stagingPassword').value='';
+   V.loginMsg(V.stagingFailureMessage(error,stage),true);
   }
   finally{button.disabled=false;}
  };
