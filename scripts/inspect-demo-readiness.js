@@ -45,12 +45,16 @@ function createAuthReader({accessToken,request=fetch}){
  return {getUser:async uid=>{
   if(!ROLES.some(role=>uid==='staging-'+role))throw Object.assign(Error('Unexpected account'),{code:'AUTH_ACCOUNT_NOT_ALLOWLISTED'});
   const response=await request('https://identitytoolkit.googleapis.com/v1/projects/'+PROJECT+'/accounts:lookup',{
-   method:'POST',headers:{Authorization:'Bearer '+await accessToken(),'Content-Type':'application/json'},body:JSON.stringify({localId:[uid]}),signal:AbortSignal.timeout(30000)
+   method:'POST',headers:{Authorization:'Bearer '+await accessToken(),'Content-Type':'application/json','x-goog-user-project':PROJECT},body:JSON.stringify({localId:[uid]}),signal:AbortSignal.timeout(30000)
   });
   if(!response.ok){
    // Never return provider error text, resource identifiers, tokens or account details.
    const code=response.status===403?'PERMISSION_DENIED':response.status===401?'UNAUTHENTICATED':'AUTH_LOOKUP_FAILED';
-   throw Object.assign(Error('Account lookup unavailable'),{code,httpStatus:response.status});
+   let body;try{body=await response.json();}catch{};
+   const allowed=new Set(['SERVICE_DISABLED','IAM_PERMISSION_DENIED','ACCESS_TOKEN_SCOPE_INSUFFICIENT','USER_PROJECT_DENIED','CONSUMER_INVALID','BILLING_DISABLED']);
+   const info=(body?.error?.details||[]).find(x=>allowed.has(x.reason));
+   const reason=info?.reason||(/end.user credentials|quota project/i.test(String(body?.error?.message||''))?'USER_CREDENTIALS_QUOTA_PROJECT':'UNSPECIFIED');
+   throw Object.assign(Error('Account lookup unavailable'),{code,httpStatus:response.status,reason});
   }
   const result=await response.json(),users=result.users||[];
   if(!users.length)throw Object.assign(Error('Demo account missing'),{code:'auth/user-not-found'});
@@ -72,6 +76,10 @@ async function main(){
   const result=failureReport(error,stage);result.project=PROJECT;
   if(['AUTH_LOOKUP_FAILED','AUTH_RESPONSE_MISMATCH','AUTH_ACCOUNT_NOT_ALLOWLISTED','TARGET_MISMATCH'].includes(error.code)){result.code=error.code;result.hint='Read-only demo inspection stopped; share only this diagnostic summary.';}
   if(Number.isInteger(error.httpStatus)&&error.httpStatus>=100&&error.httpStatus<=599)result.httpStatus=error.httpStatus;
+  if(stage==='auth-account-lookup'){
+   result.hint='Firebase Authentication account lookup was rejected. Firestore access is separate. Do not change Firestore rules or repeat login without checking the reported reason.';
+   if(['SERVICE_DISABLED','IAM_PERMISSION_DENIED','ACCESS_TOKEN_SCOPE_INSUFFICIENT','USER_PROJECT_DENIED','CONSUMER_INVALID','BILLING_DISABLED','USER_CREDENTIALS_QUOTA_PROJECT','UNSPECIFIED'].includes(error.reason))result.reason=error.reason;
+  }
   if(result.code==='UNKNOWN')result.errorKind=['TypeError','RangeError','SyntaxError','Error'].includes(error.name)?error.name:'Other';
   console.error(JSON.stringify(result,null,2));process.exitCode=1;
  }finally{if(db)await db.terminate();}

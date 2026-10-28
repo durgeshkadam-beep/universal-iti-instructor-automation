@@ -20,7 +20,7 @@ test('foreign project is rejected before any account or database read',async()=>
 const {createAuthReader}=require('../scripts/inspect-demo-readiness');
 test('Auth reader uses fixed read lookup endpoint and strips hashes and provider private fields',async()=>{
  const auth=createAuthReader({accessToken:async()=>'synthetic-token',request:async(url,options)=>{
-  assert.equal(url,'https://identitytoolkit.googleapis.com/v1/projects/universal-iti-dk-staging/accounts:lookup');assert.equal(options.method,'POST');assert.deepEqual(JSON.parse(options.body),{localId:['staging-student']});
+  assert.equal(url,'https://identitytoolkit.googleapis.com/v1/projects/universal-iti-dk-staging/accounts:lookup');assert.equal(options.headers['x-goog-user-project'],'universal-iti-dk-staging');assert.equal(options.method,'POST');assert.deepEqual(JSON.parse(options.body),{localId:['staging-student']});
   return {ok:true,json:async()=>({users:[{localId:'staging-student',email:'student@iti-staging.example.test',emailVerified:true,passwordHash:'private-hash',providerUserInfo:[{providerId:'password',rawId:'private-id'}]}]})};
  }});
  const result=await auth.getUser('staging-student');assert.equal(result.providerData[0].providerId,'password');assert(!JSON.stringify(result).includes('private'));
@@ -35,4 +35,11 @@ test('missing accounts and mismatched responses fail safely before exposing acco
  const auth=createAuthReader({accessToken:async()=>'synthetic-token',request:async()=>({ok:true,json:async()=>({users})})});await assert.rejects(auth.getUser('staging-student'),{code});
  }
  const auth=createAuthReader({accessToken:()=>{throw Error('Must not request a token');}});await assert.rejects(auth.getUser('real-user'),{code:'AUTH_ACCOUNT_NOT_ALLOWLISTED'});
+});
+
+test('403 diagnostics retain allowlisted reason only, without private provider messages',async()=>{
+ for(const [body,reason]of [[{error:{details:[{reason:'IAM_PERMISSION_DENIED',metadata:{private:'secret'}}],message:'private project data'}},'IAM_PERMISSION_DENIED'],[{error:{details:[{reason:'private-credential'}],message:'private secret'}},'UNSPECIFIED'],[{error:{message:'End user credentials require quota project: private account'}},'USER_CREDENTIALS_QUOTA_PROJECT']]){
+  const reader=createAuthReader({accessToken:async()=>'synthetic',request:async()=>({ok:false,status:403,json:async()=>body})});
+  await assert.rejects(reader.getUser('staging-admin'),e=>e.reason===reason&&!JSON.stringify(e).includes('private')&&!JSON.stringify(e).includes('secret'));
+ }
 });
