@@ -17,3 +17,22 @@ test('role mismatch, disabled account, missing password provider and cross-works
 });
 test('missing Auth accounts are reported without creating accounts or exposing provider errors',async()=>{const f=fixture();f.auth.getUser=async()=>{throw Object.assign(Error('private error'),{code:'auth/user-not-found'});};const r=await inspectDemo(f.db,f.auth);assert.equal(r.accountsConfigured,false);assert(r.accounts.every(x=>!x.accountExists));assert(!JSON.stringify(r).includes('private error'));});
 test('foreign project is rejected before any account or database read',async()=>{await assert.rejects(inspectDemo({projectId:'production'},{}),{code:'TARGET_MISMATCH'});});
+const {createAuthReader}=require('../scripts/inspect-demo-readiness');
+test('Auth reader uses fixed read lookup endpoint and strips hashes and provider private fields',async()=>{
+ const auth=createAuthReader({accessToken:async()=>'synthetic-token',request:async(url,options)=>{
+  assert.equal(url,'https://identitytoolkit.googleapis.com/v1/projects/universal-iti-dk-staging/accounts:lookup');assert.equal(options.method,'POST');assert.deepEqual(JSON.parse(options.body),{localId:['staging-student']});
+  return {ok:true,json:async()=>({users:[{localId:'staging-student',email:'student@iti-staging.example.test',emailVerified:true,passwordHash:'private-hash',providerUserInfo:[{providerId:'password',rawId:'private-id'}]}]})};
+ }});
+ const result=await auth.getUser('staging-student');assert.equal(result.providerData[0].providerId,'password');assert(!JSON.stringify(result).includes('private'));
+});
+test('Auth lookup rejection reports only HTTP status and fixed codes; never raw provider errors',async()=>{
+ for(const status of [401,403,500]){const auth=createAuthReader({accessToken:async()=>'synthetic-token',request:async()=>({ok:false,status,json:async()=>{throw Error('Never parse private provider errors');}})});
+ await assert.rejects(auth.getUser('staging-instructor'),e=>e.httpStatus===status&&!JSON.stringify(e).includes('private'));
+ }
+});
+test('missing accounts and mismatched responses fail safely before exposing account data',async()=>{
+ for(const [users,code]of [[[],'auth/user-not-found'],[[{localId:'other',email:'private'}],'AUTH_RESPONSE_MISMATCH']]){
+ const auth=createAuthReader({accessToken:async()=>'synthetic-token',request:async()=>({ok:true,json:async()=>({users})})});await assert.rejects(auth.getUser('staging-student'),{code});
+ }
+ const auth=createAuthReader({accessToken:()=>{throw Error('Must not request a token');}});await assert.rejects(auth.getUser('real-user'),{code:'AUTH_ACCOUNT_NOT_ALLOWLISTED'});
+});
