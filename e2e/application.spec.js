@@ -1,6 +1,21 @@
 const {test,expect}=require('@playwright/test');
 const testPassword=process.env.ITI_EMULATOR_TEST_PASSWORD;
 if(!testPassword)throw Error('Run browser tests through the emulator test runner.');
+test('authenticator challenge UI with synthetic provider stays contained and cancels without opening the app',async({page})=>{
+ await page.route(/https:\/\/.*/,r=>r.abort());await page.goto('/v15/index.html');
+ await page.waitForFunction(()=>window.V15Sync?.firebaseSignIn);
+ await page.evaluate(()=>{
+  const M={getMultiFactorResolver:()=>({hints:[{factorId:'totp',uid:'synthetic-factor',displayName:'Synthetic authenticator'}],resolveSignIn:async()=>{throw Error('No provider call expected in cancellation check');}}),TotpMultiFactorGenerator:{FACTOR_ID:'totp'}};
+  window.mfaTestOutcome='pending';V15Sync.firebaseSignIn(M,{},async()=>{throw Object.assign(Error('Synthetic MFA challenge'),{code:'auth/multi-factor-auth-required'});}).then(()=>window.mfaTestOutcome='unexpected-success',()=>window.mfaTestOutcome='cancelled');
+ });
+ await expect(page.getByRole('form',{name:'Authenticator verification'})).toBeVisible();
+ await expect(page.getByLabel('Authenticator code',{exact:true})).toHaveAttribute('autocomplete','one-time-code');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
+ await page.getByRole('button',{name:'Cancel verification',exact:true}).click();
+ await expect.poll(()=>page.evaluate(()=>window.mfaTestOutcome)).toBe('cancelled');
+ await expect(page.locator('#v15MfaChallenge')).toHaveCount(0);await expect(page.locator('#appShell')).not.toBeVisible();
+ expect(await page.evaluate(()=>V15Sync.ready)).toBeFalsy();
+});
 async function login(page,role){
  // No production request is permitted in tests. Use real Auth/Firestore emulators and local SDK.
  await page.route(/https:\/\/.*/,r=>r.abort());

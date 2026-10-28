@@ -45,7 +45,7 @@ V.showRoleLogin=function(){
   try{
    const M=await V.modules();let app=M.getApps().find(x=>x.name==='iti-v15');if(!app)app=M.initializeApp(V.config(),'iti-v15');
    const auth=M.getAuth(app);signInAuth=auth;signInModules=M;await M.setPersistence(auth,M.browserSessionPersistence);
-   await M.signInWithEmailAndPassword(auth,email,password);
+   await (V.firebaseSignIn?V.firebaseSignIn(M,auth,()=>M.signInWithEmailAndPassword(auth,email,password)):M.signInWithEmailAndPassword(auth,email,password));
    stage='institute-access';
    document.getElementById('stagingPassword').value='';
    localStorage.setItem('iti-v15-password-session','1');

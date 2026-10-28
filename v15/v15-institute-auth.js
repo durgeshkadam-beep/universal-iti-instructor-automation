@@ -38,10 +38,10 @@ V.requestInstitutePasswordReset=async function(address){
     await M.sendPasswordResetEmail(M.getAuth(app),email);
     return generic;
   }catch(e){
-    if(['auth/network-request-failed','auth/too-many-requests','auth/quota-exceeded'].includes(e?.code))
-      throw Error('Password recovery is temporarily unavailable. Retry later or contact your institute administrator.');
-    // Do not leak account existence or Firebase Auth email enumeration hints.
-    return generic;
+    // Suppress account-existence signals, but do not claim an accepted request
+    // when the provider is disabled, misconfigured, offline or rate-limited.
+    if(['auth/user-not-found','auth/invalid-email','auth/invalid-credential'].includes(e?.code))return generic;
+    throw Error('Password recovery is temporarily unavailable. Retry later or contact your institute administrator.');
   }
 };
 V.institutePasswordLogin=async function(identifier,password,role){
@@ -62,7 +62,7 @@ V.institutePasswordLogin=async function(identifier,password,role){
     if(!app)app=M.initializeApp(config,'iti-v15');
     const auth=M.getAuth(app);
     await M.setPersistence(auth,M.browserSessionPersistence);
-    const sign=await M.signInWithEmailAndPassword(auth,email,password);
+    const sign=await (V.firebaseSignIn?V.firebaseSignIn(M,auth,()=>M.signInWithEmailAndPassword(auth,email,password)):M.signInWithEmailAndPassword(auth,email,password));
     if(!sign?.user?.uid||String(sign.user.email||'').toLowerCase()!==email)throw Error(message);
     localStorage.setItem('iti-v15-password-session','1');
     localStorage.setItem(PREFIX+'role-v2',role);

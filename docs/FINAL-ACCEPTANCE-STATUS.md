@@ -63,3 +63,15 @@ The application limit is 50 AI attempts per UID per UTC day, including failures,
 - **Delivery:** no production deploy, main merge, force-push, real-user credential reset, permission relaxation or paid resource upgrade occurred. The demonstrated Student/Instructor workflow and five successful role logins support a prototype demo; they do not certify production readiness.
 
 See [DEMO-WALKTHROUGH.md](DEMO-WALKTHROUGH.md) for the demonstration sequence. Use synthetic accounts for mutations and distinguish saved AI drafts, reviewed material, keyless assistance and planned capabilities.
+
+## Security/recovery implementation after the verified deployment
+
+New work is prepared on the same development branch and PR; it has not been deployed:
+
+- An operator-only AES-256-GCM Firestore archive captures all collections/subcollections, including protected student, attendance, marks, exam and access-control documents. Exclusive private files, authenticated decryption, an explicit staging source and loopback-only fresh emulator restore prevent silent overwrite or live restore. Synthetic export/encrypt/decrypt/restore/readback passed. No actual institute archive has been exported in this session. Authentication identities/secrets, file bytes and external configuration remain outside this archive; it is not a full Firebase disaster-recovery certification.
+- Firebase-native TOTP challenge handling is integrated with existing password, Google popup and redirect flows. Challenge cancellation, wrong codes, throttling and expiry fail closed. This does not configure/enroll users or enforce a privileged policy. Production Admin/Principal password restrictions remain.
+- Password recovery now distinguishes unavailable/misconfigured providers from a normally accepted request while suppressing account-existence information. A read-only operator MFA readiness script reports provider/enrollment booleans without exposing identities or secrets.
+- Local validation passed **260 native tests**, all existing security/Auth/Firestore/backend emulator suites plus the new encrypted database restore rehearsal, **60 desktop/mobile browser cases**, the staged public build, and the all-dependency audit with zero advisories. Browser cases include real emulator role sessions, offline guidance, syllabus/completion sync, materials, lock-aware leave approval, protected MCQ, training backup, private plans and Chromium PDF generation. Hosted MFA enrollment, physical printing and Drive OAuth are not inferred from those cases.
+- Local container smoke could not run because Docker is unavailable in the Work executor. GitHub Actions remains the container validation gate; a missing Docker binary is not an app test failure or a passing container test.
+
+See [SECURITY-RECOVERY-ROLLOUT.md](SECURITY-RECOVERY-ROLLOUT.md) for exact scope, operator commands, the privileged-policy/recovery rollout gate and remaining integrations. No paid upgrade, account grant/reset, production rules change or live restore was performed.
