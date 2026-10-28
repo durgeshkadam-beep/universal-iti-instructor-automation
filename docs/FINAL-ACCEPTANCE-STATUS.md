@@ -4,21 +4,21 @@
 
 Work remains on `phase1/security-student-career-20261021` in draft [PR #16](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/pull/16). Main has not been merged. No production deployment or complete production acceptance is claimed.
 
-The independently verified Firebase Hosting release is `b9b476a5862d027cf2ce8871a4ff93d3abad1e23` at https://universal-iti-dk-staging.web.app/v15/ . All 57 deployed public files, including the manifest, matched the prepared release. Cloud Shell does not need to remain open for Hosting or the deployed backend to run.
+The independently verified Firebase Hosting release is now `f7137655fe1eb1c4d26fa6c11f0411a41c510b54` at https://universal-iti-dk-staging.web.app/v15/ . After the operator reported the deployment on 28 October, all 57 deployed public files, including the manifest, matched the prepared release; no mismatches were found. The manifest endpoint returned HTTP 200 with the configured security headers. Cloud Shell does not need to remain open for Hosting or the deployed backend to run.
 
-A newer dashboard/notice correction, `f7137655fe1eb1c4d26fa6c11f0411a41c510b54`, has passed full CI but is not yet certified deployed. It uses authorised, account/project/institute-scoped identity fallbacks, preserves the original embedded author/institute details, hides Instructor profile cards from other roles, and escapes notices with explicit missing-date labels. It does not rewrite workspace records.
+The dashboard/notice correction in `f7137655fe1eb1c4d26fa6c11f0411a41c510b54` has passed full CI and its public assets are verified deployed. It uses authorised, account/project/institute-scoped identity fallbacks, preserves the original embedded author/institute details, hides Instructor profile cards from other roles, and escapes notices with explicit missing-date labels. It does not rewrite workspace records.
 
 ## Automated validation
 
 - Deployed source: [CI 40701296595](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/actions/runs/40701296595) passed 242 native tests, regression scripts, security/Auth/Firestore/backend emulator suites, 58 desktop/mobile browser cases, public build/container checks and both dependency audits with zero advisories.
-- Prepared correction: [CI 40707552024](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/actions/runs/40707552024) passed 244 native tests, regression scripts, emulator suites, 58 desktop/mobile browser cases, build/container checks and dependency audits.
+- Current deployed correction: [CI 40707552024](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/actions/runs/40707552024) passed 244 native tests, regression scripts, emulator suites, 58 desktop/mobile browser cases, build/container checks and dependency audits.
 - Local focused validation for the prepared correction passed 244 native tests and 12 desktop/mobile cases covering all five role routes and dashboard identity/order.
 
 An earlier CI attempt failed before tests because a package mirror returned inconsistent browser-dependency file sizes; a retry passed without relaxing checks. The initial local browser attempt lacked Chromium; after restoring Chromium, focused browser cases passed. Neither environment failure is represented as a successful app test.
 
 ## Current hosted account acceptance
 
-All five independent synthetic accounts completed actual password sign-in on the deployed staging application. Secure credential entry was user-controlled; no passwords or tokens belong in this repository.
+All five independent synthetic accounts completed actual password sign-in on the preceding `b9b476a...` staging release, before the dashboard/notice-only update. The new release has full automated coverage and independent public-asset verification; all five hosted logins were not repeated after that update. Secure credential entry was user-controlled; no passwords or tokens belong in this repository.
 
 | Role | Observed hosted result | Remaining boundary |
 |---|---|---|
@@ -55,7 +55,7 @@ The application limit is 50 AI attempts per UID per UTC day, including failures,
 
 ## Pending, blocked and production boundary
 
-- **Awaiting staging Hosting deployment:** source `f7137655fe1eb1c4d26fa6c11f0411a41c510b54`, containing the tested dashboard/notice correction. Publish only Hosting using `firebase.staging.json` and target `universal-iti-dk-staging`; do not redeploy production rules or repeat the data transfer. This report is documentation only.
+- **Completed staging Hosting deployment:** source `f7137655fe1eb1c4d26fa6c11f0411a41c510b54`, containing the tested dashboard/notice correction, independently matches all 57 prepared public files. Do not repeat deployment or the data transfer for this documentation-only status update.
 - **Deployment access:** the Work executor has no authorised Firebase CLI session or Firebase deployment connector. The Work browser's Cloud Shell returned Site Unavailable. The operator's existing Cloud Shell remains the available deployment path; no credentials should be pasted into chat.
 - **Privileged access:** application-enforced MFA, account recovery/anti-lockout design, intended-device enrollment and recovery remain outstanding. Google login alone does not prove enforced MFA. Non-deliverable institute aliases do not provide safe automatic email recovery.
 - **Recovery/integrations:** training-resource backup excludes trainees, attendance, marks, exams, accounts and files. Full disaster recovery is not implemented. Drive OAuth/upload, OS downloads, physical printing and intended-device acceptance remain pending.
