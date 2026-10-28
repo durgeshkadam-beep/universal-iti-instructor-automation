@@ -78,3 +78,9 @@ A trainee roster entry is not an authenticated Student account. Before the live 
 Open Skill Applications to explain how a practical connects to work. Publish only an instructor-reviewed explanation with its original HTTPS source; empty fields are not a published example. Pilot Evidence records actual comparable observations. An empty diary supports no time-saving claim. These module views are distinct from acceptance of their save/publish workflows.
 
 This guide update is documentation only. It requires no Hosting deployment and no repeated data transfer.
+
+## Read-only five-account readiness check
+
+An authorised operator can run `node scripts/inspect-demo-readiness.js` from the checkout in their existing authenticated Google Cloud Shell. It checks the fixed staging project and synthetic workspace, known demo Auth accounts/password provider, active memberships, role matches and Student-to-trainee linkage. It prints only configuration booleans and synthetic fixture counts. It does not reset passwords, grant roles, create records or export credentials.
+
+`accountsConfigured` is a configuration result, not proof of a successful password sign-in. The complete live demonstration still requires the five secure logins, a reviewed syllabus/calendar save, optional AI generation and draft persistence, then Instructor verification observed in the Student Skill Passport, gap and private learning plan. Missing fixture plans may be prepared through the real Instructor UI in the synthetic workspace. Privileged Admin/Principal demo accounts retain existing institute-wide authority; keep credentials private and do not expose real records during presentation.
