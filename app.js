@@ -2553,28 +2553,36 @@ const MarkComplete = {
 
 /* ===================== SPLIT-UP SYLLABUS (day-wise schedule generator) ===================== */
 const Schedule = {
+  validDate(iso){return typeof iso==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(iso)&&Number.isFinite(Date.parse(iso+'T00:00:00Z'))&&new Date(iso+'T00:00:00Z').toISOString().slice(0,10)===iso;},
+  hasOfficialCalendar(){return /desktop publishing|\bdtpo\b|\bdtp\b/i.test(DATA.meta.trade||'')&&(!DATA.meta.officialPlanPack||DATA.meta.officialPlanPack==='DTPO');},
+  holiday(iso){const saved=DATA.holidays.find(h=>h.date===iso);return saved?String(saved.label||'Institute holiday'):(new Date(iso+'T00:00:00Z').getUTCDay()===0?'Sunday':'');},
   workingDaysFrom(startISO, count){
+    if(!this.validDate(startISO)||!Number.isInteger(count)||count<0||count>5000)return [];
     const days = [];
-    let d = new Date(startISO+"T00:00:00");
+    let d = new Date(startISO+"T00:00:00Z");
     let guard = 0;
-    while(days.length < count && guard < 2000){
+    while(days.length < count && guard < 10000){
       const iso = d.toISOString().slice(0,10);
-      if(!isHoliday(iso)) days.push(iso);
-      d.setDate(d.getDate()+1);
+      if(!this.holiday(iso)) days.push(iso);
+      d.setUTCDate(d.getUTCDate()+1);
       guard++;
     }
     return days;
   },
   useRealCalendar(){
-    if(!confirm("This resets Planned Dates on every Practical and Theory topic to match your official DPO_LIVE_2026-27 calendar (Aug 2026 – Aug 2027), overwriting any custom schedule or reordering. Continue?")) return;
-    DATA.meta.scheduleMode = "real";
+    if(SESSION?.role!=='instructor'||!this.hasOfficialCalendar())return;
+    const context=syllabusContext();
+    if(!confirm("Replace planned dates with the bundled DTPO 2026–27 calendar? Review its dates against your institute calendar before use.")) return;
+    if(!syllabusContextCurrent(context)||SESSION?.role!=='instructor')return;
+    DATA.meta.scheduleMode = "official";
     Schedule.applyRealCalendarDates();
     saveData();
     Schedule.render();
     Practicals.render(); Theory.render(); Dashboard.render();
-    alert("Restored to your official 2026-27 calendar dates.");
+    alert("Bundled DTPO calendar applied. Review institute-specific holidays and session dates.");
   },
   applyRealCalendarDates(){
+    if(SESSION?.role!=='instructor'||!this.hasOfficialCalendar())return;
     const firstSeen = {p:{}, t:{}};
     SEED_SPLITUP.forEach(([date,psr,tsr,holiday])=>{
       if(holiday) return;
@@ -2585,19 +2593,23 @@ const Schedule = {
     DATA.theory.forEach(t=>{ if(firstSeen.t[t.no]) t.plannedDate = firstSeen.t[t.no]; });
   },
   generate(){
+    if(SESSION?.role!=='instructor')return;
     const start = document.getElementById("splitupStart").value;
-    const hoursPerDay = Number(document.getElementById("splitupHoursPerDay").value)||7;
-    const daysPerTheory = Number(document.getElementById("splitupDaysPerTheory").value)||1;
-    if(!start){ alert("Select a session start date."); return; }
-    if(!confirm("This generates dates algorithmically from your current teaching sequence, instead of using your official 2026-27 calendar. Use this only if you've reordered practicals/theory. Continue?")) return;
+    const hoursPerDay = Number(document.getElementById("splitupHoursPerDay").value);
+    const daysPerTheory = Number(document.getElementById("splitupDaysPerTheory").value);
+    if(!this.validDate(start)||!Number.isFinite(hoursPerDay)||hoursPerDay<1||hoursPerDay>12||!Number.isInteger(daysPerTheory)||daysPerTheory<1||daysPerTheory>10){alert('Enter a valid start date, practical hours/day (1–12) and whole theory days/topic (1–10).');return;}
+    if(DATA.practicals.some(p=>!Number.isFinite(Number(p.hours))||Number(p.hours)<=0)||(!DATA.practicals.length&&!DATA.theory.length)){alert('Add syllabus topics with valid positive practical hours before scheduling.');return;}
+    const context=syllabusContext();
+    const totalPracDays = DATA.practicals.reduce((s,p)=>s+Math.ceil(p.hours/hoursPerDay),0);
+    const totalTheoryDays = DATA.theory.length * daysPerTheory;
+    const workingDays = Schedule.workingDaysFrom(start, Math.max(totalPracDays, totalTheoryDays));
+    if(workingDays.length<Math.max(totalPracDays,totalTheoryDays)){alert('Schedule is too long. Reduce the topic hours or split the planning period.');return;}
+    if(!confirm('Replace planned dates using the current topic order? Sundays and saved holidays are excluded. Practical hours/day and theory days/topic are separate allocations; use Syllabus AI for a shared daily-hours budget.'))return;
+    if(!syllabusContextCurrent(context)||SESSION?.role!=='instructor')return;
     DATA.meta.scheduleMode = "generated";
     DATA.meta.scheduleStartDate = start;
     DATA.meta.hoursPerWorkingDay = hoursPerDay;
     DATA.meta.theoryDaysPerTopic = daysPerTheory;
-
-    const totalPracDays = DATA.practicals.reduce((s,p)=>s+Math.ceil(p.hours/hoursPerDay),0);
-    const totalTheoryDays = DATA.theory.length * daysPerTheory;
-    const workingDays = Schedule.workingDaysFrom(start, Math.max(totalPracDays, totalTheoryDays)+10);
 
     let ptr = 0;
     DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence).forEach(p=>{
@@ -2614,8 +2626,9 @@ const Schedule = {
     saveData();
     const lastNeeded = Math.max(totalPracDays, totalTheoryDays);
     const warn = document.getElementById("splitupWarning");
-    if(lastNeeded > workingDays.length - 10){
-      warn.textContent = "Heads up: this schedule runs long — check it against your session end date (31 May 2027) and consider adjusting hours/day or sequence.";
+    const sessionEnd=DATA.meta.sessionEndDate||DATA.meta.scheduleEndDate;
+    if(this.validDate(sessionEnd)&&workingDays[lastNeeded-1]>sessionEnd){
+      warn.textContent = 'This schedule extends beyond the configured session end date '+sessionEnd+'. Review the hours or topic order.';
     } else { warn.textContent = ""; }
     Schedule.render();
     Practicals.render(); Theory.render(); Dashboard.render();
@@ -2625,30 +2638,28 @@ const Schedule = {
     const tbody = document.getElementById("splitupTableBody");
     if(!tbody) return;
     if(document.getElementById("splitupStart")) document.getElementById("splitupStart").value = DATA.meta.scheduleStartDate || "";
-    if(document.getElementById("splitupHoursPerDay")) document.getElementById("splitupHoursPerDay").value = DATA.meta.hoursPerWorkingDay;
-    if(document.getElementById("splitupDaysPerTheory")) document.getElementById("splitupDaysPerTheory").value = DATA.meta.theoryDaysPerTopic;
-
+    if(document.getElementById("splitupHoursPerDay")) document.getElementById("splitupHoursPerDay").value = DATA.meta.hoursPerWorkingDay ?? 7;
+    if(document.getElementById("splitupDaysPerTheory")) document.getElementById("splitupDaysPerTheory").value = DATA.meta.theoryDaysPerTopic ?? 1;
+    const official=document.getElementById('splitupOfficial');if(official)official.hidden=!this.hasOfficialCalendar();
+    const info=document.getElementById('splitupInfo');if(info)info.textContent=DATA.meta.scheduleMode==='generated'?'Alternate schedule: separate practical hours/day and theory days/topic. Sundays and saved holidays are excluded.':Array.isArray(DATA.meta.trainingPlan?.dayPlan)&&DATA.meta.scheduleMode!=='official'?'Saved complete training plan: allocations from Syllabus AI.':this.hasOfficialCalendar()?'Bundled DTPO calendar: review against your institute calendar.':'Create a complete training plan in Syllabus AI or generate an alternate schedule below.';
     const rows = Schedule.buildRows();
     if(!rows.length){
-      tbody.innerHTML = `<tr><td colspan="5" class="muted">No schedule yet. Click "Use Official 2026-27 Calendar" (recommended) or set a start date and "Generate Schedule."</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" class="muted">No schedule yet. Create a complete training plan in Syllabus AI or generate an alternate schedule.</td></tr>`;
       return;
     }
-    tbody.innerHTML = rows.map(r=>`
-      <tr ${r.holiday?'style="background:#f4f5f2"':''}>
-        <td>${r.date}</td><td>${r.day}</td><td>${r.week}</td>
-        <td>${r.holiday? '<i>HOLIDAY — '+r.label+'</i>' : (r.practical||'—')}</td>
-        <td>${r.holiday? '<i>HOLIDAY — '+r.label+'</i>' : (r.theory||'—')}</td>
-      </tr>`).join("");
+    tbody.replaceChildren();
+    for(const r of rows){const tr=document.createElement('tr');if(r.holiday)tr.style.background='#f4f5f2';for(const text of [r.date,r.day,r.week,r.holiday?'HOLIDAY — '+r.label:r.practical||'—',r.holiday?'HOLIDAY — '+r.label:r.theory||'—']){const td=document.createElement('td');td.textContent=text??'';tr.append(td);}tbody.append(tr);}
   },
   buildRows(){
     if(DATA.meta.scheduleMode==="generated") return Schedule.buildRowsGenerated();
-    return Schedule.buildRowsReal();
+    if(DATA.meta.scheduleMode!=='official'&&Array.isArray(DATA.meta.trainingPlan?.dayPlan))return DATA.meta.trainingPlan.dayPlan.filter(r=>r&&this.validDate(r.date)).map(r=>({...r}));
+    return this.hasOfficialCalendar()?Schedule.buildRowsReal():[];
   },
   buildRowsReal(){
     let prevPsr=null, prevTsr=null;
     return SEED_SPLITUP.map(([date,psr,tsr,holidayLabel],idx)=>{
-      const d = new Date(date+"T00:00:00");
-      const day = d.toLocaleDateString('en-IN',{weekday:'short'});
+      const d = new Date(date+"T00:00:00Z");
+      const day = d.toLocaleDateString('en-IN',{weekday:'short',timeZone:'UTC'});
       const week = Math.floor(idx/7)+1;
       if(holidayLabel){
         prevPsr=null; prevTsr=null;
@@ -2664,62 +2675,46 @@ const Schedule = {
   },
   buildRowsGenerated(){
     const start = DATA.meta.scheduleStartDate;
-    const hoursPerDay = DATA.meta.hoursPerWorkingDay;
-    const daysPerTheory = DATA.meta.theoryDaysPerTopic;
+    const hoursPerDay = Number(DATA.meta.hoursPerWorkingDay);
+    const daysPerTheory = Number(DATA.meta.theoryDaysPerTopic);
+    if(!this.validDate(start)||!Number.isFinite(hoursPerDay)||hoursPerDay<1||hoursPerDay>12||!Number.isInteger(daysPerTheory)||daysPerTheory<1||daysPerTheory>10)return [];
     const pracSorted = DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence).filter(p=>p.plannedDate);
     const theorySorted = DATA.theory.slice().sort((a,b)=>a.sequence-b.sequence).filter(t=>t.plannedDate);
-    const lastPrac = pracSorted[pracSorted.length-1];
-    const lastTheory = theorySorted[theorySorted.length-1];
-    const endDates = [];
-    if(lastPrac) endDates.push(addDaysISO(lastPrac.plannedDate, Math.ceil(lastPrac.hours/hoursPerDay)-1));
-    if(lastTheory) endDates.push(addDaysISO(lastTheory.plannedDate, daysPerTheory-1));
-    if(!start || !endDates.length) return [];
-    const endDate = endDates.sort().reverse()[0];
-
-    const findPractical = (iso)=>{
-      for(const p of pracSorted){
-        const days = Math.ceil(p.hours/hoursPerDay);
-        const pEnd = addDaysISO(p.plannedDate, days-1);
-        if(iso>=p.plannedDate && iso<=pEnd){
-          return iso===p.plannedDate ? `Demo ${p.no}: ${p.title} (${p.hours} hrs)` : "Practice";
-        }
+    const pDays=new Map(),tDays=new Map(),ends=[];
+    const assign=(items,map,count,title)=>{
+      for(const item of items){const needed=count(item);if(!this.validDate(item.plannedDate)||!Number.isInteger(needed)||needed<1||needed>5000)continue;
+        const dates=this.workingDaysFrom(item.plannedDate,needed);if(dates.length!==needed)continue;
+        dates.forEach((date,i)=>map.set(date,[...(map.get(date)||[]),i?'Practice':title(item)]));ends.push(dates.at(-1));
       }
-      return null;
     };
-    const findTheory = (iso)=>{
-      for(const t of theorySorted){
-        const tEnd = addDaysISO(t.plannedDate, daysPerTheory-1);
-        if(iso>=t.plannedDate && iso<=tEnd){
-          return iso===t.plannedDate ? `Lesson ${t.no}: ${t.title}` : "Practice";
-        }
-      }
-      return null;
-    };
-
+    assign(pracSorted,pDays,p=>Math.ceil(Number(p.hours)/hoursPerDay),p=>`Demo ${p.no}: ${p.title} (${p.hours} hrs)`);
+    assign(theorySorted,tDays,()=>daysPerTheory,t=>`Lesson ${t.no}: ${t.title}`);
+    if(!ends.length)return [];
+    const endDate=ends.sort().at(-1);
     const rows = [];
-    let d = new Date(start+"T00:00:00");
-    const end = new Date(endDate+"T00:00:00");
+    let d = new Date(start+"T00:00:00Z");
+    const end = new Date(endDate+"T00:00:00Z");
     let dayCount=0, guard=0;
     while(d<=end && guard++<5000){
       const iso = d.toISOString().slice(0,10);
-      const dayName = d.toLocaleDateString('en-IN',{weekday:'short'});
+      const dayName = d.toLocaleDateString('en-IN',{weekday:'short',timeZone:'UTC'});
       const week = Math.floor(dayCount/7)+1;
-      const holiday = DATA.holidays.find(h=>h.date===iso);
+      const holiday = this.holiday(iso);
       rows.push({
         date: iso, day: dayName, week,
-        holiday: !!holiday, label: holiday? holiday.label:"",
-        practical: holiday? null : findPractical(iso),
-        theory: holiday? null : findTheory(iso)
+        holiday: !!holiday, label: holiday||'',
+        practical: holiday? null : (pDays.get(iso)||[]).join('; ')||null,
+        theory: holiday? null : (tDays.get(iso)||[]).join('; ')||null
       });
-      d.setDate(d.getDate()+1);
+      d.setUTCDate(d.getUTCDate()+1);
       dayCount++;
     }
     return rows;
   }
 };
 function addDaysISO(iso, n){
-  const d = new Date(iso+"T00:00:00");
-  d.setDate(d.getDate()+n);
+  const d = new Date(iso+"T00:00:00Z");
+  d.setUTCDate(d.getUTCDate()+n);
   return d.toISOString().slice(0,10);
 }
 
@@ -3375,11 +3370,12 @@ const Reports = {
   },
   printSplitUp(){
     const rows = Schedule.buildRows();
-    if(!rows.length){ alert("No schedule yet — use 'Use Official 2026-27 Calendar' or Generate an alternate schedule first."); return; }
+    if(!rows.length){ alert('No schedule yet. Create a complete training plan or generate an alternate schedule first.'); return; }
+    const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const trs = rows.map(r=>`<tr class="${r.holiday?'splitup-holiday':''}">
-      <td>${r.date}</td><td>${r.day}</td><td>${r.week}</td>
-      <td class="splitup-practical">${r.holiday? '<b>HOLIDAY — '+r.label+'</b>' : (r.practical||'—')}</td>
-      <td class="splitup-theory">${r.holiday? '<b>HOLIDAY — '+r.label+'</b>' : (r.theory||'—')}</td></tr>`).join("");
+      <td>${esc(r.date)}</td><td>${esc(r.day)}</td><td>${esc(r.week)}</td>
+      <td class="splitup-practical">${r.holiday? '<b>HOLIDAY — '+esc(r.label)+'</b>' : esc(r.practical||'—')}</td>
+      <td class="splitup-theory">${r.holiday? '<b>HOLIDAY — '+esc(r.label)+'</b>' : esc(r.theory||'—')}</td></tr>`).join("");
     const html = `<style>
       @page{size:A4 landscape;margin:8mm}
       @media print{
@@ -3403,7 +3399,7 @@ const Reports = {
         #printArea .splitup-print .sign-block{font-size:8.5px;margin-top:28px}
       }
     </style>
-    <div class="splitup-print">
+    <div class="splitup-print report-splitup">
       ${Reports.header("Split-up Syllabus (Week-wise)")}
       <table class="print-table splitup-table"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Trade Practical</th><th>Trade Theory</th></tr></thead>
       <tbody>${trs}</tbody></table>${Reports.signBlock()}
@@ -3578,12 +3574,17 @@ const UniversalSyllabus = {
     if(date.getDay()!==6)return false; const n=Math.floor((date.getDate()-1)/7)+1; return n===2||n===4;
   },
   generateCalendar(){
+    this.state.calendar=[];
+    this.renderCalendar();
     if(!this.state.items.length){this.status('Analyze a syllabus before generating the calendar.','error');return;}
     const start=document.getElementById('uStart').value, end=document.getElementById('uEnd').value;
-    if(!start||!end||start>end){this.status('Please enter a valid session start and end date.','error');return;}
-    const hoursPerDay=Math.max(1,Number(document.getElementById('uHours')?.value)||7);
-    const theoryHoursPerDay=Math.max(0,Math.min(hoursPerDay,Number(document.getElementById('uTheoryHours')?.value)||1));
+    const valid=iso=>/^\d{4}-\d{2}-\d{2}$/.test(iso)&&Number.isFinite(Date.parse(iso+'T00:00:00Z'))&&new Date(iso+'T00:00:00Z').toISOString().slice(0,10)===iso;
+    if(!valid(start)||!valid(end)||start>end||(Date.parse(end+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/86400000>=5000){this.status('Enter valid session dates in order, covering fewer than 5000 days.','error');return;}
+    const hoursPerDay=Number(document.getElementById('uHours')?.value);
+    const theoryHoursPerDay=Number(document.getElementById('uTheoryHours')?.value);
+    if(!Number.isFinite(hoursPerDay)||hoursPerDay<1||hoursPerDay>12||!Number.isFinite(theoryHoursPerDay)||theoryHoursPerDay<0||theoryHoursPerDay>hoursPerDay||this.state.items.some(x=>!Number.isFinite(Number(x.hours))||Number(x.hours)<=0)){this.status('Enter positive topic hours, daily hours from 1 to 12, and theory hours within that daily budget.','error');this.renderCalendar();return;}
     const workdays=[...document.querySelectorAll('#uDays input:checked')].map(x=>Number(x.value));
+    if(!workdays.length){this.status('Select at least one working weekday.','error');this.renderCalendar();return;}
     const holidayMap=new Map(this.parseHolidayText(document.getElementById('uHolidays')?.value||'').map(x=>[x.date,x.label]));
     if(document.getElementById('uUseExistingHolidays')?.checked && typeof DATA!=='undefined') (DATA.holidays||[]).forEach(h=>{if(h?.date&&!holidayMap.has(h.date))holidayMap.set(h.date,h.label||'Institute holiday');});
     const altSat=!!document.getElementById('uAltSat')?.checked;
@@ -3617,9 +3618,11 @@ const UniversalSyllabus = {
       }
       date.setDate(date.getDate()+1);
     }
-    this.state.calendar=rows; this.renderCalendar();
+    this.state.calendar=rows;this._calendarContext=typeof syllabusContext==='function'?syllabusContext():null; this.renderCalendar();
+    this._unscheduled=Math.max(0,pr.length-pi)+Math.max(0,th.length-ti);
     const working=rows.filter(r=>!r.holiday).length, holidays=rows.filter(r=>r.holiday).length;
     this.status(`Calendar generated: ${working} working days + ${holidays} holidays/non-working days. Remaining — practical ${Math.max(0,pr.length-pi)}, theory ${Math.max(0,th.length-ti)}.`,(pi>=pr.length&&ti>=th.length)?'ok':'info');
+    return true;
   },
   renderCalendar(){
     const body=document.getElementById('uCalendarBody'); if(!body)return;
@@ -3645,24 +3648,31 @@ const UniversalSyllabus = {
   createCompletePlan(){
     if(!this.state.items.length){this.status('Analyze a syllabus first.','error');return;}
     if(SESSION?.role!=='instructor'){this.status('Only the instructor can create the complete training plan.','error');return;}
-    if(!this.state.calendar.length){ this.generateCalendar(); if(!this.state.calendar.length){return;} }
+    if(this._calendarContext&& !syllabusContextCurrent(this._calendarContext)){this.status('Account or workspace changed. Review the syllabus and generate a fresh calendar before saving.','error');return;}
+    if(!this.generateCalendar())return;
+    const context=this._calendarContext;
     const start=document.getElementById('uStart').value, end=document.getElementById('uEnd').value;
     const rows=this.state.calendar.filter(r=>r.hours>0 && !r.holiday);
-    if(!confirm(`Create the complete ${this.state.trade||'trade'} training plan?\n\nThis will create modules, theory/practical records and planned dates. Existing trainee and attendance records will remain.`)) return;
+    if(!confirm(`Create the ${this.state.trade||'trade'} training plan?\n\nThis replaces modules, theory/practical records and planned dates. Existing trainee and attendance records will remain.${this._unscheduled?'\n\nWarning: '+this._unscheduled+' topics are not fully allocated within the selected dates. Extend the period or retain this as a partial plan.':''}`)) return;
+    if(SESSION?.role!=='instructor'||(context&&!syllabusContextCurrent(context)))return;
     const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
     const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
     // Assign practical dates from generated calendar rows.
     const prRows=rows.filter(r=>(r.practicalItems||[]).length || (r.practical && r.practical!=='—'));
     const thRows=rows.filter(r=>(r.theoryItems||[]).length || (r.theory && r.theory!=='—'));
-    ps.forEach(p=>{const row=prRows.find(r=>(r.practicalItems||[]).some(x=>Number(x.seq)===Number(p.sequence)) || String(r.practical||'').startsWith(`${p.sequence}. `)); if(row)p.plannedDate=row.date;});
-    ts.forEach(t=>{const row=thRows.find(r=>(r.theoryItems||[]).some(x=>Number(x.seq)===Number(t.sequence)) || String(r.theory||'').startsWith(`${t.sequence}. `)); if(row)t.plannedDate=row.date;});
+    const sourcePracticals=this.state.items.filter(x=>x.type==='practical'),sourceTheory=this.state.items.filter(x=>x.type==='theory');
+    ps.forEach((p,i)=>{const seq=sourcePracticals[i].seq,row=prRows.find(r=>(r.practicalItems||[]).some(x=>Number(x.seq)===Number(seq)));if(row)p.plannedDate=row.date;});
+    ts.forEach((t,i)=>{const seq=sourceTheory[i].seq,row=thRows.find(r=>(r.theoryItems||[]).some(x=>Number(x.seq)===Number(seq)));if(row)t.plannedDate=row.date;});
+    const pNumbers=new Map(sourcePracticals.map((x,i)=>[Number(x.seq),i+1])),tNumbers=new Map(sourceTheory.map((x,i)=>[Number(x.seq),i+1]));
+    const dayPlan=this.state.calendar.map(r=>{const practicalItems=(r.practicalItems||[]).map(x=>({...x,seq:pNumbers.get(Number(x.seq))})),theoryItems=(r.theoryItems||[]).map(x=>({...x,seq:tNumbers.get(Number(x.seq))})),text=items=>items.map(x=>`${x.seq}. ${x.title} (${x.hours}h)`).join('; ');return {...r,practicalItems,theoryItems,practical:r.holiday?r.practical:text(practicalItems),theory:r.holiday?r.theory:text(theoryItems)};});
     const moduleMap=new Map();
     this.state.items.forEach(x=>{const name=(x.module||'General').trim(); if(!moduleMap.has(name))moduleMap.set(name,{id:uid(),code:`M${String(moduleMap.size+1).padStart(2,'0')}`,name,hours:0,description:'Imported from '+this.state.sourceName,topics:[]}); const m=moduleMap.get(name); m.hours+=Number(x.hours)||0; m.topics.push({id:uid(),type:x.type,title:x.title,hours:Number(x.hours)||1,sequence:m.topics.length+1});});
     DATA.meta.trade=this.state.trade||DATA.meta.trade;
     DATA.meta.officialPlanPack=/desktop publishing|dtpo|\bdtp\b/i.test(DATA.meta.trade||'')?'DTPO':'NONE';
     DATA.meta.tradeSource=this.state.sourceName;
     DATA.meta.syllabusImportedAt=todayISO();
-    DATA.meta.trainingPlan={createdAt:new Date().toISOString(),startDate:start,endDate:end,hoursPerDay:Number(document.getElementById('uHours').value)||7,theoryHoursPerDay:Number(document.getElementById('uTheoryHours')?.value)||1,calendarRows:this.state.calendar.length,dayPlan:this.state.calendar};
+    DATA.meta.trainingPlan={createdAt:new Date().toISOString(),startDate:start,endDate:end,hoursPerDay:Number(document.getElementById('uHours').value),theoryHoursPerDay:Number(document.getElementById('uTheoryHours')?.value),calendarRows:this.state.calendar.length,dayPlan:dayPlan};
+    DATA.meta.scheduleMode='training-plan';DATA.meta.scheduleStartDate=start;DATA.meta.scheduleEndDate=end;
     this.state.calendar.filter(r=>r.holiday).forEach(r=>{if(!DATA.holidays.some(h=>h.date===r.date))DATA.holidays.push({date:r.date,label:r.label||'Holiday'});});
     DATA.holidays.sort((a,b)=>a.date.localeCompare(b.date));
     DATA.practicals=ps; DATA.theory=ts; DATA.modules=[...moduleMap.values()];
@@ -3671,8 +3681,8 @@ const UniversalSyllabus = {
     saveData(); Practicals.render(); Theory.render(); Schedule.render(); Dashboard.render(); if(typeof InstructorAI!=='undefined'){InstructorAI.refreshTopicPicker();InstructorAI.renderToday();} if(typeof ModuleManager!=='undefined')ModuleManager.refresh();
     document.getElementById('brandSub').textContent=DATA.meta.institute;
     document.getElementById('heroSub').textContent=`${DATA.meta.trade} — ${DATA.meta.batch} · ${DATA.meta.institute}`;
-    this.status(`Complete training plan created: ${DATA.modules.length} modules, ${ps.length} practicals, ${ts.length} theory topics and ${this.state.calendar.length} calendar rows.`, 'ok');
-    alert('Complete training plan created successfully. Open Module Manager, Practicals, Theory and Split-up Syllabus to review it.');
+    this.status(`Training plan saved: ${DATA.modules.length} modules, ${ps.length} practicals, ${ts.length} theory topics and ${this.state.calendar.length} calendar rows.${this._unscheduled?' '+this._unscheduled+' topics are not fully allocated; review the session date range.':''}`,this._unscheduled?'info':'ok');
+    alert('Training plan saved. Open Module Manager, Practicals, Theory and Split-up Syllabus to review allocations and any remaining topics.');
   },
   exportJSON(){
     if(!this.state.items.length){this.status('Nothing to export yet.','error');return;}

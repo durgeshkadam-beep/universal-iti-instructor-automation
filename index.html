@@ -619,18 +619,16 @@
     <!-- ---------- SPLIT-UP SYLLABUS ---------- -->
     <section id="tab-splitup" class="panel">
       <h2>🗓️ Split-up Syllabus (Day-wise)</h2>
-      <p class="muted">Auto-generates which Practical and Theory topic falls on which working day — like your
-        week-wise split-up sheet — using teaching sequence (set via ↑↓ in Practicals/Theory), hours per
-        practical, and your Holiday Calendar.</p>
+      <p class="muted" id="splitupInfo">Shows your saved complete training plan or an alternate schedule using the current topic sequence and holiday calendar.</p>
       <div id="instructorOnlySplitup">
         <div class="field-row">
-          <button class="btn primary" onclick="Schedule.useRealCalendar()">Use Official 2026-27 Calendar</button>
+          <button class="btn primary" id="splitupOfficial" onclick="Schedule.useRealCalendar()">Use bundled DTPO 2026-27 calendar</button>
           <button class="btn secondary" onclick="Reports.printSplitUp()">Print Split-up Syllabus</button>
         </div>
-        <p class="muted">The button above resets every Planned Date to match your actual <code>DPO_LIVE_2026-27</code> calendar — use this unless you've reordered teaching sequence. The generator below is only for exploring an alternate order.</p>
+        <p class="muted">Create Complete Training Plan in Syllabus AI uses one shared daily-hours budget. The alternate generator below allocates practical hours and theory days separately. Applying either schedule replaces planned dates; review before confirming.</p>
         <div class="field-row">
           <label>Alt. Start Date</label><input type="date" id="splitupStart">
-          <label>Hours/working day</label><input type="number" id="splitupHoursPerDay" value="7" min="1" max="12" style="width:70px">
+          <label>Practical hours/working day</label><input type="number" id="splitupHoursPerDay" value="7" min="1" max="12" style="width:70px">
           <label>Days per Theory topic</label><input type="number" id="splitupDaysPerTheory" value="1" min="1" max="10" style="width:70px">
           <button class="btn ghost" onclick="Schedule.generate()">Generate Alternate Schedule</button>
         </div>
