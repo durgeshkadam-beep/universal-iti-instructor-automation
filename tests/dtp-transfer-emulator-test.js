@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {Firestore}=require('firebase-admin/firestore');
-const {prepare,preview,apply,SOURCE,TARGET,WORKSPACE}=require('../scripts/transfer-dtp-staging');
+const {prepare,preview,apply,verify,SOURCE,TARGET,WORKSPACE}=require('../scripts/transfer-dtp-staging');
 test('DTP transfer preserves source, creates isolated workspace atomically and retains instructor role',{skip:!process.env.FIRESTORE_EMULATOR_HOST},async()=>{
  const source=new Firestore({projectId:SOURCE}),target=new Firestore({projectId:TARGET}),base='institutes/brdbagiti-mumbai-01';
  try{
@@ -32,5 +32,17 @@ test('DTP transfer preserves source, creates isolated workspace atomically and r
   assert.equal((await imported.get()).data().instructorPin,undefined);
   assert.equal((await imported.collection('trainees').doc('one').get()).data().data.pin,undefined);
   await assert.rejects(prepare(source,target),{code:'DESTINATION_EXISTS'});
+  let readPlan=await prepare(source,target,{verifyExisting:true});
+  const verified=await verify(readPlan,fresh.fingerprint);
+  assert.equal(verified.ok,true);assert.equal(verified.readOnly,true);assert.equal(verified.matchedDocuments,3);assert.equal(verified.dataChanged,false);
+  assert.equal((await verify(readPlan,'a'.repeat(64))).ok,false);
+  await imported.collection('theory').doc('one').update({'data.plan.objective':['Changed synthetic lesson']});
+  const different=await verify(readPlan,fresh.fingerprint);assert.equal(different.ok,false);assert.equal(different.changedDocuments,1);
+  assert(!JSON.stringify(different).includes('Changed synthetic lesson'));
+  await imported.collection('unexpected').doc('extra').set({private:'Synthetic detail'});
+  assert.equal((await verify(readPlan,fresh.fingerprint)).extraDocuments,1);
+  await imported.collection('practicals').doc('one').delete();
+  assert.equal((await verify(readPlan,fresh.fingerprint)).missingDocuments,1);
+
  }finally{await source.terminate();await target.terminate();}
 });

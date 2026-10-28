@@ -20,7 +20,7 @@ function canonical(value){
 }
 const child=(workspace,path)=>{const [section,id]=path.split('/');return workspace.collection(section).doc(id);};
 const digest=value=>createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
-async function prepare(source,target){
+async function prepare(source,target,{verifyExisting=false}={}){
  if(source.projectId!==SOURCE||target.projectId!==TARGET)fail('TARGET_MISMATCH');
  const base='institutes/'+INSTITUTE,src=source.doc(base),root=await src.get();if(!root.exists)fail('SOURCE_MISSING');
  const owner=root.data().ownerUid;if(typeof owner!=='string'||!owner||owner.includes('/'))fail('SOURCE_OWNER_MISSING');
@@ -34,7 +34,7 @@ async function prepare(source,target){
  const ws=src.collection('workspaces').doc(WORKSPACE),snap=await ws.get();
  if(!snap.exists||!/desktop publishing|\bdtpo\b/i.test(String(snap.data().trade||'')))fail('SOURCE_DTP_MISSING');
  const destination=dst.collection('workspaces').doc(WORKSPACE);
- if((await destination.get()).exists||(await destination.listCollections()).length)fail('DESTINATION_EXISTS');
+ if(!verifyExisting&&((await destination.get()).exists||(await destination.listCollections()).length))fail('DESTINATION_EXISTS');
  const rows=[],counts={};
  for(const collection of await ws.listCollections()){
   if(!COLLECTIONS.has(collection.id))fail('UNREVIEWED_SOURCE_COLLECTION');
@@ -65,6 +65,29 @@ async function apply(target,plan,confirmation){
  const actual=[];for(const row of plan.bundle.rows){const s=await child(plan.destination,row.path).get();if(!s.exists||digest(s.data())!==digest(row.data))fail('POST_IMPORT_VERIFICATION_FAILED');actual.push(row.path);}
  return {...preview(plan),mode:'applied',dataChanged:true,verifiedDocuments:actual.length};
 }
+async function verify(plan,expectedFingerprint){
+ if(!/^[a-f0-9]{64}$/.test(String(expectedFingerprint||'')))fail('CONFIRMATION_MISMATCH');
+ const root=await plan.destination.get(),metadata=root.data()||{};
+ const actual=new Map(),sections={};
+ for(const collection of await plan.destination.listCollections()){
+  const snap=await collection.get();sections[collection.id]=summary(snap.docs.map(d=>d.data()));
+  for(const doc of snap.docs)actual.set(collection.id+'/'+doc.id,doc.data());
+ }
+ let missingDocuments=0,changedDocuments=0,matchedDocuments=0;
+ for(const row of plan.bundle.rows){
+  if(!actual.has(row.path))missingDocuments++;
+  else if(digest(actual.get(row.path))!==digest(row.data))changedDocuments++;
+  else matchedDocuments++;
+  actual.delete(row.path);
+ }
+ const importFingerprintMatches=metadata.stagingImportFingerprint===expectedFingerprint;
+ const metadataMatches=root.exists&&Object.keys(plan.bundle.metadata).every(key=>digest(metadata[key]??null)===digest(plan.bundle.metadata[key]??null));
+ const instructorAssigned=plan.bundle.member.workspaceIds.includes(WORKSPACE);
+ return {ok:!!(root.exists&&importFingerprintMatches&&metadataMatches&&instructorAssigned&&!missingDocuments&&!changedDocuments&&!actual.size),
+  mode:'verify',readOnly:true,source:SOURCE,target:TARGET,workspace:WORKSPACE,workspaceExists:root.exists,
+  importFingerprintMatches,metadataMatches,instructorAssigned,instructorRole:plan.bundle.member.role,
+  sourceSections:plan.counts,targetSections:sections,matchedDocuments,missingDocuments,changedDocuments,extraDocuments:actual.size,dataChanged:false};
+}
 async function databaseEdition(project,accessToken){
  const response=await fetch('https://firestore.googleapis.com/v1/projects/'+project+'/databases/(default)',{headers:{Authorization:'Bearer '+await accessToken()},signal:AbortSignal.timeout(30000)});
  if(!response.ok)fail(response.status===403?'PERMISSION_DENIED':response.status===401?'UNAUTHENTICATED':'DATABASE_METADATA_UNAVAILABLE');
@@ -75,9 +98,10 @@ async function databaseEdition(project,accessToken){
 async function main(){
  const {execFileSync}=require('node:child_process'),{Firestore}=require('firebase-admin/firestore');
  const {GoogleAuth,OAuth2Client}=require('google-gax').googleAuthLibrary;
- const args=process.argv.slice(2),write=args.includes('--apply');
+ const args=process.argv.slice(2),write=args.includes('--apply'),verifyOnly=args.includes('--verify');
+ if(write&&verifyOnly)fail('INVALID_ARGUMENT');
  const value=flag=>args.includes(flag)?args[args.indexOf(flag)+1]:undefined;
- if(args.some((x,i)=>!['--apply','--confirm-target','--expected-fingerprint'].includes(x)&&!['--confirm-target','--expected-fingerprint'].includes(args[i-1])))fail('INVALID_ARGUMENT');
+ if(args.some((x,i)=>!['--apply','--verify','--confirm-target','--expected-fingerprint'].includes(x)&&!['--confirm-target','--expected-fingerprint'].includes(args[i-1])))fail('INVALID_ARGUMENT');
  const accessToken=async()=>{try{return execFileSync('gcloud',['auth','print-access-token'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();}catch{fail('GCLOUD_LOGIN_REQUIRED');}};
  let source,target;
  try{
@@ -85,8 +109,9 @@ async function main(){
   source=await createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,accessToken});
   // The same credential accesses the explicitly fixed staging project.
   target=await createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,accessToken,projectId:TARGET});
-  const plan=await prepare(source,target);
-  console.log(JSON.stringify(write?await apply(target,plan,{target:value('--confirm-target'),fingerprint:value('--expected-fingerprint')}):preview(plan),null,2));
+  const plan=await prepare(source,target,{verifyExisting:verifyOnly});
+  const result=verifyOnly?await verify(plan,value('--expected-fingerprint')):write?await apply(target,plan,{target:value('--confirm-target'),fingerprint:value('--expected-fingerprint')}):preview(plan);
+  console.log(JSON.stringify(result,null,2));if(result.ok===false)process.exitCode=1;
  }finally{if(source)await source.terminate();if(target)await target.terminate();}
 }
 if(require.main===module)main().catch(error=>{
@@ -94,7 +119,7 @@ if(require.main===module)main().catch(error=>{
  const safe=['TARGET_MISMATCH','SOURCE_MISSING','SOURCE_OWNER_MISSING','TARGET_INSTITUTE_MISSING','TARGET_ACCOUNT_MISSING','TARGET_ACCOUNT_NOT_INSTRUCTOR','SOURCE_DTP_MISSING','DESTINATION_EXISTS','UNREVIEWED_SOURCE_COLLECTION','SOURCE_INCOMPLETE','ATOMIC_TRANSFER_TOO_LARGE','CONFIRMATION_MISMATCH','TARGET_ACCOUNT_CHANGED','POST_IMPORT_VERIFICATION_FAILED','DATABASE_METADATA_UNAVAILABLE','UNSUPPORTED_DATABASE_EDITION','INVALID_ARGUMENT'];
  if(safe.includes(error.code)){report.code=error.code;report.hint='Transfer stopped. Share only this summary for review.';}
  // A failed post-commit verification must never claim that no data changed.
- if(process.argv.includes('--apply'))report.dataChanged=error.code==='POST_IMPORT_VERIFICATION_FAILED'?true:'unknown';
+ if(process.argv.includes('--apply')){report.readOnly=false;report.dataChanged=error.code==='POST_IMPORT_VERIFICATION_FAILED'?true:['DESTINATION_EXISTS','CONFIRMATION_MISMATCH','TARGET_ACCOUNT_CHANGED'].includes(error.code)?false:'unknown';}
  console.error(JSON.stringify(report,null,2));process.exitCode=1;
 });
-module.exports={SOURCE,TARGET,WORKSPACE,clean,digest,prepare,preview,apply,databaseEdition};
+module.exports={SOURCE,TARGET,WORKSPACE,clean,digest,prepare,preview,apply,verify,databaseEdition};

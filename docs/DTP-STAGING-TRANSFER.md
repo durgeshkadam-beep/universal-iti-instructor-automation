@@ -43,3 +43,15 @@ Real-data transfer and browser acceptance have not yet been executed. Generative
 ## Validation for this change
 
 Local validation passed: 11 focused native tests, a standalone Firestore Emulator transfer test, and the complete `npm run test:rules` Auth/Firestore/backend suites including the new transfer case. The emulator uses synthetic records only and verifies source preservation, account-change rejection, credential removal, unchanged Instructor role, retained Electrician workspace, complete readback and refusal to overwrite an imported workspace. No live data was copied during these tests. GitHub CI is tracked separately.
+
+## Existing destination: read-only recovery check
+
+If apply reports `DESTINATION_EXISTS`, do not repeat apply, delete the workspace or merge records. An earlier invocation may have committed successfully, or another process may have created the workspace. Use the original reviewed fingerprint to inspect the destination without writes:
+
+```bash
+node scripts/transfer-dtp-staging.js --verify --expected-fingerprint REVIEWED_FINGERPRINT
+```
+
+Verification compares every sanitized source document, workspace metadata, the saved import marker, the existing Instructor role/assignment, and extra destination records. Only counts and boolean results are printed. `ok: true` confirms that the inspected contents match the current source and reviewed import marker. `ok: false` identifies missing, changed or extra document counts, metadata differences, assignment or marker mismatch; it never overwrites these differences. Subsequent legitimate edits can cause differences and need review. Verification itself changes no data.
+
+Regression validation includes successful read-only verification after a simulated import, a mismatched fingerprint, modified plan content, an unexpected document and a missing document.
