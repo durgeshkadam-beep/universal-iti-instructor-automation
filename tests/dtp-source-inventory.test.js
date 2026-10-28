@@ -32,19 +32,23 @@ test('unknown diagnostics never reflect arbitrary error codes, messages or stack
 test('Google Cloud OAuth adapter initializes the real Firestore SDK without Admin custom credentials',async()=>{
  const {createInventoryDatabase}=require('../scripts/inspect-dtp-source');
  const {Firestore}=require('firebase-admin/firestore');
- const {GoogleAuth,OAuth2Client}=require('google-auth-library');
+ const {GoogleAuth,OAuth2Client}=require('google-gax').googleAuthLibrary;
  let calls=0;
  const db=await createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,accessToken:async()=>{calls++;return 'synthetic-test-token';}});
  try{
   assert.equal(db.projectId,'universal-iti-auto-dk');
   const client=await db._settings.auth.getClient();
   assert(client instanceof OAuth2Client);assert.equal(client.credentials.access_token,'synthetic-test-token');
+  const headers=await client.getRequestHeaders('https://firestore.googleapis.com');
+  assert.equal(typeof headers.forEach,'function');
+  let authorization;headers.forEach((value,key)=>{if(key==='authorization')authorization=value;});
+  assert.equal(authorization,'Bearer synthetic-test-token');
   assert.equal((await client.refreshHandler()).access_token,'synthetic-test-token');assert.equal(calls,2);
  }finally{await db.terminate();}
 });
 test('adapter preserves login failures and recognizes namespaced SDK errors safely',async()=>{
  const {createInventoryDatabase}=require('../scripts/inspect-dtp-source');
- const {Firestore}=require('firebase-admin/firestore');const {GoogleAuth,OAuth2Client}=require('google-auth-library');
+ const {Firestore}=require('firebase-admin/firestore');const {GoogleAuth,OAuth2Client}=require('google-gax').googleAuthLibrary;
  await assert.rejects(createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,accessToken:async()=>{throw Object.assign(Error('private'),{code:'GCLOUD_LOGIN_REQUIRED'});}}),{code:'GCLOUD_LOGIN_REQUIRED'});
  assert.equal(failureReport({code:'firestore/invalid-credential',message:'private'},'firestore-read').code,'INVALID_CREDENTIAL');
 });

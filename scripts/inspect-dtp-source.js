@@ -50,6 +50,7 @@ async function createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,access
  // Use the Google Cloud client's supported OAuth adapter, not an Admin custom credential.
  const refresh=async()=>({access_token:await accessToken(),expiry_date:Date.now()+300000});
  const client=new OAuth2Client();
+ client.eagerRefreshThresholdMillis=30000;
  client.refreshHandler=refresh;
  client.setCredentials(await refresh());
  const auth=new GoogleAuth({projectId:PROJECT,authClient:client});
@@ -58,7 +59,7 @@ async function createInventoryDatabase({Firestore,GoogleAuth,OAuth2Client,access
 async function main(){
  let stage='dependencies',db;
  try{
-  const {execFileSync}=require('node:child_process'),{Firestore}=require('firebase-admin/firestore'),{GoogleAuth,OAuth2Client}=require('google-auth-library');
+  const {execFileSync}=require('node:child_process'),{Firestore}=require('firebase-admin/firestore'),{GoogleAuth,OAuth2Client}=require('google-gax').googleAuthLibrary;
   const accessToken=async()=>{
    try{const token=execFileSync('gcloud',['auth','print-access-token'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();
     if(!token)throw Error('Empty token');return token;
