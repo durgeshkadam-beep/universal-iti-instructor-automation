@@ -8,7 +8,7 @@ test('MFA preflight reports owner and active principals without printing identit
 });
 test('missing accounts, SMS-only factors and synthetic aliases do not certify TOTP or recovery',async()=>{
  const result=await inspect({db:{doc:()=>root},readConfig:async()=>({}),lookupUser:async uid=>uid.includes('owner')?null:{email:'principal@iti-staging.example.test',emailVerified:true,mfaInfo:[{phoneInfo:'+000000000'}]}});
- assert.equal(result.totpProviderEnabled,false);assert.equal(result.allPrivilegedTotpEnrolled,false);assert.equal(result.privilegedAccounts[1].potentialRecoveryInbox,false);assert.equal(result.privilegedAccounts[1].totpEnrolled,false);
+ assert.equal(result.totpProviderEnabled,false);assert.equal(result.allPrivilegedTotpEnrolled,false);assert.equal(result.privilegedAccounts[1].potentialRecoveryInbox,false);assert.equal(result.privilegedAccounts[1].syntheticAccount,true);assert.equal(result.privilegedAccounts[1].totpEnrolled,false);
 });
 test('Auth preflight uses quota project and existing credential only for GET config and known UID lookup',async()=>{
  const calls=[];const r=readers({accessToken:async()=> 'private-test-token',request:async(url,opts)=>{calls.push({url,opts});return {ok:true,json:async()=>({users:[{localId:'one'}]})};}});
@@ -17,4 +17,10 @@ test('Auth preflight uses quota project and existing credential only for GET con
 test('Auth permission failures are classified without attributing them to database rules or leaking response bodies',async()=>{
  const r=readers({accessToken:async()=> 'private-test-token',request:async()=>({ok:false,status:403,json:async()=>({secret:'private-error'})})});
  await assert.rejects(r.readConfig(),{code:'AUTH_CONFIGURATION_PERMISSION_DENIED'});
+});
+test('provider subtype is reported independently of disabled TOTP and never infers a billing plan',async()=>{
+ for(const [subtype,expected] of [['IDENTITY_PLATFORM',true],['FIREBASE_AUTH',false],['SUBTYPE_UNSPECIFIED',null],[undefined,null]]){
+  const result=await inspect({db:{doc:()=>root},readConfig:async()=>({subtype}),lookupUser:async()=>({email:'admin@iti-staging.example.test',emailVerified:true})});
+  assert.equal(result.identityPlatformEnabled,expected);assert.equal(result.authProjectType,expected===null?'UNKNOWN':subtype);assert.equal(result.totpProviderEnabled,false);assert.equal(result.productionReviewed,false);assert.equal(result.scope,'staging-privileged-accounts-only');assert.equal(result.billingPlan,undefined);
+ }
 });

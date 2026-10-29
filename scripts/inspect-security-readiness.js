@@ -8,12 +8,13 @@ async function inspect({db,readConfig,lookupUser}){
  const principals=await root.collection('members').where('role','==','principal').get();
  const identities=[{uid:ownerUid,role:'owner'},...principals.docs.filter(d=>d.data().active===true&&d.id!==ownerUid).map(d=>({uid:d.id,role:'principal'}))];
  const config=await readConfig(),accounts=[];
+ const authProjectType=['IDENTITY_PLATFORM','FIREBASE_AUTH'].includes(config?.subtype)?config.subtype:'UNKNOWN';
  for(const row of identities){
   const user=await lookupUser(row.uid),mfa=Array.isArray(user?.mfaInfo)?user.mfaInfo:[];
   const address=String(user?.email||'').toLowerCase(),domain=address.split('@')[1]||'';
-  accounts.push({role:row.role,accountExists:!!user,disabled:user?.disabled===true,verifiedEmail:user?.emailVerified===true,potentialRecoveryInbox:!!address&&!/\.(test|invalid|example)$/.test(domain),totpEnrolled:mfa.some(f=>Object.hasOwn(f,'totpInfo')),enrolledFactors:mfa.length});
+  accounts.push({role:row.role,accountExists:!!user,disabled:user?.disabled===true,verifiedEmail:user?.emailVerified===true,potentialRecoveryInbox:!!address&&!/\.(test|invalid|example)$/.test(domain),syntheticAccount:domain==='iti-staging.example.test',totpEnrolled:mfa.some(f=>Object.hasOwn(f,'totpInfo')),enrolledFactors:mfa.length});
  }
- return {ok:true,project:PROJECT,readOnly:true,dataChanged:false,totpProviderEnabled:config?.mfa?.providerConfigs?.some(p=>p.state==='ENABLED'&&Object.hasOwn(p,'totpProviderConfig'))===true,privilegedAccounts:accounts,
+ return {ok:true,project:PROJECT,scope:'staging-privileged-accounts-only',productionReviewed:false,readOnly:true,dataChanged:false,authProjectType,identityPlatformEnabled:authProjectType==='UNKNOWN'?null:authProjectType==='IDENTITY_PLATFORM',totpProviderEnabled:config?.mfa?.providerConfigs?.some(p=>p.state==='ENABLED'&&Object.hasOwn(p,'totpProviderConfig'))===true,privilegedAccounts:accounts,
   allPrivilegedTotpEnrolled:accounts.length>0&&accounts.every(a=>a.accountExists&&!a.disabled&&a.verifiedEmail&&a.totpEnrolled),
   applicationPolicyEnforced:false,liveChallengeTested:false,recoveryTested:false,
   note:'Enrollment and configured provider do not prove enforced MFA, mailbox delivery or recovery. No enrollment, IAM grant, billing upgrade, reset or policy change was performed.'};

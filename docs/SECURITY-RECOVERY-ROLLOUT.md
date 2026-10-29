@@ -22,6 +22,8 @@ Before enabling privileged enforcement:
 
 Run `node scripts/inspect-security-readiness.js` from the existing authorised Cloud Shell for a read-only staging preflight. It inspects provider configuration and the root owner/active Principal identities, but prints only role and readiness booleans. It never prints emails, UIDs, phone numbers, setup secrets, enrollment IDs or tokens. Auth configuration permission failures are explicitly distinguished from Firestore rules. A successful preflight does not certify enforcement or recovery.
 
+The report identifies the actual Auth project subtype separately from TOTP configuration: disabled TOTP alone does not show whether Identity Platform is already enabled. An absent/unrecognised subtype is reported as unknown, not a required upgrade or a billing plan. The `.test` demo accounts are labelled synthetic; a staging result is not a production account review. `verifiedEmail: true` on a synthetic account does not create a deliverable recovery inbox. Keep the established five demo logins intact; do not replace their email or grant a real account privileged access without reviewing the exact intended identity and recovery route.
+
 ### Password and account recovery
 
 Existing recovery accepts only a full potentially deliverable email for explicitly enabled production password login. Institute-only aliases and synthetic `.test` accounts require the authorised operator procedure. Google-only identities recover through their identity provider. A reset-email request does not prove delivery or successful password reset.
