@@ -1,6 +1,19 @@
 const {test,expect}=require('@playwright/test');
 const testPassword=process.env.ITI_EMULATOR_TEST_PASSWORD;
 if(!testPassword)throw Error('Run browser tests through the emulator test runner.');
+for(const desired of ['admin','principal'])test('verified Google delegate opens '+desired+' view using the same Instructor UID without replacing root',async({page})=>{
+ await page.route(/https:\/\/.*/,r=>r.abort());await page.goto('/v15/index.html');await page.waitForFunction(()=>window.V15Sync?.resolveAdminMembership);await page.addScriptTag({url:'/.tmp/test-sdk.js'});
+ const actual=await page.evaluate(async desired=>{
+  const V=V15Sync,M=ITITestFirebase,cfg={apiKey:'test-api-key',projectId:'demo-universal-iti',authDomain:'localhost',appId:'test-app'};V.modules=async()=>M;V.config=()=>cfg;V.fb.M=M;
+  const app=M.initializeApp(cfg,'iti-v15'),auth=M.getAuth(app),db=M.getFirestore(app);M.connectAuthEmulator(auth,'http://127.0.0.1:9099',{disableWarnings:true});M.connectFirestoreEmulator(db,'127.0.0.1',8080);
+  await M.signInWithCredential(auth,M.GoogleAuthProvider.credential(JSON.stringify({sub:'synthetic-google-admin',email:'google-admin@example.test',email_verified:true})));
+  localStorage.setItem('iti-v15-role-v2',desired);localStorage.setItem('iti-v15-email-v2','google-admin@example.test');window.ITI_RUNTIME={apiUrl:'http://127.0.0.1:8787/api'};await V.login({interactive:false});
+  const token=await auth.currentUser.getIdTokenResult();return {uid:auth.currentUser.uid,provider:token.claims.firebase.sign_in_provider};
+ },desired);
+ expect(actual).toEqual({uid:'google-admin',provider:'google.com'});await expect.poll(()=>page.evaluate(()=>({ready:V15Sync.ready,role:V15Sync.currentRole()}))).toEqual({ready:true,role:desired});await expect(page.locator('#appShell')).toBeVisible();
+ const retained=await page.evaluate(async()=>{const V=V15Sync,M=V.fb.M;return {root:(await M.getDoc(V.inst())).data().ownerUid,role:(await M.getDoc(V.memberRef())).data().role,assigned:(await M.getDoc(V.memberRef())).data().workspaceIds};});
+ expect(retained).toEqual({root:'admin',role:'instructor',assigned:[]});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
+});
 test('authenticator challenge UI with synthetic provider stays contained and cancels without opening the app',async({page})=>{
  await page.route(/https:\/\/.*/,r=>r.abort());await page.goto('/v15/index.html');
  await page.waitForFunction(()=>window.V15Sync?.firebaseSignIn);

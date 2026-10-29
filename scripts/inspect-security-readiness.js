@@ -6,7 +6,9 @@ async function inspect({db,readConfig,lookupUser}){
  const root=db.doc('institutes/'+INSTITUTE),snap=await root.get();if(!snap.exists)fail('INSTITUTE_MISSING');
  const ownerUid=snap.data().ownerUid;if(typeof ownerUid!=='string'||!ownerUid||ownerUid.includes('/'))fail('OWNER_MISSING');
  const principals=await root.collection('members').where('role','==','principal').get();
- const identities=[{uid:ownerUid,role:'owner'},...principals.docs.filter(d=>d.data().active===true&&d.id!==ownerUid).map(d=>({uid:d.id,role:'principal'}))];
+ const delegates=await root.collection('systemAdmins').where('active','==',true).get();
+ const candidates=[{uid:ownerUid,role:'owner'},...principals.docs.filter(d=>d.data().active===true).map(d=>({uid:d.id,role:'principal'})),...delegates.docs.filter(d=>d.data().active===true&&d.data().googleOnly===true&&d.data().schemaVersion===1).map(d=>({uid:d.id,role:'systemAdmin'}))];
+ const identities=candidates.filter((row,i)=>candidates.findIndex(x=>x.uid===row.uid)===i);
  const config=await readConfig(),accounts=[];
  const authProjectType=['IDENTITY_PLATFORM','FIREBASE_AUTH'].includes(config?.subtype)?config.subtype:'UNKNOWN';
  for(const row of identities){

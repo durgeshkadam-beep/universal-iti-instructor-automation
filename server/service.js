@@ -6,13 +6,15 @@ const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);
 const text=(x,n=500)=>String(x||'').trim().slice(0,n);
 const {offlineGuide,QUESTIONS,LANG}=require('../shared/guidance');
 const {schemas:teachingSchemas,parseTeaching,providerSchema}=require('./teaching-json');
+const adminAuthority=require('../shared/admin-authority');
 function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.now()}){
  async function authorize(token,inst,wid){
   requireValue(id(inst)&&id(wid),'Invalid institute or workspace');
   let u;try{u=await verifyToken(token);}catch{throw new ApiError(401,'Sign in again.');}
   requireValue(u?.uid,'Sign in required',401);
   const root=db.doc(`institutes/${inst}`),[i,m]=await Promise.all([root.get(),root.collection('members').doc(u.uid).get()]);
-  const owner=i.exists&&i.data().ownerUid===u.uid,member=m.exists?m.data():null;
+  let owner=i.exists&&i.data().ownerUid===u.uid;const member=m.exists?m.data():null;
+  if(!owner&&i.exists&&member?.owner===true){const grant=await root.collection('systemAdmins').doc(u.uid).get();owner=adminAuthority.allowed(grant.exists?grant.data():null,member,u);}
   requireValue(owner||(member?.active===true&&(member.role==='principal'||member.workspaceIds?.includes(wid))),'Workspace access denied',403);
   const ws=root.collection('workspaces').doc(wid);requireValue((await ws.get()).exists,'Workspace missing',404);
   return {u,member,owner,ws};
@@ -38,7 +40,7 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
    requireValue(member?.active===true&&member.role==='instructor','Only the active assigned Instructor can review leave.',403);
    requireValue(typeof body.leaveId==='string'&&/^[a-z0-9._@-]{1,180}$/.test(body.leaveId)&&!['.','..'].includes(body.leaveId)&&['approved','rejected'].includes(body.status),'Invalid leave review');
    const {reviewLeave}=require('./leave-review'),{LeaveError}=require('../shared/leave');
-   try{return await reviewLeave({db,ws,uid:u.uid,leaveId:body.leaveId,status:body.status,now});}catch(e){if(e instanceof LeaveError)throw new ApiError(e.status,e.message);throw e;}
+   try{return await reviewLeave({db,ws,uid:u.uid,identity:u,leaveId:body.leaveId,status:body.status,now});}catch(e){if(e instanceof LeaveError)throw new ApiError(e.status,e.message);throw e;}
   }
   if(action==='publishExam'){
    requireValue(teacher,'Instructor access required',403);await limit(u.uid,action);

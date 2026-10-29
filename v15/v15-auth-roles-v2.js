@@ -60,6 +60,7 @@ V.login=async function(opts={}){
       if(want==='admin')throw new Error('System Admin is restricted to the original creator account.');
       m=await this.activateApprovedAccount(want);
     }
+    if(this.resolveAdminMembership)m=await this.resolveAdminMembership(m,inst);
     const resolved=await this.resolveRequestedRole(m,want);
     if(!resolved)throw new Error(m?.owner?'Creator account may enter only System Admin, Principal or Instructor.':`This Gmail is registered as ${LABEL[m?.role]||m?.role||'another role'}, not ${LABEL[want]||want}.`);
     this.member=m;

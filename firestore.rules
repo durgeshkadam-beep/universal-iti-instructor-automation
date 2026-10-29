@@ -11,8 +11,30 @@ service cloud.firestore {
     function secretPath(inst, email) { return /databases/$(database)/documents/institutes/$(inst)/inviteSecrets/$(email); }
     function legacyManifestPath(uid, wid) { return /databases/$(database)/documents/itiInstructorUsers/$(uid)/workspaces/$(wid)/sections/_manifest; }
 
+    // IAM/operator-managed delegation. Clients cannot create/update/delete grants.
+    // uid/email bind a verified Google token; member.owner alone grants nothing.
+    function validSystemAdmin(g, uid) {
+      return g.keys().hasOnly(['uid','email','active','googleOnly','schemaVersion','createdAt','createdBy','updatedAt','updatedBy'])
+        && g.keys().hasAll(['uid','email','active','googleOnly','schemaVersion','createdAt','createdBy','updatedAt','updatedBy'])
+        && g.uid == uid && g.uid is string && g.uid.size() > 0 && g.uid.size() <= 128
+        && g.email is string && g.email.size() <= 254 && g.email == request.auth.token.get('email', '')
+        && g.active == true && g.googleOnly == true && g.schemaVersion == 1
+        && g.createdAt is string && g.createdAt.size() <= 40 && g.updatedAt is string && g.updatedAt.size() <= 40
+        && g.createdBy is string && g.createdBy.size() > 0 && g.createdBy.size() <= 128
+        && g.updatedBy is string && g.updatedBy.size() > 0 && g.updatedBy.size() <= 128;
+    }
+    function delegatedAdmin(inst) {
+      let p = /databases/$(database)/documents/institutes/$(inst)/systemAdmins/$(request.auth.uid);
+      let m = memberPath(inst, request.auth.uid);
+      return exists(p) && validSystemAdmin(get(p).data, request.auth.uid)
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'google.com'
+        && exists(m) && get(m).data.active == true && get(m).data.owner == true
+        && get(m).data.uid == request.auth.uid && get(m).data.email == request.auth.token.email;
+    }
+
     function isOwner(inst) {
-      return signedIn() && exists(institutePath(inst)) && get(institutePath(inst)).data.ownerUid == request.auth.uid;
+      return signedIn() && exists(institutePath(inst)) && (get(institutePath(inst)).data.ownerUid == request.auth.uid || delegatedAdmin(inst));
     }
     function hasMember(inst) {
       return signedIn() && exists(memberPath(inst, request.auth.uid)) && get(memberPath(inst, request.auth.uid)).data.active == true;
@@ -100,6 +122,11 @@ service cloud.firestore {
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.schemaVersion == resource.data.schemaVersion;
       allow delete: if false;
+
+      match /systemAdmins/{uid} {
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow list, create, update, delete: if false;
+      }
 
       match /access/{email} {
         allow get: if signedIn() && (isOwner(inst) || isPrincipal(inst) || instructorManagesAccess(inst, email) || request.auth.token.email == email);

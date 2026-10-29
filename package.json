@@ -18,7 +18,7 @@
   },
   "scripts": {
     "test": "node scripts/test.js",
-    "test:rules": "firebase emulators:exec --only firestore,auth --project demo-universal-iti \"node tests/phase1-skill-firestore-emulator-test.js && node tests/security-emulator-test.js && node tests/backend-emulator-test.js && node --test tests/dtp-transfer-emulator-test.js && node --test tests/firestore-recovery-emulator-test.js\"",
+    "test:rules": "firebase emulators:exec --only firestore,auth --project demo-universal-iti \"node tests/phase1-skill-firestore-emulator-test.js && node tests/security-emulator-test.js && node tests/backend-emulator-test.js && node --test tests/dtp-transfer-emulator-test.js && node --test tests/firestore-recovery-emulator-test.js && node --test tests/admin-delegation-emulator-test.js\"",
     "test:e2e": "firebase emulators:exec --only firestore,auth --project demo-universal-iti \"node scripts/browser-tests.js\"",
     "start:api": "node server/index.js",
     "audit:production": "node scripts/production-audit.js",

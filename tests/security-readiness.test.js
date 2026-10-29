@@ -24,3 +24,8 @@ test('provider subtype is reported independently of disabled TOTP and never infe
   assert.equal(result.identityPlatformEnabled,expected);assert.equal(result.authProjectType,expected===null?'UNKNOWN':subtype);assert.equal(result.totpProviderEnabled,false);assert.equal(result.productionReviewed,false);assert.equal(result.scope,'staging-privileged-accounts-only');assert.equal(result.billingPlan,undefined);
  }
 });
+test('MFA inventory includes active server-managed coadmins without duplicating existing principal/root identities',async()=>{
+ const d={get:root.get,collection:name=>name==='systemAdmins'?{where:()=>({get:async()=>({docs:[{id:'real-private-admin',data:()=>({active:true,googleOnly:true,schemaVersion:1})},{id:'private-principal-uid',data:()=>({active:true,googleOnly:true,schemaVersion:1})}]})})}:root.collection()};
+ const result=await inspect({db:{doc:()=>d},readConfig:async()=>({subtype:'IDENTITY_PLATFORM'}),lookupUser:async()=>({email:'private@example.in',emailVerified:true})});
+ assert.equal(result.privilegedAccounts.length,3);assert.equal(result.privilegedAccounts[2].role,'systemAdmin');assert(!JSON.stringify(result).includes('real-private-admin'));
+});

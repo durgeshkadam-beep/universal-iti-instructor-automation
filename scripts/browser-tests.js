@@ -15,6 +15,10 @@ const esbuild=require('esbuild'),{randomBytes}=require('node:crypto');
   try{await auth.createUser({uid:role,email:role+'@example.test',password:testPassword,emailVerified:true,displayName:'Synthetic '+role});}catch(e){if(e.code!=='auth/uid-already-exists')throw e;await auth.updateUser(role,{password:testPassword});}
   await db.doc(base+'/members/'+role).set({uid:role,email:role+'@example.test',role:role==='admin'?'instructor':role,owner:role==='admin',active:true,workspaceIds:['w1'],traineeId:role==='student'?'t1':null,displayName:'Synthetic '+role});
  }
+ try{await auth.createUser({uid:'google-admin',email:'google-admin@example.test',emailVerified:true,displayName:'Synthetic Google Admin'});}catch(e){if(e.code!=='auth/uid-already-exists')throw e;}
+ await auth.updateUser('google-admin',{providerToLink:{providerId:'google.com',uid:'synthetic-google-admin',email:'google-admin@example.test'}});
+ await db.doc(base+'/members/google-admin').set({uid:'google-admin',email:'google-admin@example.test',role:'instructor',owner:true,active:true,workspaceIds:[],displayName:'Synthetic Google Admin'});
+ await db.doc(base+'/systemAdmins/google-admin').set({uid:'google-admin',email:'google-admin@example.test',active:true,googleOnly:true,schemaVersion:1,createdAt:'2026-10-29T00:00:00.000Z',createdBy:'emulator',updatedAt:'2026-10-29T00:00:00.000Z',updatedBy:'emulator'});
  await db.doc(base+'/workspaces/w1/trainees/t1').set({data:{id:'t1',roll:'01',name:'Synthetic Student',gender:'Male'}});
  await db.doc(base+'/workspaces/w1/practicals/n-1').set({data:{no:1,title:'Layout basics',hours:7}});
  await db.doc(base+'/workspaces/w1/practicals/n-2').set({data:{no:2,title:'Typography',hours:7}});
