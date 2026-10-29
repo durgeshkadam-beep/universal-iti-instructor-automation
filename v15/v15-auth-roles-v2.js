@@ -31,12 +31,53 @@ V.showRoleLogin=function(){
   if(btn){btn.textContent='🔐 Verify Role & Continue with Google';btn.removeAttribute('onclick');btn.onclick=()=>V.startRoleLogin();}let note=document.getElementById('v15AuthHelp');if(!note&&btn){note=document.createElement('div');note.id='v15AuthHelp';note.className='callout';note.style.marginTop='12px';note.innerHTML='<b>Secure role login</b><br><small>Select the role and enter the approved Gmail. Google verifies identity; Firebase verifies the assigned role.</small>';btn.insertAdjacentElement('afterend',note);}const n=document.querySelector('.login-note');if(n)n.textContent='V15 Production — Google identity + Firebase role authorization.';
 };
 
+// Check both restored sessions and fresh popup results before any institute lookup.
+// The account selected in Google's chooser can differ from the email typed here.
 V.googleAuthority=async function(interactive=false){
-  if(authPromise)return authPromise;authPromise=(async()=>{const M=await this.modules(),cfg=this.config();let app=M.getApps().find(x=>x.name==='iti-v15');if(!app)app=M.initializeApp(cfg,'iti-v15');const auth=M.getAuth(app);await M.setPersistence(auth,M.browserLocalPersistence);const db=this.firestore(app,M);let rr=null;try{rr=await (this.firebaseSignIn?this.firebaseSignIn(M,auth,()=>M.getRedirectResult(auth)):M.getRedirectResult(auth));}catch(e){clearRedirect();throw e;}await authReady(M,auth);let user=rr?.user||auth.currentUser||null;this.fb={M,app,auth,db,user};if(user){clearRedirect();const want=expectedEmail(),got=email(user.email);if(want&&want!==got){try{await M.signOut(auth);}catch(e){}this.fb.user=null;throw new Error(`Google account mismatch. Entered ${want}, verified ${got||'another account'}.`);}return user;}if(!interactive)throw new Error('No saved Google session. Press “Verify Role & Continue with Google”.');const p=new M.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});if(mobileLike()){localStorage.setItem(K.redirect,'1');await M.signInWithRedirect(auth,p);return await new Promise(()=>{});}try{user=(await (this.firebaseSignIn?this.firebaseSignIn(M,auth,()=>M.signInWithPopup(auth,p)):M.signInWithPopup(auth,p))).user;this.fb={M,app,auth,db,user};return user;}catch(e){if(['auth/popup-blocked','auth/cancelled-popup-request','auth/operation-not-supported-in-this-environment'].includes(e?.code)){localStorage.setItem(K.redirect,'1');await M.signInWithRedirect(auth,p);return await new Promise(()=>{});}throw e;}})();try{return await authPromise;}finally{authPromise=null;}
+  if(authPromise)return authPromise;
+  authPromise=(async()=>{
+    const M=await this.modules(),cfg=this.config();
+    let app=M.getApps().find(x=>x.name==='iti-v15');
+    if(!app)app=M.initializeApp(cfg,'iti-v15');
+    const auth=M.getAuth(app);await M.setPersistence(auth,M.browserLocalPersistence);
+    const db=this.firestore(app,M);
+    const accept=async user=>{
+      this.fb={M,app,auth,db,user};
+      if(!user)throw new Error('Google sign-in did not return an account.');
+      const want=expectedEmail(),got=email(user.email);
+      if(want&&want!==got){
+        try{await M.signOut(auth);}finally{this.fb.user=null;clearRedirect();}
+        throw new Error(`Google account mismatch. Entered ${want}, verified ${got||'another account'}. Sign in again and choose the entered Gmail.`);
+      }
+      clearRedirect();return user;
+    };
+    let rr=null;
+    try{rr=await (this.firebaseSignIn?this.firebaseSignIn(M,auth,()=>M.getRedirectResult(auth)):M.getRedirectResult(auth));}
+    catch(e){clearRedirect();throw e;}
+    await authReady(M,auth);
+    const saved=rr?.user||auth.currentUser||null;
+    this.fb={M,app,auth,db,user:saved};
+    if(saved)return accept(saved);
+    if(!interactive)throw new Error('No saved Google session. Press “Verify Role & Continue with Google”.');
+    const provider=new M.GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
+    if(mobileLike()){
+      localStorage.setItem(K.redirect,'1');await M.signInWithRedirect(auth,provider);return await new Promise(()=>{});
+    }
+    try{
+      const result=await (this.firebaseSignIn?this.firebaseSignIn(M,auth,()=>M.signInWithPopup(auth,provider)):M.signInWithPopup(auth,provider));
+      return await accept(result.user);
+    }catch(e){
+      if(['auth/popup-blocked','auth/cancelled-popup-request','auth/operation-not-supported-in-this-environment'].includes(e?.code)){
+        localStorage.setItem(K.redirect,'1');await M.signInWithRedirect(auth,provider);return await new Promise(()=>{});
+      }
+      throw e;
+    }
+  })();
+  try{return await authPromise;}finally{authPromise=null;}
 };
 
 V.bootstrap=async function(role,legacy){const M=this.fb.M,u=this.fb.user;if((await M.getDoc(this.inst())).exists())return false;if(!legacy?.meta)throw new Error('Safe V15 setup requires the existing V14 cloud workspace.');let legacyWorkspaceId='';try{legacyWorkspaceId=window.CloudCenter?.workspaceId?.()||'';}catch(e){}if(!legacyWorkspaceId)legacyWorkspaceId=this.wid(legacy.meta);const meta=legacy.meta||{},w=this.wid(meta);await M.setDoc(this.inst(),{name:meta.institute||this.INSTITUTE_NAME,code:meta.instituteCode||'MUMBAI-01',schemaVersion:15,ownerUid:u.uid,legacyWorkspaceId,createdAt:this.now(),updatedAt:this.now()});await M.setDoc(this.memberRef(),{uid:u.uid,email:email(u.email),displayName:u.displayName||meta.instructor||'Creator',role:'instructor',active:true,owner:true,workspaceIds:[w],createdAt:this.now()});this.member=(await M.getDoc(this.memberRef())).data();this.workspaceId=w;return true;};
-V.activateApprovedAccount=async function(want){const M=this.fb.M,e=email(this.fb.user?.email||''),aSnap=await M.getDoc(this.access(e));if(!aSnap.exists())throw new Error('This Google account is not approved for this institute.');const a=aSnap.data();if(a.active===false)throw new Error('This account is disabled. Contact the Principal/System Admin.');if(a.role!==want)throw new Error(`This Gmail is approved as ${LABEL[a.role]||a.role}, not ${LABEL[want]||want}.`);if(a.role==='principal'){const info=await this.instituteInfo();if(info?.principalUid&&info.principalUid!==this.fb.user.uid)throw new Error('Another official Principal is already active.');}const c=String(prompt(`First login activation\n${e}\n\nEnter the 6-digit code given by the institute:`)||'').trim();if(!/^\d{6}$/.test(c))throw new Error('Activation cancelled or code is not 6 digits.');const proof=await this.hash(c),m={uid:this.fb.user.uid,email:e,displayName:a.displayName||this.fb.user.displayName||e,role:a.role,active:true,owner:false,workspaceIds:a.workspaceIds||[],traineeId:a.traineeId||null,activationProof:proof,createdAt:this.now()};try{await M.setDoc(this.memberRef(),m);}catch(x){throw new Error('Activation failed. Gmail or activation code does not match the approved account.');}this.member=m;if(a.role==='principal')await M.setDoc(this.inst(),{principalUid:this.fb.user.uid,principalEmail:e,principalActivatedAt:this.now(),updatedAt:this.now()},{merge:true});try{await M.setDoc(this.secret(e),{active:false,usedAt:this.now(),usedBy:this.fb.user.uid},{merge:true});}catch(x){}return m;};
+V.activateApprovedAccount=async function(want){const M=this.fb.M,e=email(this.fb.user?.email||''),aSnap=await this.startupRead(this.access(e));if(!aSnap.exists())throw new Error('This Google account is not approved for this institute. Ask the Instructor to approve this exact Gmail on this same website, then retry.');const a=aSnap.data();if(a.active===false)throw new Error('This account is disabled. Contact the Principal/System Admin.');if(a.role!==want)throw new Error(`This Gmail is approved as ${LABEL[a.role]||a.role}, not ${LABEL[want]||want}.`);if(a.role==='principal'){const info=await this.instituteInfo();if(info?.principalUid&&info.principalUid!==this.fb.user.uid)throw new Error('Another official Principal is already active.');}const c=String(prompt(`First login activation\n${e}\n\nEnter the 6-digit code given by the institute:`)||'').trim();if(!/^\d{6}$/.test(c))throw new Error('Activation cancelled or code is not 6 digits.');const proof=await this.hash(c),m={uid:this.fb.user.uid,email:e,displayName:a.displayName||this.fb.user.displayName||e,role:a.role,active:true,owner:false,workspaceIds:a.workspaceIds||[],traineeId:a.traineeId||null,activationProof:proof,createdAt:this.now()};try{await M.setDoc(this.memberRef(),m);}catch(x){throw new Error('Activation failed. Gmail or activation code does not match the approved account.');}this.member=m;if(a.role==='principal')await M.setDoc(this.inst(),{principalUid:this.fb.user.uid,principalEmail:e,principalActivatedAt:this.now(),updatedAt:this.now()},{merge:true});try{await M.setDoc(this.secret(e),{active:false,usedAt:this.now(),usedBy:this.fb.user.uid},{merge:true});}catch(x){}return m;};
 V.resolveRequestedRole=async function(m,want){if(!m||m.active===false)return null;if(m.owner)return OWNER_ROLES.has(want)?want:null;if(want==='admin')return null;return m.role===want?want:null;};
 V.chooseWorkspace=async function(m,want){const pref=localStorage.getItem('iti-v15-workspace-pref-'+this.fb.user.uid)||'';if(want==='principal'||want==='admin'){try{const z=await this.fb.M.getDocs(this.fb.M.collection(this.fb.db,'institutes',this.INSTITUTE_ID,'workspaces')),active=[];z.forEach(d=>{const x=d.data();if(x?.status!=='archived')active.push(d.id);});if(pref&&active.includes(pref))return pref;return active[0]||'';}catch(e){return '';}}const ids=Array.isArray(m?.workspaceIds)?m.workspaceIds.filter(Boolean):[];if(pref&&ids.includes(pref))return pref;return ids[0]||'';};
 V.startRoleLogin=async function(){try{localStorage.removeItem('iti-v15-password-session');}catch(e){}const r=document.getElementById('loginRole')?.value||'',e=email(document.getElementById('v15ExpectedEmail')?.value||'');if(!LABEL[r])return setMsg('Select a login role.',true);if(!this.validEmail(e))return setMsg('Enter the approved Google/Gmail address.',true);localStorage.setItem(K.role,r);localStorage.setItem(K.email,e);setMsg('Opening Google verification…');return this.login({interactive:true});};

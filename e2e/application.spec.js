@@ -493,3 +493,37 @@ test('dashboard next topics follow training order after lexical cloud loading',a
  await expect(page.locator('#brandSub')).toContainText('Synthetic ITI');
  await expect(page.locator('.instructor-profile-dashboard h3')).toContainText('Synthetic instructor');
 });
+
+test('Instructor Gmail approval activates a new Google Student with the issued code and isolated trainee',async({page,browser})=>{
+ await login(page,'instructor');
+ const suffix=test.info().project.name+'-'+Date.now(),email='activation-'+suffix+'@example.test',traineeId='activation-'+suffix;
+ // The fixture is synthetic and created through the authenticated Instructor's emulator rules.
+ await page.evaluate(async ({traineeId})=>{const V=V15Sync,t={id:traineeId,roll:'99',name:'Synthetic Activation Student',gender:'Male'};await V.fb.M.setDoc(V.fb.M.doc(V.col('trainees'),traineeId),{data:t,updatedAt:V.now(),updatedBy:V.fb.user.uid});if(!DATA.trainees.some(x=>x.id===t.id))DATA.trainees.push(t);await V.finalOpenTab('trainees');Trainees.render();},{traineeId});
+ const dialogs=[];page.on('dialog',async d=>{if(d.type()==='prompt')await d.accept(email);else{dialogs.push(d.message());await d.dismiss();}});
+ const row=page.locator('#traineeTableBody tr').filter({hasText:'Synthetic Activation Student'});
+ await row.getByRole('button',{name:/Set Gmail|Change Gmail/}).click();
+ await expect.poll(()=>dialogs.join('\n')).toContain('Student Google account approved.');
+ const code=dialogs.join('\n').match(/Activation code: (\d{6})/)?.[1];expect(code).toMatch(/^\d{6}$/);
+ expect(dialogs.join('\n')).toContain('Student login website: http://127.0.0.1:4173/v15/');
+ const context=await browser.newContext({viewport:page.viewportSize(),serviceWorkers:'block'});
+ try{
+  const student=await context.newPage();await student.route(/https:\/\/.*/,r=>r.abort());await student.goto('/v15/index.html');await student.waitForFunction(()=>window.V15Sync?.startRoleLogin);await student.addScriptTag({url:'/.tmp/test-sdk.js'});
+  await student.evaluate(async ({email})=>{
+   const V=V15Sync,base=ITITestFirebase,cfg={apiKey:'test-api-key',projectId:'demo-universal-iti',authDomain:'localhost',appId:'test-app'};
+   const M={...base,signInWithPopup:async auth=>base.signInWithCredential(auth,base.GoogleAuthProvider.credential(JSON.stringify({sub:email,email,email_verified:true})))};
+   V.modules=async()=>M;V.config=()=>cfg;V.fb.M=M;const app=M.initializeApp(cfg,'iti-v15'),auth=M.getAuth(app),db=M.getFirestore(app);M.connectAuthEmulator(auth,'http://127.0.0.1:9099',{disableWarnings:true});M.connectFirestoreEmulator(db,'127.0.0.1',8080);
+   window.ITI_RUNTIME={apiUrl:'http://127.0.0.1:8787/api'};
+  },{email});
+  // Use the production activation function with a real Google-provider emulator token.
+  // Mobile normally redirects to Google's website; the emulator popup adapter keeps this test local.
+  await student.locator('#loginRole').selectOption('student');await student.locator('#v15ExpectedEmail').fill(email);
+  student.on('dialog',async d=>{if(d.type()==='prompt')await d.accept(code);else await d.dismiss();});
+  await student.evaluate(async()=>{const V=V15Sync,M=await V.modules(),auth=M.getAuth(M.getApps().find(x=>x.name==='iti-v15'));await M.signInWithPopup(auth,new M.GoogleAuthProvider());await V.startRoleLogin();});
+  await expect.poll(()=>student.evaluate(()=>({ready:V15Sync.ready,role:V15Sync.currentRole()}))).toEqual({ready:true,role:'student'});
+  const actual=await student.evaluate(async()=>{const V=V15Sync,M=V.fb.M,m=(await M.getDocFromServer(V.memberRef())).data(),token=await V.fb.user.getIdTokenResult();return {email:m.email,owner:m.owner,traineeId:m.traineeId,ids:m.workspaceIds,provider:token.claims.firebase.sign_in_provider,trainees:DATA.trainees.map(t=>t.id),secretReadable:await M.getDocFromServer(V.secret(m.email)).then(()=>true,()=>false)};});
+  expect(actual).toEqual({email,owner:false,traineeId,ids:['w1'],provider:'google.com',trainees:[traineeId],secretReadable:false});
+  await expect(student.locator('#appShell')).toBeVisible();await student.evaluate(()=>V15Sync.finalOpenTab('skills'));await expect(student.locator('#tab-skills')).toHaveClass(/active/);
+ }finally{
+  await context.close();await page.evaluate(async ({traineeId,email})=>{const V=V15Sync,M=V.fb.M;await M.deleteDoc(M.doc(V.col('trainees'),traineeId));await M.deleteDoc(V.secret(email));await M.deleteDoc(V.access(email));},{traineeId,email});
+ }
+});
