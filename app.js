@@ -3751,11 +3751,20 @@ const UniversalSyllabus = {
     if(!this.state.items.length){this.status('Analyze a syllabus first.','error');return;}
     if(SESSION.role!=='instructor'){this.status('Only the instructor can apply a new syllabus to the register.','error');return;}
     if(!this.validateIdentifiers())return;
+    // Syllabus-only replacement is initial setup only. An existing register carries plans,
+    // completion, evaluations and trainee links that must not be reset by an import.
+    if(!window.InstructorPlanSafety){this.status('Planning protection is unavailable. Reload the application before saving.','error');return;}
+    const existing=window.InstructorPlanSafety.assess(DATA,this.state.items,this.state.trade);
+    if(!existing.ok||existing.mode!=='create'){
+      this.status('Existing syllabus/records cannot be overwritten by Apply Syllabus Only. Use Create/Revise Training Plan for an unchanged syllabus; otherwise arrange a reviewed migration.','error');return;
+    }
     const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
     const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
     const moduleMap=new Map();
     this.state.items.forEach(x=>{const name=(x.module||'General').trim(); if(!moduleMap.has(name))moduleMap.set(name,{id:uid(),code:`M${String(moduleMap.size+1).padStart(2,'0')}`,name,hours:0,description:'Imported from '+this.state.sourceName,topics:[]}); const m=moduleMap.get(name); m.hours+=Number(x.hours)||0; m.topics.push({id:uid(),type:x.type,title:x.title,hours:x.hours,sequence:m.topics.length+1});});
-    if(!confirm(`Replace the current register syllabus with ${ps.length} practicals and ${ts.length} theory topics for ${this.state.trade||'this trade'}?\n\nYour trainee, attendance and other records will remain.`))return;
+    if(!confirm(`Create the initial syllabus with ${ps.length} practicals and ${ts.length} theory topics for ${this.state.trade||'this trade'}?\n\nThis action is permitted only when the current register, modules and year plan are empty.`))return;
+    const fresh=window.InstructorPlanSafety.assess(DATA,this.state.items,this.state.trade);
+    if(!fresh.ok||fresh.mode!=='create'){this.status('Records changed while confirming. No syllabus data was written.','error');return;}
     DATA.meta.trade=this.state.trade||DATA.meta.trade; DATA.meta.officialPlanPack=/desktop publishing|dtpo|\bdtp\b/i.test(DATA.meta.trade||'')?'DTPO':'NONE'; DATA.practicals=ps; DATA.theory=ts; DATA.modules=[...moduleMap.values()]; DATA.meta.tradeSource=this.state.sourceName; DATA.meta.syllabusImportedAt=todayISO();
     saveData();
     Practicals.render(); Theory.render(); Schedule.render(); Dashboard.render(); if(typeof InstructorAI!=='undefined'){InstructorAI.refreshTopicPicker();InstructorAI.renderToday();}
@@ -3768,10 +3777,26 @@ const UniversalSyllabus = {
     if(this._calendarContext&& !syllabusContextCurrent(this._calendarContext)){this.status('Account or workspace changed. Review the syllabus and generate a fresh calendar before saving.','error');return;}
     if(!this.generateCalendar())return;
     const context=this._calendarContext;
+    if(!window.InstructorPlanSafety){this.status('Planning protection is unavailable. Reload before saving.','error');return;}
+    const preflight=window.InstructorPlanSafety.assess(DATA,this.state.items,this.state.trade);
+    if(!preflight.ok){this.status(preflight.reason,'error');return;}
+    if(preflight.mode==='revise'&&this._unscheduled){
+      this.status('The revised calendar does not fully schedule all existing topics. Extend the session before revising.','error');return;
+    }
+    const history=Array.isArray(DATA.meta.trainingPlanHistory)?DATA.meta.trainingPlanHistory:[];
+    const previous=DATA.meta.trainingPlan;
+    if(preflight.mode==='revise'&&previous&&(history.length>=3||JSON.stringify([...history,previous]).length>250000)){
+      this.status('Revision history is at its safe storage limit. Export or archive prior plans before another revision.','error');return;
+    }
     const start=document.getElementById('uStart').value, end=document.getElementById('uEnd').value;
     const rows=this.state.calendar.filter(r=>r.hours>0 && !r.holiday);
-    if(!confirm(`Create the ${this.state.trade||'trade'} training plan?\n\nThis replaces modules, theory/practical records and planned dates. Existing trainee and attendance records will remain.${this._unscheduled?'\n\nWarning: '+this._unscheduled+' topics are not fully allocated within the selected dates. Extend the period or retain this as a partial plan.':''}`)) return;
+    const revisionMessage=preflight.mode==='revise'
+      ? 'Revise only the saved calendar dates for the same topics and hours? Existing teaching completion, lesson/demonstration plans, materials, identifiers and module records will be preserved.'
+      : 'Create an initial plan in an empty syllabus register?';
+    if(!confirm(revisionMessage+(this._unscheduled?'\n\nWarning: '+this._unscheduled+' topics are not fully allocated.':'')))return;
     if(SESSION?.role!=='instructor'||(context&&!syllabusContextCurrent(context)))return;
+    const verified=window.InstructorPlanSafety.assess(DATA,this.state.items,this.state.trade);
+    if(!verified.ok||verified.mode!==preflight.mode||DATA.meta.trainingPlan!==previous){this.status('Plan or register changed during confirmation; generate and review again before saving.','error');return;}
     const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
     const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
     // Assign practical dates from generated calendar rows.
@@ -3780,7 +3805,10 @@ const UniversalSyllabus = {
     const sourcePracticals=this.state.items.filter(x=>x.type==='practical'),sourceTheory=this.state.items.filter(x=>x.type==='theory');
     ps.forEach((p,i)=>{const seq=sourcePracticals[i].seq,row=prRows.find(r=>(r.practicalItems||[]).some(x=>Number(x.seq)===Number(seq)));if(row)p.plannedDate=row.date;});
     ts.forEach((t,i)=>{const seq=sourceTheory[i].seq,row=thRows.find(r=>(r.theoryItems||[]).some(x=>Number(x.seq)===Number(seq)));if(row)t.plannedDate=row.date;});
-    const pNumbers=new Map(sourcePracticals.map((x,i)=>[Number(x.seq),i+1])),tNumbers=new Map(sourceTheory.map((x,i)=>[Number(x.seq),i+1]));
+    // Existing topic numbers/IDs and evidence remain authoritative for a calendar-only revision.
+    const savedPs=verified.mode==='revise'?ps.map((p,i)=>({...verified.practicals[i],plannedDate:p.plannedDate,sourceNo:verified.practicals[i].sourceNo||p.sourceNo})):ps;
+    const savedTs=verified.mode==='revise'?ts.map((t,i)=>({...verified.theory[i],plannedDate:t.plannedDate,sourceNo:verified.theory[i].sourceNo||t.sourceNo})):ts;
+    const pNumbers=new Map(sourcePracticals.map((x,i)=>[Number(x.seq),savedPs[i].no])),tNumbers=new Map(sourceTheory.map((x,i)=>[Number(x.seq),savedTs[i].no]));
     const dayPlan=this.state.calendar.map(r=>{const practicalItems=(r.practicalItems||[]).map(x=>({...x,seq:pNumbers.get(Number(x.seq))})),theoryItems=(r.theoryItems||[]).map(x=>({...x,seq:tNumbers.get(Number(x.seq))})),text=items=>items.map(x=>`${x.seq}. ${x.title} (${x.hours}h)`).join('; ');return {...r,practicalItems,theoryItems,practical:r.holiday?r.practical:text(practicalItems),theory:r.holiday?r.theory:text(theoryItems)};});
     const moduleMap=new Map();
     this.state.items.forEach(x=>{const name=(x.module||'General').trim(); if(!moduleMap.has(name))moduleMap.set(name,{id:uid(),code:`M${String(moduleMap.size+1).padStart(2,'0')}`,name,hours:0,description:'Imported from '+this.state.sourceName,topics:[]}); const m=moduleMap.get(name); m.hours+=Number(x.hours)||0; m.topics.push({id:uid(),type:x.type,title:x.title,hours:Number(x.hours)||1,sequence:m.topics.length+1});});
@@ -3788,16 +3816,18 @@ const UniversalSyllabus = {
     DATA.meta.officialPlanPack=/desktop publishing|dtpo|\bdtp\b/i.test(DATA.meta.trade||'')?'DTPO':'NONE';
     DATA.meta.tradeSource=this.state.sourceName;
     DATA.meta.syllabusImportedAt=todayISO();
-    DATA.meta.trainingPlan={createdAt:new Date().toISOString(),startDate:start,endDate:end,hoursPerDay:Number(document.getElementById('uHours').value),practicalHoursPerDay:Number(document.getElementById('uHours').value)-Number(document.getElementById('uTheoryHours')?.value),theoryHoursPerDay:Number(document.getElementById('uTheoryHours')?.value),fixedDailySplit:!!document.getElementById('uFixedSplit')?.checked,calendarRows:this.state.calendar.length,dayPlan:dayPlan};
+    if(verified.mode==='revise'&&previous)DATA.meta.trainingPlanHistory=[...history,JSON.parse(JSON.stringify(previous))];
+    DATA.meta.trainingPlan={createdAt:new Date().toISOString(),revision:previous?Number(previous.revision||1)+1:1,startDate:start,endDate:end,hoursPerDay:Number(document.getElementById('uHours').value),practicalHoursPerDay:Number(document.getElementById('uHours').value)-Number(document.getElementById('uTheoryHours')?.value),theoryHoursPerDay:Number(document.getElementById('uTheoryHours')?.value),fixedDailySplit:!!document.getElementById('uFixedSplit')?.checked,calendarRows:this.state.calendar.length,dayPlan:dayPlan};
     DATA.meta.scheduleMode='training-plan';DATA.meta.scheduleStartDate=start;DATA.meta.scheduleEndDate=end;
     this.state.calendar.filter(r=>r.holiday).forEach(r=>{if(!DATA.holidays.some(h=>h.date===r.date))DATA.holidays.push({date:r.date,label:r.label||'Holiday'});});
     DATA.holidays.sort((a,b)=>a.date.localeCompare(b.date));
-    DATA.practicals=ps; DATA.theory=ts; DATA.modules=[...moduleMap.values()];
+    DATA.practicals=savedPs; DATA.theory=savedTs;
+    if(verified.mode==='create')DATA.modules=[...moduleMap.values()];
     DATA.practicals.forEach(p=>{if(p.plannedDate){const d=new Date(p.plannedDate+'T00:00:00'); p.week=this.weekLabel(d);}});
     DATA.theory.forEach(t=>{if(t.plannedDate){const d=new Date(t.plannedDate+'T00:00:00'); t.week=this.weekLabel(d);}});
     saveData(); Practicals.render(); Theory.render(); Schedule.render(); Dashboard.render(); if(typeof InstructorAI!=='undefined'){InstructorAI.refreshTopicPicker();InstructorAI.renderToday();} if(typeof ModuleManager!=='undefined')ModuleManager.refresh();
     this.status(`Training plan saved: ${DATA.modules.length} modules, ${ps.length} practicals, ${ts.length} theory topics and ${this.state.calendar.length} calendar rows.${this._unscheduled?' '+this._unscheduled+' topics are not fully allocated; review the session date range.':''}`,this._unscheduled?'info':'ok');
-    alert('Training plan saved. Open Module Manager, Practicals, Theory and Split-up Syllabus to review allocations and any remaining topics.');
+    alert(verified.mode==='revise'?'Calendar revised. Existing topic records and evidence were retained.':'Initial training plan saved. Review the allocation in Year Planning / Split-up.');
   },
   exportJSON(){
     if(!this.state.items.length){this.status('Nothing to export yet.','error');return;}
