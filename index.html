@@ -398,8 +398,13 @@
       <h2>Trainee Master</h2>
       <div id="instructorOnlyTrainees" class="field-row">
         <button class="btn primary" onclick="Trainees.openForm()">+ Add Trainee</button>
+        <button class="btn secondary" type="button" onclick="TraineeBulkImport.download()">⬇ Download Excel Template</button>
+        <button class="btn secondary" type="button" onclick="document.getElementById('traineeBulkFile').click()">⬆ Import Excel</button>
+        <input id="traineeBulkFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="TraineeBulkImport.previewFile(this.files[0])">
         <button class="btn ghost" onclick="Trainees.loadSample()">Load 5 sample trainees (for testing)</button>
         <button class="btn ghost" onclick="Trainees.clearAll()">Clear all trainees</button>
+        <div id="traineeBulkStatus" role="status" aria-live="polite" style="width:100%;font-size:.9em"></div>
+        <div id="traineeBulkPreview" class="card" style="width:100%;margin-top:10px" hidden></div>
       </div>
       <table class="datatable">
         <thead><tr><th>Roll</th><th>Name</th><th>PRN</th><th>Category</th><th>Attendance %</th><th>Practical Avg</th><th>PIN</th><th></th></tr></thead>
@@ -1180,6 +1185,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="official-plans.js"></script>
+<script src="trainee-bulk-import.js"></script>
 <script src="instructor-templates.js"></script>
 <script src="instructor-plan-safety.js"></script>
 <script src="app.js"></script>
