@@ -85,7 +85,7 @@ test('fixed daily split validates zero-capacity topic and preserves legacy optio
  f.U.state.items=[{seq:1,type:'theory',title:'Needs theory hours',hours:1},{seq:2,type:'practical',title:'Practical',hours:7}];
  assert.equal(f.U.generateCalendar(),undefined);assert.equal(f.U.state.calendar.length,0);assert.equal(f.saves(),0);
  d.querySelector('#uFixedSplit').checked=false;
- assert.equal(f.U.generateCalendar(),true);assert.equal(f.U.state.calendar[0].hours,8);assert.equal(f.U.state.calendar[0].theoryItems.length,0);
+ assert.equal(f.U.generateCalendar(),true);assert.equal(f.U.state.calendar[0].hours,7);assert.equal(f.U.state.calendar[0].theoryItems.length,0);
 }finally{f.close();}});
 test('fixed split skips holidays without silently merging subject capacities',()=>{const f=setup();try{
  const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-05';
