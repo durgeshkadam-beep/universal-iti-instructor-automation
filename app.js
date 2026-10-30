@@ -2472,18 +2472,43 @@ const Trainees = {
   },
   render(){
     if(window.TraineeBulkImport)window.TraineeBulkImport.refreshScope();
-    document.getElementById("traineeTableBody").innerHTML = DATA.trainees.map(t=>`
-      <tr>
-        <td>${t.roll}</td><td><div class="name-cell">${avatarChip(t.name)}<span>${t.name}</span></div></td>
-        <td>${t.prn || `<span class="badge pending">Pending</span>`}</td>
-        <td>${t.category}</td>
-        <td>${Trainees.attendancePct(t.id)}</td>
-        <td>${Trainees.practicalAvg(t.id)}</td>
-        <td>${SESSION.role==="instructor"? `<code>${t.pin}</code> <button class="btn ghost small" onclick="Trainees.resetPin('${t.id}')">Reset</button>`:""}</td>
-        <td>${SESSION.role==="instructor"? `<button class="btn ghost small" onclick="Trainees.remove('${t.id}')">Remove</button>`:""}</td>
-      </tr>`).join("") || `<tr><td colspan="8" class="muted">No trainees added yet.</td></tr>`;
-  }
-};
+    const body=document.getElementById("traineeTableBody");
+    if(!body)return;
+    body.replaceChildren();
+    const instructor=SESSION?.role==="instructor";
+    const addCell=(tr,value)=>{const td=document.createElement("td");td.textContent=String(value??"");tr.appendChild(td);return td;};
+    const makeButton=(label,action)=>{
+      const b=document.createElement("button");b.type="button";b.className="btn ghost small";b.textContent=label;b.addEventListener("click",action);return b;
+    };
+    if(!DATA.trainees.length){
+      const tr=document.createElement("tr"),td=addCell(tr,"No trainees added yet.");td.colSpan=8;td.className="muted";body.appendChild(tr);return;
+    }
+    DATA.trainees.forEach(t=>{
+      const tr=document.createElement("tr");
+      addCell(tr,t.roll);
+      const nameCell=document.createElement("td"),wrap=document.createElement("div");wrap.className="name-cell";
+      const badge=document.createElement("span");badge.className="avatar";
+      const name=String(t.name||"");const initials=name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase();
+      let hash=0;for(const ch of name)hash=ch.charCodeAt(0)+((hash<<5)-hash);
+      badge.style.background=AVATAR_COLORS[Math.abs(hash)%AVATAR_COLORS.length];
+      badge.textContent=initials;
+      const text=document.createElement("span");text.textContent=name;wrap.append(badge,text);nameCell.appendChild(wrap);tr.appendChild(nameCell);
+      const prnCell=addCell(tr,t.prn||"");
+      if(!t.prn){const span=document.createElement("span");span.className="badge pending";span.textContent="Pending";prnCell.appendChild(span);}
+      addCell(tr,t.category);addCell(tr,Trainees.attendancePct(t.id));addCell(tr,Trainees.practicalAvg(t.id));
+      const accountCell=addCell(tr,"");
+      if(instructor){
+        if(window.__ITI_V15){
+          accountCell.textContent=t.accountStatus==="not-linked"?"Not linked":"Managed by institute login";
+        }else{
+          const pin=document.createElement("code");pin.textContent=String(t.pin||"");accountCell.appendChild(pin,makeButton("Reset",()=>Trainees.resetPin(t.id)));
+        }
+      }
+      const actions=addCell(tr,"");
+      if(instructor)actions.appendChild(makeButton("Remove",()=>Trainees.remove(t.id)));
+      body.appendChild(tr);
+    });
+  }};
 
 /* ===================== ATTENDANCE ===================== */
 const Attendance = {
