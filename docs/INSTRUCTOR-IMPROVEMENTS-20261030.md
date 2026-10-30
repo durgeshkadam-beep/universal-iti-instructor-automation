@@ -15,13 +15,13 @@ Initial local validation: 289 native Node tests and 16/16 selected desktop/mobil
 ## Remaining Instructor workstreams
 
 1. Reviewed Excel year planning, separate 5+3 capacities, stable numbers/non-destructive atomic revisions and day/week/month print views are implemented; see YEAR-PLANNING-20261030.md for current validation/deployment status. Scanned PDF OCR is still pending. Holiday coverage must be reviewed for every session year.
-2. Skill verification and workplace applications now share one primary menu. Remaining work: practical-context guidance/catalogue and source-backed AI suggestions, with Instructor review before publication or verification.
+2. Skill verification and workplace applications now share one primary menu. Source/excerpt-guided manual prompts, optional backend AI draft requests, reviewed JSON preview and conflict-safe publication are implemented; see INSTRUCTOR-WORKPLACE-GUIDANCE-20261030.md. A vetted source catalogue and real provider acceptance remain; no catalogue facts or market demand are invented.
 3. Records/inspection/report/Drive navigation is grouped. Account/workspace-bound sanitised PDF capture and Drive consent/upload guards are implemented; see INSTRUCTOR-RECORDS-DRIVE-20261030.md. Real OAuth/Drive acceptance and overlapping-form review remain. PDF exports are not restorable institution backups.
 4. Existing branch work restored trainee Excel/CSV import with template, duplicate preview and stable IDs, independent of Firebase login provisioning. It was retained during year-planning integration; 12 focused combined browser checks passed; full CI acceptance remains required.
 5. Honest AI capability status and nearby JSON/manual help are implemented. Instructor-owned API keys require protected server storage and deployment/configuration; do not store keys in browser storage or public code. Year-plan revisions now have authoritative transaction tests; individual lesson/demo-plan revision history still needs its own work.
 6. Final Instructor module acceptance, including an actual supplied MCQ test file and real-account Drive consent/printing. Accepted existing modules should not be redesigned unnecessarily.
 
-The operator subsequently reported deployment of 74b106b; independent checks matched all 68 hosted files and desktop/mobile login screens. See INSTRUCTOR-HOSTED-ACCEPTANCE-20261030.md for the exact scope, discovered CDN chart defect and follow-up publication status. This Work environment still has no authenticated Firebase CLI/operator session. No production deployment, main merge, real-student test write or credential publication is part of this change.
+The operator subsequently published the chart-corrected 7c4f641 release. Independent GitHub runner checks matched all 70 hosted files and desktop/mobile login shells, local Chart.js canvas rendering and backend health/version (Published staging verification 41082061174 passed). See INSTRUCTOR-HOSTED-ACCEPTANCE-20261030.md for the exact scope, discovered CDN chart defect and follow-up publication status. This Work environment still has no authenticated Firebase CLI/operator session. No production deployment, main merge, real-student test write or credential publication is part of this change.
 
 ## Second workstream
 
@@ -48,3 +48,7 @@ Third-workstream local validation: 337 native tests plus repository regressions,
 ## Fourth workstream — report PDF and Drive boundary
 
 See [INSTRUCTOR-RECORDS-DRIVE-20261030.md](INSTRUCTOR-RECORDS-DRIVE-20261030.md) for the actual capture bug, blank-PDF and clipping corrections, identity/consent guards, regression history and acceptance limits. No real-account Drive success or whole-Instructor completion is claimed. Final source test and deployment evidence is maintained on PR #16.
+
+## Fifth workstream — source-based workplace guidance
+
+See [INSTRUCTOR-WORKPLACE-GUIDANCE-20261030.md](INSTRUCTOR-WORKPLACE-GUIDANCE-20261030.md) for the source → reviewed draft → explicit publication → Student example flow, real concurrent-session conflict correction, authentication/context boundaries, optional AI limitations and failure history. This work changes the existing form, not role authority or Student assessment rules. Exact tests/CI/publication status are recorded in PR #16.

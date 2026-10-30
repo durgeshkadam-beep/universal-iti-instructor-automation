@@ -23,6 +23,7 @@ const tick=()=>new Promise(resolve=>setTimeout(resolve,20));
     doc:(_db,...args)=>({id:args.at(-1)}),
     async getDoc(ref){return {exists:()=>ref.id==='practical-1',data:()=>({...application})};},
     async setDoc(ref,data){assert.equal(ref.id,'practical-1');application={...data};},
+    async runTransaction(_db,fn){return fn({get:ref=>M.getDoc(ref),set:(ref,data)=>{assert.equal(ref.id,'practical-1');application={...data};}});},
     serverTimestamp:()=>new Date('2026-10-27T05:00:00Z'),
     collection:(_db,...paths)=>({path:paths.join('/')}),
     where:(field,operator,value)=>({field,operator,value}),
