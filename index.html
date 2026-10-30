@@ -189,8 +189,13 @@
             <label><input id="uUseExistingHolidays" type="checkbox" checked> Include existing institute holidays</label>
           </div>
           <div class="field-row">
-            <div class="field"><label>Total training hours / day</label><input id="uHours" type="number" value="7" min="1" max="12"></div>
-            <div class="field"><label>Theory hours / day</label><input id="uTheoryHours" type="number" value="1" min="0" max="7" step="0.5"></div>
+            <div class="field"><label>Total training hours / day (Practical + Theory)</label><input id="uHours" type="number" value="8" min="1" max="12" step="0.5" oninput="UniversalSyllabus.showCapacity()"></div>
+            <div class="field"><label>Theory hours / day</label><input id="uTheoryHours" type="number" value="3" min="0" max="12" step="0.5" oninput="UniversalSyllabus.showCapacity()"></div>
+          </div>
+          <div class="field">
+            <label><input id="uFixedSplit" type="checkbox" checked onchange="UniversalSyllabus.showCapacity()"> Keep Practical and Theory daily hours separate, even when one subject finishes</label>
+            <div id="uDailyCapacityHint" class="muted" aria-live="polite">5 practical + 3 theory = 8 training hours/day. Both are editable through the total and theory fields.</div>
+            <small class="muted">Changing these settings only affects a new calendar preview. Existing saved plans change only when you explicitly save a replacement.</small>
           </div>
           <div class="field">
             <label>Government / additional holidays <span class="muted">(YYYY-MM-DD | Holiday name)</span></label>
