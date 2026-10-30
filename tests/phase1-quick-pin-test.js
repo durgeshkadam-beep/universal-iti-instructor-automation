@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {TextEncoder}=require('node:util');
 const {JSDOM}=require('jsdom');
-const wait=()=>new Promise(r=>setTimeout(r,110));
+const waitFor=async (check,message)=>{const end=Date.now()+5000;while(!check()&&Date.now()<end)await new Promise(r=>setTimeout(r,20));assert.ok(check(),message);};
 async function test(){
  const dom=new JSDOM('<!doctype html><body><div id="appShell"><header class="topbar"><div class="who"></div></header></div></body>',{
   url:'https://example.test/v15/',runScripts:'outside-only'
@@ -44,9 +44,9 @@ async function test(){
  const entry=w.document.querySelector('#v15QuickPinGuard input');
  const form=w.document.querySelector('#v15QuickPinGuard form');
  entry.value='999999';form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
- await wait();assert.match(w.document.querySelector('#v15QuickPinGuard').textContent,/Remaining attempts: 4/);
+ await waitFor(()=>/Remaining attempts: 4/.test(w.document.querySelector('#v15QuickPinGuard')?.textContent),'wrong PIN attempt completes');
  entry.value='529174';form.dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
- await wait();assert.equal(w.document.getElementById('v15QuickPinGuard'),null,'correct PIN unlocks existing session UI');
+ await waitFor(()=>!w.document.getElementById('v15QuickPinGuard'),'correct PIN unlocks existing session UI');
  assert.equal(V.quickPinLock(),true);
  V.fb.user={uid:'teacher-b'};auth.currentUser={uid:'teacher-b'};
  assert.equal(V.quickPinLock(),false,'another Firebase user cannot use saved PIN');
@@ -58,7 +58,7 @@ async function test(){
  for(let i=0;i<5;i++){
    const guard=w.document.getElementById('v15QuickPinGuard'),pin=guard.querySelector('input');
    pin.value='888888';guard.querySelector('form').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));
-   await wait();
+   await waitFor(()=>signouts===1||guard.querySelector('button[type=submit]').disabled===false,'PIN attempt completes before the next submission');
  }
  assert.equal(signouts,1,'five failures require full authentication');
  assert.equal(V.ready,false);

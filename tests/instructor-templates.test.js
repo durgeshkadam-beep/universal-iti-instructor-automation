@@ -60,6 +60,6 @@ test('unknown workbook layout keeps legacy parser path but a partial reviewed te
 test('staging year planning includes a script for its template importer',()=>{
  const html=fs.readFileSync('index.html','utf8'),builder=fs.readFileSync('scripts/build-web.js','utf8');
  assert.match(html,/src="instructor-templates\.js"/);
- assert.match(html,/InstructorTemplates\.downloadSyllabus\(\)/);
+ assert.match(html,/href="assets\/templates\/syllabus-template\.xlsx" download/);
  assert.match(builder,/'instructor-templates\.js'/);
 });

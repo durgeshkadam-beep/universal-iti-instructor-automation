@@ -419,7 +419,7 @@ test('Student plan and self ratings restore from scoped cloud data in a fresh br
 test('AI lesson JSON error hides the previous preview and saves no record',async({page})=>{
  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));
  const before=await page.evaluate(()=>JSON.stringify({practicals:DATA.practicals,theory:DATA.theory}));
- await page.evaluate(()=>InstructorAI.openManual('plan','Synthetic preview test',{}, {type:'theory',no:'synthetic-preview',item:{title:'Synthetic lesson preview'}}));
+ await page.evaluate(()=>{InstructorAI.getKey=()=>false;InstructorAI.openPlanDraft('theory',DATA.theory[0].no);});
  await page.locator('#aiResultText').fill(JSON.stringify({objective:['Synthetic objective'],materials:[],review:'Review',motivation:'Motivation',steps:[{topic:'Synthetic topic',information:'Synthetic information',spotHint:'Hint'}],questions:['Synthetic question'],summary:'Summary',assignment:'Assignment',nextLesson:'Next lesson'}));
  await page.getByRole('button',{name:'Preview Result',exact:true}).click();await expect(page.locator('#aiPreviewBox')).toBeVisible();
  await page.locator('#aiResultText').fill('{"questions":[ What are the hazards? ]}');
@@ -451,44 +451,27 @@ test('AI demonstration previews the complete document before approval on desktop
 });
 
 test('split-up complete plan persists to cloud and a fresh Student calendar with safe print output',async({page,browser})=>{
- await login(page,'instructor');
- const original=await page.evaluate(()=>JSON.parse(JSON.stringify(DATA)));
+ await login(page,'instructor');await page.evaluate(()=>V15Sync.switchWorkspace('planning-demo'));
  const fresh=await browser.newContext({viewport:page.viewportSize(),serviceWorkers:'block',timezoneId:'Asia/Kolkata'});
  try{
   await page.evaluate(()=>V15Sync.finalOpenTab('syllabus-ai'));
-  await page.locator('#uStart').fill('2026-10-30');await page.locator('#uEnd').fill('2026-11-06');await page.locator('#uAltSat').uncheck();await page.locator('#uUseExistingHolidays').uncheck();await page.locator('#uHolidays').fill('2026-10-31 | Synthetic holiday');
-   await page.evaluate(()=>{
-     // Revise the existing synthetic syllabus without erasing teaching records.
-     UniversalSyllabus.state.trade=DATA.meta.trade;
-     UniversalSyllabus.state.items=[
-       ...DATA.practicals.map((p,i)=>({seq:i+1,type:'practical',sourceNo:p.sourceNo||String(p.no),title:p.title,hours:p.hours})),
-       ...DATA.theory.map((t,i)=>({seq:DATA.practicals.length+i+1,type:'theory',sourceNo:t.sourceNo||String(t.no),title:t.title,hours:t.hours}))
-     ];
-     UniversalSyllabus.renderPreview();
-   });
-  page.on('dialog',d=>d.accept());
-  const preflight=await page.evaluate(()=>({state:InstructorPlanSafety.assess(DATA,UniversalSyllabus.state.items,UniversalSyllabus.state.trade),records:DATA.practicals.map(x=>({no:x.no,title:x.title,hours:x.hours})),trade:DATA.meta.trade}));
-  expect(preflight.state,JSON.stringify(preflight)).toMatchObject({ok:true,mode:'revise'});
-  await page.getByRole('button',{name:'Create Complete Training Plan',exact:false}).click();
-  const submission=await page.evaluate(()=>({notice:document.getElementById('uStatus')?.textContent,mode:DATA.meta.scheduleMode,rows:DATA.meta.trainingPlan?.dayPlan?.length}));
-  expect(submission,JSON.stringify({preflight,submission})).toMatchObject({mode:'training-plan'});
-  await expect.poll(()=>page.evaluate(async()=>{const V=V15Sync,s=await V.fb.M.getDocFromServer(V.ws());return {mode:s.data()?.scheduleMode,first:s.data()?.trainingPlan?.dayPlan?.[0]?.date,queued:V.queueRead().length};}),{timeout:20000}).toEqual({mode:'training-plan',first:'2026-10-30',queued:0});
-  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('splitup'));
-  const body=page.locator('#splitupTableBody');await expect(body).toContainText('2026-11-02');await expect(body).toContainText('Typography');await expect(body).toContainText('Layout basics');await expect(body.locator('img,script,[onerror]')).toHaveCount(0);await expect(page.locator('#splitupOfficial')).toBeHidden();
-  expect(await page.evaluate(()=>DATA.practicals.map(p=>p.plannedDate))).toEqual(['2026-10-30','2026-11-02']);
+  await page.locator('#uStart').fill('2026-10-30');await page.locator('#uEnd').fill('2026-11-06');await page.locator('#uHours').fill('5');await page.locator('#uTheoryHours').fill('3');await page.locator('#uAltSat').uncheck();await page.locator('#uUseExistingHolidays').uncheck();await page.locator('#uHolidays').fill('2026-10-31 | Synthetic holiday');
+  await page.evaluate(()=>{UniversalSyllabus.state.trade=DATA.meta.trade;UniversalSyllabus.state.sourceName='Browser planning regression';UniversalSyllabus.state.items=[{seq:1,type:'theory',title:'Synthetic safe circuits',hours:1},{seq:2,type:'practical',title:'Synthetic circuit <img src=x onerror="window.splitInjected=1">',hours:6},{seq:3,type:'theory',title:'Synthetic testing theory',hours:1},{seq:4,type:'practical',title:'Synthetic testing practical',hours:6}];UniversalSyllabus.renderPreview();});
+  await page.getByRole('button',{name:'Generate Working Calendar',exact:false}).click();await expect(page.locator('#uCapacitySummary')).toContainText('12 hours required');await expect(page.locator('#uCapacitySummary')).toContainText('Saved plans, completion dates');
+  page.on('dialog',d=>d.accept());await page.getByRole('button',{name:'Save / Revise Year Plan',exact:true}).click();await expect(page.locator('#uStatus')).toContainText('revision');await expect(page.locator('#uStatus')).toContainText('saved');
+  const counts=await page.evaluate(async()=>{const V=V15Sync,M=V.fb.M,w=await M.getDocFromServer(V.ws()),h=await M.getDocs(M.collection(V.ws(),'planningRevisions'));return {revision:w.data().trainingPlanRevision,history:h.size};});
+  await page.getByRole('button',{name:'Generate Working Calendar',exact:false}).click();await page.getByRole('button',{name:'Save / Revise Year Plan',exact:true}).click();await expect(page.locator('#uStatus')).toContainText('already saved');expect(await page.evaluate(async()=>({history:(await V15Sync.fb.M.getDocs(V15Sync.fb.M.collection(V15Sync.ws(),'planningRevisions'))).size,revision:DATA.meta.trainingPlanRevision}))).toEqual(counts);
+  await login(page,'instructor');await page.evaluate(async()=>{await V15Sync.switchWorkspace('planning-demo');await V15Sync.finalOpenTab('splitup');});
+  const body=page.locator('#splitupTableBody');await expect(body).toContainText('2026-11-02');await expect(body).toContainText('Synthetic testing practical');await expect(body).toContainText('<img src=x');await expect(body.locator('img,script,[onerror]')).toHaveCount(0);await expect(page.locator('#splitupOfficial')).toBeHidden();
+  expect(await page.evaluate(()=>DATA.practicals.filter(p=>p.title.startsWith('Synthetic circuit')||p.title==='Synthetic testing practical').sort((a,b)=>a.sequence-b.sequence).map(p=>p.plannedDate))).toEqual(['2026-10-30','2026-11-02']);
+  expect(await page.evaluate(()=>{const p=DATA.practicals.find(p=>p.no==='seed-001');return {date:p.doneDate,status:p.status,objective:p.plan.objective[0],version:p.planMeta.version};})).toEqual({date:'2026-10-20',status:'completed',objective:'Preserved original objective',version:2});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
-  await page.evaluate(()=>{window.print=()=>{};});await page.getByRole('button',{name:'Print Split-up Syllabus',exact:true}).click();
-  await expect(page.locator('#printArea')).toContainText('Typography');await expect(page.locator('#printArea img[src=x],#printArea script')).toHaveCount(0);
+  await page.getByLabel('Year plan view',{exact:true}).selectOption('month');await expect(body).toContainText('5h');await page.getByLabel('Year plan month',{exact:true}).fill('2026-10');await page.getByLabel('Year plan month',{exact:true}).dispatchEvent('change');await expect(body).not.toContainText('2026-11');
+  await page.evaluate(()=>{window.print=()=>{};});await page.getByRole('button',{name:'Print Split-up Syllabus',exact:true}).click();await expect(page.locator('#printArea')).toContainText('month-wise');await expect(page.locator('#printArea')).toContainText('2026-10');await expect(page.locator('#printArea img[src=x],#printArea script')).toHaveCount(0);
   const pdf=await page.pdf({path:'.tmp/splitup-'+test.info().project.name+'.pdf',preferCSSPageSize:true});expect(pdf.length).toBeGreaterThan(1000);const box=/\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/.exec(pdf.toString('latin1'));expect(box).not.toBeNull();expect(Number(box[1])).toBeGreaterThan(Number(box[2]));
-  const student=await fresh.newPage();await login(student,'student');await student.evaluate(()=>V15Sync.finalOpenTab('splitup'));
-  await expect(student.locator('#splitupTableBody')).toContainText('Typography');
-  await expect(student.getByRole('button',{name:'Generate Alternate Schedule',exact:true})).toBeHidden();
+  const student=await fresh.newPage();await login(student,'student');await student.evaluate(async()=>{await V15Sync.switchWorkspace('planning-demo');await V15Sync.finalOpenTab('splitup');});await expect(student.locator('#splitupTableBody')).toContainText('Synthetic testing practical');await expect(student.getByRole('button',{name:'Generate Alternate Schedule',exact:true})).toBeHidden();
   const before=await student.evaluate(()=>JSON.stringify(DATA.meta));await student.evaluate(()=>{Schedule.generate();Schedule.useRealCalendar();});expect(await student.evaluate(()=>JSON.stringify(DATA.meta))).toBe(before);
- }finally{
-  await fresh.close();await page.evaluate(async data=>{DATA=data;saveData();await V15Sync.diff();await V15Sync.flushQueue();},original);
-  await expect.poll(()=>page.evaluate(()=>V15Sync.queueRead().length),{timeout:20000}).toBe(0);
-  await page.evaluate(async data=>{const V=V15Sync,remove=Object.fromEntries(['trainingPlan','trainingPlanHistory','scheduleMode','scheduleStartDate','scheduleEndDate','tradeSource','syllabusImportedAt','officialPlanPack'].filter(key=>!Object.hasOwn(data.meta,key)).map(key=>[key,V.fb.M.deleteField()]));if(Object.keys(remove).length)await V.fb.M.updateDoc(V.ws(),remove);},original);
- }
+ }finally{await fresh.close();}
 });
 
 test('dashboard next topics follow training order after lexical cloud loading',async({page})=>{
@@ -582,6 +565,18 @@ test('Instructor checks authenticated AI availability and retains invalid pasted
  await page.evaluate(()=>{const p=DATA.practicals[0];InstructorAI.openPlanDraft('practical',p.no);});await expect(page.locator('#aiGenerateBtn')).toBeHidden();await page.getByText('ⓘ How to copy a prompt and paste JSON',{exact:true}).click();await expect(page.locator('#aiModal')).toContainText('including the opening { and closing }');const invalid='{ "objective": [';await page.locator('#aiResultText').fill(invalid);await page.getByRole('button',{name:'Preview Result',exact:true}).click();await expect(page.locator('#aiResultText')).toHaveValue(invalid);await expect(page.locator('#aiModalStatus')).toContainText('JSON error');await expect(page.locator('#aiPreviewBox')).toBeHidden();
 });
 
+test('Instructor imports the real Excel template with explicit numbers, reviews 5+3 allocation and rejects stale previews',async({page})=>{
+ await login(page,'instructor');await page.evaluate(async()=>{await V15Sync.switchWorkspace('planning-demo');await V15Sync.finalOpenTab('syllabus-ai');});
+ const download=page.waitForEvent('download');await page.getByRole('link',{name:'Download Excel Template',exact:true}).click();const saved=await download;expect(saved.suggestedFilename()).toBe('syllabus-template.xlsx');expect(require('node:fs').readFileSync(await saved.path()).length).toBeGreaterThan(1000);
+ await page.locator('#uFile').setInputFiles('assets/templates/syllabus-template.xlsx');await page.getByRole('button',{name:'Read / Import Syllabus',exact:true}).click();await expect(page.locator('#uStatus')).toContainText('No topics found');
+ await page.locator('#uFile').setInputFiles('tests/fixtures/syllabus-upload.xlsx');await page.getByRole('button',{name:'Read / Import Syllabus',exact:true}).click();await expect(page.locator('#uStatus')).toContainText('Loaded 3 topics');await expect(page.getByLabel('Row 2 no',{exact:true})).toHaveValue('001');await expect(page.getByLabel('Row 2 type',{exact:true})).toHaveValue('theory');await expect(page.getByLabel('Row 1 hours',{exact:true})).toHaveValue('7.5');
+ await page.locator('#uStart').fill('2026-10-30');await page.locator('#uEnd').fill('2026-11-02');await page.locator('#uHours').fill('5');await page.locator('#uTheoryHours').fill('3');await page.locator('#uAltSat').uncheck();await page.locator('#uHolidays').fill('2026-10-31 | Synthetic holiday');await page.getByRole('button',{name:'Generate Working Calendar',exact:false}).click();await expect(page.locator('#uCapacitySummary')).toContainText('7.5 hours required');
+ let saves=0;page.on('request',r=>{if(r.url().endsWith('/api'))try{if(r.postDataJSON()?.action==='saveTrainingPlan')saves++;}catch(e){}});await page.locator('#uTheoryHours').fill('2');await page.getByRole('button',{name:'Save / Revise Year Plan',exact:true}).click();await expect(page.locator('#uStatus')).toContainText('Preview the current syllabus');expect(saves).toBe(0);
+ await page.locator('#uTheoryHours').fill('3');await page.getByRole('button',{name:'Generate Working Calendar',exact:false}).click();page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Save / Revise Year Plan',exact:true}).click();await expect(page.locator('#uStatus')).toContainText('revision');expect(saves).toBe(1);
+ await login(page,'instructor');await page.evaluate(async()=>{await V15Sync.switchWorkspace('planning-demo');await V15Sync.finalOpenTab('practicals');});expect(await page.evaluate(()=>{const p=DATA.practicals.find(x=>x.no==='excel-001');return {title:p.title,hours:p.hours,start:p.plannedDate,finish:p.plannedEndDate};})).toEqual({title:'Synthetic Excel layout',hours:7.5,start:'2026-10-30',finish:'2026-11-02'});
+ await page.evaluate(()=>V15Sync.finalOpenTab('syllabus-ai'));await page.getByRole('button',{name:'Load Current Syllabus',exact:true}).click();await expect(page.locator('#uPreviewBody')).toContainText('Remove');expect(await page.evaluate(()=>UniversalSyllabus.state.items.some(x=>x.no==='seed-001'))).toBe(true);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();if(test.info().project.name==='mobile')await page.locator('#uCapacitySummary').screenshot({path:'.tmp/year-planning-import-mobile.png'});
+});
+
 test('Instructor CSV trainee import previews safely, syncs without logins and survives reload',async({page})=>{
  await login(page,'instructor');
  await page.evaluate(()=>V15Sync.finalOpenTab('trainees'));
@@ -610,4 +605,9 @@ test('Instructor CSV trainee import previews safely, syncs without logins and su
    const V=V15Sync;DATA.trainees=original;saveData();await V.diff();await V.flushQueue();
   },before);
  }
+});
+
+test('today teaching opens the imported alphanumeric exercise through the actual plan button',async({page})=>{
+ await login(page,'instructor');await page.evaluate(async()=>{await V15Sync.switchWorkspace('planning-demo');await V15Sync.finalOpenTab('ai-assistant');InstructorAI.getKey=()=>false;todayISO=()=> '2026-10-30';InstructorAI.renderToday();});
+ await expect(page.locator('#aiToday')).toContainText('excel-001');await expect(page.locator('#aiToday img,#aiToday [onclick]')).toHaveCount(0);await page.locator('#aiToday').getByRole('button',{name:'Prepare Demonstration Plan',exact:true}).click();await expect(page.locator('#aiModalTitle')).toContainText('excel-001');await expect(page.locator('#aiPromptText')).toHaveValue(/Synthetic Excel layout/);await expect(page.locator('#aiPromptText')).toHaveValue(/7\.5 practical hours/);await expect(page.locator('#aiPreviewBox')).toBeHidden();
 });

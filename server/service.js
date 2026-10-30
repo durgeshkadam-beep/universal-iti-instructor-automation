@@ -42,6 +42,10 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
    const {reviewLeave}=require('./leave-review'),{LeaveError}=require('../shared/leave');
    try{return await reviewLeave({db,ws,uid:u.uid,identity:u,leaveId:body.leaveId,status:body.status,now});}catch(e){if(e instanceof LeaveError)throw new ApiError(e.status,e.message);throw e;}
   }
+  if(action==='saveTrainingPlan'){
+   requireValue(member?.active===true&&member.role==='instructor','Only the active assigned Instructor can save year planning.',403);
+   const {saveTrainingPlan}=require('./training-planning');return saveTrainingPlan({db,ws,uid:u.uid,body,now});
+  }
   if(action==='publishExam'){
    requireValue(teacher,'Instructor access required',403);await limit(u.uid,action);
    const e=body.exam;

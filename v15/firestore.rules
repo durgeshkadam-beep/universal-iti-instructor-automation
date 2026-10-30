@@ -4,6 +4,13 @@ rules_version = '2';
 // Dates remain ISO strings for compatibility; calendar validity and 1-90 day spans are validated below.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Year planning: backend-authored trainingPlan/revision on the workspace;
+    // planningRevisions/rNNNNNN contains immutable public syllabus/calendar history,
+    // source fingerprints and authenticated actor/time. No student records or keys.
+    function planningFieldsUnchanged(before, after) {
+      return before.get('trainingPlan', null) == after.get('trainingPlan', null)
+        && before.get('trainingPlanRevision', null) == after.get('trainingPlanRevision', null);
+    }
     function signedIn() { return request.auth != null; }
     function institutePath(inst) { return /databases/$(database)/documents/institutes/$(inst); }
     function memberPath(inst, uid) { return /databases/$(database)/documents/institutes/$(inst)/members/$(uid); }
@@ -227,8 +234,14 @@ service cloud.firestore {
 
       match /workspaces/{wid} {
         allow read: if workspaceAllowed(inst, wid);
-        allow create: if isOwner(inst) || isPrincipal(inst);
-        allow update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
+        allow create: if (isOwner(inst) || isPrincipal(inst)) && planningFieldsUnchanged({}, request.resource.data);
+        allow update: if (isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst)))
+          && planningFieldsUnchanged(resource.data, request.resource.data);
+
+        match /planningRevisions/{revision} {
+          allow read: if exists(/databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid)) && workspaceAllowed(inst, wid) && isStaff(inst);
+          allow create, update, delete: if false;
+        }
         // Archive instead of permanent workspace deletion.
         allow delete: if isOwner(inst);
 

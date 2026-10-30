@@ -3,7 +3,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 function setup({v15=true,role='instructor'}={}){
  const w=new JSDOM('<table><tbody id="traineeTableBody"></tbody></table>',{runScripts:'outside-only'}).window;
  w.__ITI_V15=v15;w.DATA={trainees:[{id:'roll-1',roll:'00<img src=x>',name:'<img src=x onerror="window.injected=true">',prn:'<script>evil()</script>',category:'<svg onload=evil()>',accountStatus:'not-linked',pin:'super-secret'}],attendance:{},marks:{}};
- w.SESSION={role};w.isHoliday=()=>false;w.confirm=()=>false;w.alert=()=>{};w.saveData=()=>{};w.generatePin=()=>'0000';
+ w.uid=()=> 'synthetic-new-trainee';w.SESSION={role};w.isHoliday=()=>false;w.confirm=()=>false;w.alert=()=>{};w.saveData=()=>{};w.generatePin=()=>'0000';
  const source=fs.readFileSync('app.js','utf8'),start=source.indexOf('/* ===================== TRAINEES ===================== */'),end=source.indexOf('/* ===================== ATTENDANCE ===================== */',start);
  assert(start>=0&&end>start);
  w.eval("const AVATAR_COLORS=['#123a5e','#a9761d'];\n"+source.slice(start,end)+"\nwindow.T=Trainees;");

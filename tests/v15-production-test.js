@@ -44,7 +44,7 @@ ok(gov.includes('traineeIndex')&&gov.includes('claimTraineeIdentity'),'institute
 ok(gov.includes('syncGalleryToDrive')&&gov.includes('uploadDriveBlob'),'Drive gallery archive exists');
 ok(portals.includes('Institute Notices')&&portals.includes('Institute Reports')&&portals.includes('Inspection & Compliance'),'Principal institute-wide renderers exist');
 ok(idx.includes("register('./sw.js?build=final-clean13'"),'final loader registers Clean Final 3 worker');
-ok(sw.includes('iti-v15-final-clean13-20260827')&&sw.includes('v15-final-polish.js')&&sw.includes('v15-final-controller.js')&&!sw.includes('v15-final-portals.js'),'worker caches only Clean Final 3 runtime');
+ok(sw.includes('iti-v15-year-plan-20261030-1')&&sw.includes('v15-final-polish.js')&&sw.includes('v15-final-controller.js')&&!sw.includes('v15-final-portals.js'),'worker caches the current year-planning runtime');
 ok(recover.includes('final-clean13')&&recover.includes('unregister()')&&recover.includes('caches.delete'),'recovery clears old caches and opens Clean Final 3');
 ok(finalEntry.includes('build=final-clean13'),'stable /final entry points to Clean Final 3');
 for(const marker of ['match /auditLog/{auditId}','match /recycleBin/{recycleId}','match /traineeIndex/{identityId}','match /instituteNotices/{noticeId}','match /attendanceLocks/{month}','match /galleryCloud/{galleryId}'])ok(rules.includes(marker),`Firestore rule present: ${marker}`);

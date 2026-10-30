@@ -6,3 +6,7 @@
 !server/*.js
 !shared/
 !shared/guidance.js
+!shared/leave.js
+!shared/admin-authority.js
+
+!shared/syllabus-planning.js

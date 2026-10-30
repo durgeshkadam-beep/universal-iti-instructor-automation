@@ -26,7 +26,7 @@ function buildWeb({sourceDir=ROOT,outputDir=path.join(ROOT,'dist','web'),runtime
  const loader=fs.readFileSync(path.join(sourceDir,'v15/index.html'),'utf8');
  const scripts=[...loader.matchAll(/src="(v15\/[^"?]+\.js)/g)].map(m=>m[1]);
  if(!scripts.length)throw Error('Cannot identify V15 runtime scripts');
- const files=[...new Set([...ROOT_ASSETS,...scripts,'v15/index.html','v15/recover.html','v15/sw.js','v15/manifest.json','final/index.html','shared/guidance.js','shared/leave.js','shared/admin-authority.js','config/runtime.js'])].sort();
+ const files=[...new Set([...ROOT_ASSETS,...scripts,'v15/index.html','v15/recover.html','v15/sw.js','v15/manifest.json','final/index.html','shared/guidance.js','shared/leave.js','shared/admin-authority.js','shared/syllabus-planning.js','assets/templates/syllabus-template.xlsx','assets/vendor/xlsx.mini.min.js','assets/vendor/SheetJS-LICENSE.txt','config/runtime.js'])].sort();
  // Build in a new directory first; never publish a partially copied source tree.
  fs.mkdirSync(path.dirname(outputDir),{recursive:true});const staging=fs.mkdtempSync(path.join(path.dirname(outputDir),'.web-build-'));
  try{

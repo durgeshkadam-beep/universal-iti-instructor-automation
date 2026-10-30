@@ -14,11 +14,11 @@ Initial local validation: 289 native Node tests and 16/16 selected desktop/mobil
 
 ## Remaining Instructor workstreams
 
-1. Year-planning navigation is now grouped; remaining work includes explicit Excel theory/practical templates and import review, 5+3 separate configurable capacities, stable numbering/non-destructive revision, day/week/month print views. Scanned PDF OCR requires a reviewed extraction path; do not claim it exists yet. Holiday coverage needs every session year.
+1. Reviewed Excel year planning, separate 5+3 capacities, stable numbers/non-destructive atomic revisions and day/week/month print views are implemented; see YEAR-PLANNING-20261030.md for current validation/deployment status. Scanned PDF OCR is still pending. Holiday coverage must be reviewed for every session year.
 2. Skill verification and workplace applications now share one primary menu. Remaining work: practical-context guidance/catalogue and source-backed AI suggestions, with Instructor review before publication or verification.
 3. Records/inspection/report/Drive navigation is grouped; remaining work must remove overlapping forms and fix account/workspace-bound PDF capture before certifying Drive backup. PDF exports are not restorable institution backups.
-4. Restore generic trainee bulk import with template, duplicate preview and stable IDs, independent of Firebase login provisioning.
-5. Honest AI capability status and nearby JSON/manual help are implemented. Instructor-owned API keys require protected server storage and deployment/configuration; do not store keys in browser storage or public code. Concurrent plan revisions need authoritative transaction tests.
+4. Existing branch work restored trainee Excel/CSV import with template, duplicate preview and stable IDs, independent of Firebase login provisioning. It was retained during year-planning integration; 12 focused combined browser checks passed; full CI acceptance remains required.
+5. Honest AI capability status and nearby JSON/manual help are implemented. Instructor-owned API keys require protected server storage and deployment/configuration; do not store keys in browser storage or public code. Year-plan revisions now have authoritative transaction tests; individual lesson/demo-plan revision history still needs its own work.
 6. Final Instructor module acceptance, including an actual supplied MCQ test file and real-account Drive consent/printing. Accepted existing modules should not be redesigned unnecessarily.
 
 No Firebase Hosting deployment was performed by this Work environment. A working authenticated Firebase CLI/operator session is not available here. Existing staging remains a previous release until the tested commit is deployed. No production deployment, main merge, real-student test write or credential publication is part of this change.
@@ -38,3 +38,9 @@ Additional regression found during full validation: re-executing the staging log
 The first complete browser attempt was 72/74: one existing held-flush syllabus persistence poll and one duplicate-notice assertion failed. The persistence failure's cause is not established; a diagnostic attachment was added without changing the assertion or its timeout. After the staging install fix, all **20/20 focused repetitions** of the real password and held-flush syllabus-save workflows passed across desktop/mobile (five repetitions each, 1.7 minutes). This does not substitute for the complete suite. Final whole-suite and CI status are published in PR #16; no deployment is implied by a passing test.
 
 The release allowlist build with explicit staging public config succeeded. Local Docker smoke could not run because this environment has no Docker executable (`spawnSync docker ENOENT`); the CI container job remains required. The development-inclusive dependency audit reported zero advisories on its first attempt.
+
+## Third workstream — reviewed year planning
+
+See [YEAR-PLANNING-20261030.md](YEAR-PLANNING-20261030.md) for the actual workflow, preservation/concurrency model, incoming branch integration, scoped rule review, final validation status and deployment limitations. No Instructor completion or live Firebase release is claimed by implementing this workstream.
+
+Third-workstream local validation: 337 native tests plus repository regressions, all seven emulator suites (with an additional final year-planning compatibility run), 12/12 targeted desktop/mobile browser cases, explicit staging release build and both dependency audits passed. The previous full attempt was 76/78 due to an obsolete AI topic fixture; the final 80-case suite is required in CI. Final CI/deployment evidence is maintained on PR #16.

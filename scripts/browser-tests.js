@@ -13,7 +13,7 @@ const esbuild=require('esbuild'),{randomBytes}=require('node:crypto');
  await db.doc(base+'/workspaces/w1').set({name:'Synthetic Workspace',trade:'DTP',session:'2026-27',batch:'A',schemaVersion:15,arraySections:['trainees','practicals','theory','notices','holidays','leaves'],mapSections:['attendance','marks','submissions']});
  for(const role of ['admin','principal','instructor','staff','student']){
   try{await auth.createUser({uid:role,email:role+'@example.test',password:testPassword,emailVerified:true,displayName:'Synthetic '+role});}catch(e){if(e.code!=='auth/uid-already-exists')throw e;await auth.updateUser(role,{password:testPassword});}
-  await db.doc(base+'/members/'+role).set({uid:role,email:role+'@example.test',role:role==='admin'?'instructor':role,owner:role==='admin',active:true,workspaceIds:['w1'],traineeId:role==='student'?'t1':null,displayName:'Synthetic '+role});
+  await db.doc(base+'/members/'+role).set({uid:role,email:role+'@example.test',role:role==='admin'?'instructor':role,owner:role==='admin',active:true,workspaceIds:['instructor','student'].includes(role)?['w1','planning-demo']:['w1'],traineeId:role==='student'?'t1':null,displayName:'Synthetic '+role});
  }
  try{await auth.createUser({uid:'google-admin',email:'google-admin@example.test',emailVerified:true,displayName:'Synthetic Google Admin'});}catch(e){if(e.code!=='auth/uid-already-exists')throw e;}
  await auth.updateUser('google-admin',{providerToLink:{providerId:'google.com',uid:'synthetic-google-admin',email:'google-admin@example.test'}});
@@ -22,7 +22,11 @@ const esbuild=require('esbuild'),{randomBytes}=require('node:crypto');
  await db.doc(base+'/workspaces/w1/trainees/t1').set({data:{id:'t1',roll:'01',name:'Synthetic Student',gender:'Male'}});
  await db.doc(base+'/workspaces/w1/practicals/n-1').set({data:{no:1,title:'Layout basics',hours:7}});
  await db.doc(base+'/workspaces/w1/practicals/n-2').set({data:{no:2,title:'Typography',hours:7}});
+ await db.doc(base+'/workspaces/w1/theory/n-1').set({data:{no:1,title:'Synthetic theory safety',hours:3}});
  await db.doc(base+'/workspaces/w1/notices/n1').set({data:{id:'n1',title:'Synthetic notice',body:'Training update'}});
+ await db.doc(base+'/workspaces/planning-demo').set({name:'Synthetic planning only',trade:'DTP',session:'2026-27',batch:'P',schemaVersion:15,arraySections:['practicals','theory','holidays','trainees'],mapSections:[]});
+ await db.doc(base+'/workspaces/planning-demo/practicals/n-seed-001').set({data:{no:'seed-001',title:'Original saved practical',hours:2,status:'completed',doneDate:'2026-10-20',plan:{objective:['Preserved original objective']},planMeta:{status:'approved',version:2}}});
+ await db.doc(base+'/workspaces/planning-demo/trainees/t1').set({data:{id:'t1',roll:'01',name:'Synthetic planning student'}});
  const api=spawn(process.execPath,['server/index.js'],{stdio:'inherit',env:{...process.env,GCLOUD_PROJECT:'demo-universal-iti',AI_PROVIDER:'none',ALLOWED_ORIGINS:'http://127.0.0.1:4173',PORT:'8787'}});
  const webRoot=path.resolve('dist/web');require('./build-web').buildWeb({outputDir:webRoot});
  const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml'};

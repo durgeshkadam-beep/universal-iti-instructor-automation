@@ -153,7 +153,7 @@
       <div class="cards" style="grid-template-columns:1fr 1fr">
         <div class="card">
           <h3>1. Trade & Session</h3>
-          <div class="field"><label>Trade name</label><input id="uTrade" placeholder="e.g. Electrician"></div>
+          <div class="field"><label>Trade name</label><input id="uTrade" readonly placeholder="Current authorised workspace trade"></div>
           <div class="field-row">
             <div class="field" style="flex:1"><label>Session start</label><input id="uStart" type="date"></div>
             <div class="field" style="flex:1"><label>Session end</label><input id="uEnd" type="date"></div>
@@ -163,18 +163,17 @@
             <input id="uFile" type="file" accept=".pdf,.txt,.csv,.xlsx,.xls,.docx">
             <small class="muted">PDF, Word, Excel, CSV or text. Text-based PDFs work directly; scanned/image-only PDFs still require OCR.</small>
           </div>
-          <div class="field-row"><button class="btn ghost" type="button" onclick="InstructorTemplates.downloadSyllabus()">⬇ Download Excel Template</button></div>
           <div class="field-row">
             <button class="btn primary" onclick="InstructorAI.analyzeSyllabusFile()">✨ Analyze with AI</button>
-            <button class="btn secondary" onclick="UniversalSyllabus.analyzeFile()">🔍 Basic Analyze</button>
-            <button class="btn ghost" onclick="UniversalSyllabus.loadDemo()">Load Demo</button>
+            <button class="btn secondary" onclick="UniversalSyllabus.analyzeFile()">Read / Import Syllabus</button>
+            <a class="btn ghost" href="assets/templates/syllabus-template.xlsx" download>Download Excel Template</a><button class="btn ghost" onclick="UniversalSyllabus.loadCurrentSyllabus()">Load Current Syllabus</button>
           </div>
           <div id="uStatus" class="callout" style="display:none"></div>
         </div>
 
         <div class="card">
           <h3>2. Government / Institute Calendar</h3>
-          <p class="muted">Free mode uses verified Maharashtra 2026 public holidays plus your institute rules. For future years, add/import the dates published by Government/DVET.</p>
+          <p class="muted">Calendar allocation is calculated without AI. Review Government/DVET holiday dates for every calendar year in your session, plus institute closures.</p>
           <div class="field-row" id="uDays">
             <label><input type="checkbox" value="1" checked> Mon</label>
             <label><input type="checkbox" value="2" checked> Tue</label>
@@ -189,13 +188,8 @@
             <label><input id="uUseExistingHolidays" type="checkbox" checked> Include existing institute holidays</label>
           </div>
           <div class="field-row">
-            <div class="field"><label>Total training hours / day (Practical + Theory)</label><input id="uHours" type="number" value="8" min="1" max="12" step="0.5" oninput="UniversalSyllabus.showCapacity()"></div>
-            <div class="field"><label>Theory hours / day</label><input id="uTheoryHours" type="number" value="3" min="0" max="12" step="0.5" oninput="UniversalSyllabus.showCapacity()"></div>
-          </div>
-          <div class="field">
-            <label><input id="uFixedSplit" type="checkbox" checked onchange="UniversalSyllabus.showCapacity()"> Keep Practical and Theory daily hours separate, even when one subject finishes</label>
-            <div id="uDailyCapacityHint" class="muted" aria-live="polite">5 practical + 3 theory = 8 training hours/day. Both are editable through the total and theory fields.</div>
-            <small class="muted">Changing these settings only affects a new calendar preview. Existing saved plans change only when you explicitly save a replacement.</small>
+            <div class="field"><label>Practical hours / day</label><input id="uHours" type="number" value="5" min="0" max="12" step="0.01"></div>
+            <div class="field"><label>Theory hours / day</label><input id="uTheoryHours" type="number" value="3" min="0" max="12" step="0.01"></div>
           </div>
           <div class="field">
             <label>Government / additional holidays <span class="muted">(YYYY-MM-DD | Holiday name)</span></label>
@@ -215,11 +209,11 @@
 
       <div class="card">
         <div class="field-row" style="justify-content:space-between">
-          <div><h3 style="margin-bottom:3px">3. AI/Automatic analysis preview</h3><p class="muted">Edit type, module, topic or hours before applying anything to the main register.</p></div>
+          <div><h3 style="margin-bottom:3px">3. Review syllabus topics</h3><p class="muted">Edit type, module, topic or hours before applying anything to the main register.</p></div>
           <div id="uCounts" class="muted"></div>
         </div>
         <div class="table-scroll">
-          <table class="datatable"><thead><tr><th>#</th><th>Topic No.</th><th>Type</th><th>Module / Unit</th><th>Title</th><th>Hours</th><th>Confidence</th></tr></thead><tbody id="uPreviewBody"></tbody></table>
+          <table class="datatable"><thead><tr><th>Type</th><th>Exercise No.</th><th>Module / Unit</th><th>Title</th><th>Hours</th><th>Actions</th></tr></thead><tbody id="uPreviewBody"></tbody></table>
         </div>
       </div>
 
@@ -227,24 +221,24 @@
         <div class="field-row" style="justify-content:space-between">
           <h3>4. Generated day-wise calendar</h3>
           <div class="field-row">
-            <button class="btn primary" onclick="UniversalSyllabus.createCompletePlan()">⚡ Create Complete Training Plan</button>
-            <button class="btn secondary" onclick="UniversalSyllabus.applyToRegister()">Apply Syllabus Only</button>
-            <button class="btn ghost" onclick="UniversalSyllabus.printCalendar()">🖨️ Print Calendar</button>
+            <button class="btn primary" onclick="UniversalSyllabus.createCompletePlan()">Save / Revise Year Plan</button>
+
+            <button class="btn ghost" onclick="UniversalSyllabus.printCalendar()">🖨️ Print Preview</button>
           </div>
         </div>
-        <div class="table-scroll"><table class="datatable"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Practical</th><th>Theory</th><th>Allocated Hours</th></tr></thead><tbody id="uCalendarBody"></tbody></table></div>
+        <div id="uCapacitySummary" aria-live="polite"></div><div class="table-scroll"><table class="datatable"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Practical</th><th>Theory</th><th>Allocated Hours</th></tr></thead><tbody id="uCalendarBody"></tbody></table></div>
       </div>
 
       <div class="card accent-teal" style="margin-top:16px">
-        <h3>🚀 What “Create Complete Training Plan” does</h3>
+        <h3>What saving a year plan does</h3>
         <div class="cards" style="grid-template-columns:repeat(5,1fr);gap:10px">
           <div class="stat-card"><strong>1</strong><span>Read syllabus</span></div>
-          <div class="stat-card"><strong>2</strong><span>Create modules</span></div>
-          <div class="stat-card"><strong>3</strong><span>Create theory & practicals</span></div>
+          <div class="stat-card"><strong>2</strong><span>Review topic groups</span></div>
+          <div class="stat-card"><strong>3</strong><span>Keep topic identities</span></div>
           <div class="stat-card"><strong>4</strong><span>Assign calendar dates</span></div>
           <div class="stat-card"><strong>5</strong><span>Update training records</span></div>
         </div>
-        <p class="muted" style="margin-top:12px">Review the detected syllabus first. The complete-plan action updates the syllabus structure and planned dates while keeping trainee and attendance records.</p>
+        <p class="muted" style="margin-top:12px">Review the detected syllabus first. Saving creates one numbered revision and retains existing plans, completion records and student links. Practical and Theory daily budgets stay separate; unused hours do not move to the other stream.</p>
       </div>
     </section>
 
@@ -634,14 +628,14 @@
           <button class="btn primary" id="splitupOfficial" onclick="Schedule.useRealCalendar()">Use bundled DTPO 2026-27 calendar</button>
           <button class="btn secondary" onclick="Reports.printSplitUp()">Print Split-up Syllabus</button>
         </div>
-        <p class="muted">Create Complete Training Plan in Syllabus AI uses one shared daily-hours budget. The alternate generator below allocates practical hours and theory days separately. Applying either schedule replaces planned dates; review before confirming.</p>
+        <div id="splitupAlternateSettings"><p class="muted">Legacy alternate scheduling is available until a managed year plan is saved. Year Planning uses separate Practical and Theory hours. The alternate generator below allocates practical hours and theory days separately. Applying either schedule replaces planned dates; review before confirming.</p>
         <div class="field-row">
           <label>Alt. Start Date</label><input type="date" id="splitupStart">
           <label>Practical hours/working day</label><input type="number" id="splitupHoursPerDay" value="7" min="1" max="12" style="width:70px">
           <label>Days per Theory topic</label><input type="number" id="splitupDaysPerTheory" value="1" min="1" max="10" style="width:70px">
           <button class="btn ghost" onclick="Schedule.generate()">Generate Alternate Schedule</button>
         </div>
-        <div class="callout" style="background:#fdf1ee;border-left:4px solid var(--bad);padding:10px 14px;margin:14px 0;font-size:.85em" id="splitupWarning"></div>
+        <div class="callout" style="background:#fdf1ee;border-left:4px solid var(--bad);padding:10px 14px;margin:14px 0;font-size:.85em" id="splitupWarning"></div></div>
       </div>
       <table class="datatable">
         <thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Trade Practical</th><th>Trade Theory</th></tr></thead>
@@ -1185,6 +1179,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="official-plans.js"></script>
+<script src="shared/syllabus-planning.js"></script>
 <script src="trainee-bulk-import.js"></script>
 <script src="instructor-templates.js"></script>
 <script src="instructor-plan-safety.js"></script>

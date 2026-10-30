@@ -1175,7 +1175,7 @@ const RecordFormats = {
       ${this.textSection("SUMMARY:",d.summary)}${this.textSection("ASSIGNMENT:",d.assignment)}${this.textSection("NEXT LESSON:",d.next)}
       ${this.signatures()}</article>`;
   },
-  render(type,no,planOverride){ return (type==="demo"||type==="practical") ? this.renderDemo(no,planOverride) : this.renderLesson(no,planOverride); },
+  render(type,no,planOverride){const practical=type==="demo"||type==="practical",item=(practical?DATA.practicals:DATA.theory).find(x=>String(x.no)===String(no));const warning=item?.planReviewRequired&&!planOverride?'<p class="callout">Instructor review required: syllabus hours changed after this plan was saved. Review its duration and teaching activities before use.</p>':'';return warning+(practical?this.renderDemo(no,planOverride):this.renderLesson(no,planOverride)); },
   signatures() {
     return `<div class="doc-signatures"><div>INSTRUCTOR<br><span>(Signature & Date)</span></div><div>GROUP INSTRUCTOR<br><span>(Signature & Date)</span></div><div>VICE-PRINCIPAL / PRINCIPAL<br><span>(Signature & Date)</span></div></div>
       <div class="doc-footer-credit">Universal ITI Instructor Automation • Designed & Developed by Durgesh Kadam</div>`;
@@ -1857,7 +1857,7 @@ const PlanViewer = {
     document.getElementById('planModalTitle').textContent=isStudent?`${type==='practical'?'Practical':'Theory'} ${item.no}: ${item.title}`:`${type==='practical'?'Demonstration':'Lesson'} Plan No. ${item.no}`;
     if(!isStudent){
       const pm=item.planMeta||{};
-      if(pm.status){const status=this.node('div',`Plan status: ${String(pm.status).replace(/-/g,' ').toUpperCase()}${pm.approvedBy?' · Approved by '+pm.approvedBy:''}${pm.version?' · Version '+pm.version:''}`,'callout');status.style.marginBottom='10px';body.append(status);}
+      if(pm.status){const status=this.node('div',`Plan status: ${String(item.planReviewRequired?'review-required':pm.status).replace(/-/g,' ').toUpperCase()}${pm.approvedBy?' · Approved by '+pm.approvedBy:''}${pm.version?' · Version '+pm.version:''}`,'callout');status.style.marginBottom='10px';body.append(status);}
       const toolbar=this.node('div',undefined,'plan-preview-toolbar');
       toolbar.append(this.button('Print / Save PDF',()=>{if(this.readCurrent())RecordFormats.print(type==='practical'?'demo':'lesson',item.no);},'btn secondary small'));
       if(SESSION.role==='instructor')toolbar.append(this.button('AI Draft Plan',()=>{if(this.readCurrent(true))InstructorAI.openPlanDraft(type,item.no);},'btn primary small'),this.button('Edit Text Sections',()=>this.editPlan()));
@@ -1892,7 +1892,7 @@ const PlanViewer = {
   savePlan(){
     const item=this.readCurrent(true);if(!item)return;const {type,no}=this.current,newPlan={};
     for(const [key,label,isArray] of PLAN_FIELDS[type]){const input=document.getElementById('planField_'+key);if(!input)return;const raw=input.value;newPlan[key]=isArray?raw.split('\n').map(s=>s.trim()).filter(Boolean):raw.trim();}
-    item.plan={...(item.plan||{}),...newPlan};const version=Number(item.planMeta?.version);item.planMeta={...(item.planMeta||{}),status:'instructor-edited',editedAt:new Date().toISOString(),editedBy:SESSION?.name||'Instructor',version:Number.isSafeInteger(version)&&version>=0&&version<Number.MAX_SAFE_INTEGER?version+1:1};
+    item.plan={...(item.plan||{}),...newPlan};delete item.planReviewRequired;const version=Number(item.planMeta?.version);item.planMeta={...(item.planMeta||{}),status:'instructor-edited',editedAt:new Date().toISOString(),editedBy:SESSION?.name||'Instructor',version:Number.isSafeInteger(version)&&version>=0&&version<Number.MAX_SAFE_INTEGER?version+1:1};
     saveData();alert('Plan saved. Review it before final use.');this.open(type,no);
   },
   close(){this.current=null;document.getElementById('planModal').style.display='none';document.getElementById('planModalBody').replaceChildren();},
@@ -3482,7 +3482,7 @@ const Reports = {
     Reports.doPrint(html);
   },
   printSplitUp(){
-    const rows = Schedule.buildRows();
+    const rows = Schedule.rowsForPrint?Schedule.rowsForPrint():Schedule.buildRows();
     if(!rows.length){ alert('No schedule yet. Create a complete training plan or generate an alternate schedule first.'); return; }
     const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const trs = rows.map(r=>`<tr class="${r.holiday?'splitup-holiday':''}">
@@ -3513,7 +3513,7 @@ const Reports = {
       }
     </style>
     <div class="splitup-print report-splitup">
-      ${Reports.header("Split-up Syllabus (Week-wise)")}
+      ${Reports.header("Split-up Syllabus"+(Schedule.printCaption?" — "+Schedule.printCaption():" (Day-wise)"))}
       <table class="print-table splitup-table"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Trade Practical</th><th>Trade Theory</th></tr></thead>
       <tbody>${trs}</tbody></table>${Reports.signBlock()}
     </div>`;
@@ -3654,14 +3654,14 @@ const UniversalSyllabus = {
       if(raw.length<8 || /^(contents|syllabus|curriculum|page|index|unit|module|learning outcomes?)$/i.test(raw)) continue;
       const nm=raw.match(numberRe); const title=(nm?nm[2]:raw).trim();
       if(title.length<10 || /^\d+$/.test(title)) continue;
-      const hm=raw.match(hourRe); const hours=hm?Math.max(1,Math.round(parseFloat(hm[1]))):1;
+      const hm=raw.match(hourRe); const hours=hm?parseFloat(hm[1]):'';
       let type='theory', confidence=0.58;
       if(practicalWords.test(title) && !theoryWords.test(title)){type='practical';confidence=0.84;}
       else if(theoryWords.test(title)){type='theory';confidence=0.78;}
       else if(/practical|exercise|job|task|activity|demonstration/i.test(raw)){type='practical';confidence=0.74;}
       // Avoid obvious page/table noise.
       if(/^(note|remarks|reference|assessment|duration|total hours?)\b/i.test(title)) continue;
-      seq++; items.push({id:'u'+Date.now()+'_'+seq,seq,type,module,title,hours,confidence});
+      seq++; items.push({id:'u'+Date.now()+'_'+seq,seq,no:nm?nm[1]:'',type,module,title,hours,confidence});
     }
     // De-duplicate near-identical lines while retaining first occurrence.
     const seen=new Set(); return items.filter(x=>{const k=x.type+'|'+x.title.toLowerCase().replace(/\W+/g,' ');if(seen.has(k))return false;seen.add(k);return true;}).slice(0,1000);
@@ -3702,170 +3702,21 @@ const UniversalSyllabus = {
     }
     return true;
   },
-  showCapacity(){
-    const total=Number(document.getElementById('uHours')?.value);
-    const theory=Number(document.getElementById('uTheoryHours')?.value);
-    const fixed=!!document.getElementById('uFixedSplit')?.checked;
-    const label=document.getElementById('uDailyCapacityHint');
-    if(!label)return;
-    label.textContent=Number.isFinite(total)&&total>0&&Number.isFinite(theory)&&theory>=0&&theory<=total
-      ? `${total-theory} practical + ${theory} theory = ${total} training hours/day. ${fixed?'Unused hours stay with their own subject.':'Unused hours may be reassigned.'}`
-      : 'Enter a valid total and theory hour allocation.';
-  },
   generateCalendar(){
-    this.state.calendar=[];
-    this.renderCalendar();
-    if(!this.state.items.length){this.status('Analyze a syllabus before generating the calendar.','error');return;}
-    if(!this.validateIdentifiers())return;
-    const start=document.getElementById('uStart').value, end=document.getElementById('uEnd').value;
-    const valid=iso=>/^\d{4}-\d{2}-\d{2}$/.test(iso)&&Number.isFinite(Date.parse(iso+'T00:00:00Z'))&&new Date(iso+'T00:00:00Z').toISOString().slice(0,10)===iso;
-    if(!valid(start)||!valid(end)||start>end||(Date.parse(end+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/86400000>=5000){this.status('Enter valid session dates in order, covering fewer than 5000 days.','error');return;}
-    const hoursPerDay=Number(document.getElementById('uHours')?.value);
-    const theoryHoursPerDay=Number(document.getElementById('uTheoryHours')?.value);
-    if(!Number.isFinite(hoursPerDay)||hoursPerDay<1||hoursPerDay>12||!Number.isFinite(theoryHoursPerDay)||theoryHoursPerDay<0||theoryHoursPerDay>hoursPerDay||this.state.items.some(x=>!Number.isFinite(Number(x.hours))||Number(x.hours)<=0)){this.status('Enter positive topic hours, daily hours from 1 to 12, and theory hours within that daily budget.','error');this.renderCalendar();return;}
-    const fixedSplit=!!document.getElementById('uFixedSplit')?.checked;
-    const practicalHoursPerDay=hoursPerDay-theoryHoursPerDay;
-    const hasPractical=this.state.items.some(x=>x.type==='practical'),hasTheory=this.state.items.some(x=>x.type==='theory');
-    if(fixedSplit && ((hasPractical&&practicalHoursPerDay<=0)||(hasTheory&&theoryHoursPerDay<=0))){
-      this.status('Fixed daily hours require a positive Practical and Theory allocation for each subject present. Adjust the daily hours before generating.','error');return;
-    }
-    const workdays=[...document.querySelectorAll('#uDays input:checked')].map(x=>Number(x.value));
-    if(!workdays.length){this.status('Select at least one working weekday.','error');this.renderCalendar();return;}
-    const holidayMap=new Map(this.parseHolidayText(document.getElementById('uHolidays')?.value||'').map(x=>[x.date,x.label]));
-    if(document.getElementById('uUseExistingHolidays')?.checked && typeof DATA!=='undefined') (DATA.holidays||[]).forEach(h=>{if(h?.date&&!holidayMap.has(h.date))holidayMap.set(h.date,h.label||'Institute holiday');});
-    const altSat=!!document.getElementById('uAltSat')?.checked;
-    const pr=this.state.items.filter(x=>x.type==='practical'), th=this.state.items.filter(x=>x.type==='theory');
-    let pi=0,ti=0,pRemain=pr[0]?Number(pr[0].hours)||1:0,tRemain=th[0]?Number(th[0].hours)||1:0;
-    let date=new Date(start+'T00:00:00'), rows=[], safety=0;
-    const allocate=(list,kind,cap)=>{
-      let idx=kind==='practical'?pi:ti, remain=kind==='practical'?pRemain:tRemain, used=0, parts=[];
-      while(cap>0.0001 && idx<list.length){
-        if(remain<=0) remain=Math.max(.5,Number(list[idx].hours)||1);
-        const take=Math.min(cap,remain); parts.push({seq:list[idx].seq,title:list[idx].title,hours:Math.round(take*100)/100,module:list[idx].module||'General'}); used+=take; cap-=take; remain-=take;
-        if(remain<=0.0001){idx++; remain=idx<list.length?Math.max(.5,Number(list[idx].hours)||1):0;}
-      }
-      if(kind==='practical'){pi=idx;pRemain=remain;}else{ti=idx;tRemain=remain;}
-      return {parts,used};
-    };
-    while(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`<=end && safety++<5000){
-      const iso=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`, dow=date.getDay();
-      let holidayLabel=holidayMap.get(iso)||'';
-      if(!holidayLabel && altSat && this.isSecondOrFourthSaturday(date)) holidayLabel='2nd/4th Saturday';
-      if(!holidayLabel && !workdays.includes(dow)) holidayLabel=dow===0?'Sunday':'Non-working day';
-      if(holidayLabel){
-        rows.push({date:iso,day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow],week:this.weekLabel(date),holiday:true,label:holidayLabel,practical:'HOLIDAY — '+holidayLabel,theory:'HOLIDAY — '+holidayLabel,practicalItems:[],theoryItems:[],hours:0});
-      }else{
-        const both=pi<pr.length&&ti<th.length;
-        let tCap, pCap;
-        if(fixedSplit){
-          // Keep subject budgets separate. Never transfer unused hours across streams.
-          tCap=ti<th.length?theoryHoursPerDay:0;
-          pCap=pi<pr.length?practicalHoursPerDay:0;
-        }else{
-          // Explicit legacy mode for existing schedules; new planning defaults to fixed split.
-          tCap=both?theoryHoursPerDay:(ti<th.length?hoursPerDay:0);
-          pCap=both?Math.max(0,hoursPerDay-tCap):(pi<pr.length?hoursPerDay:0);
-          if(both&&pCap<=0&&pi<pr.length){pCap=Math.min(hoursPerDay,Math.max(.5,hoursPerDay/2));tCap=hoursPerDay-pCap;}
-        }
-        const ta=allocate(th,'theory',tCap), pa=allocate(pr,'practical',pCap);
-        const fmt=parts=>parts.map(x=>`${x.seq}. ${x.title} (${x.hours}h)`).join('; ');
-        rows.push({date:iso,day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow],week:this.weekLabel(date),holiday:false,label:'',practical:fmt(pa.parts),theory:fmt(ta.parts),practicalItems:pa.parts,theoryItems:ta.parts,hours:Math.round((pa.used+ta.used)*100)/100});
-      }
-      date.setDate(date.getDate()+1);
-    }
-    this.state.calendar=rows;this._calendarContext=typeof syllabusContext==='function'?syllabusContext():null; this.renderCalendar();
-    this._unscheduled=Math.max(0,pr.length-pi)+Math.max(0,th.length-ti);
-    const working=rows.filter(r=>!r.holiday).length, holidays=rows.filter(r=>r.holiday).length;
-    this.status(`Calendar generated: ${working} working days + ${holidays} holidays/non-working days. Remaining — practical ${Math.max(0,pr.length-pi)}, theory ${Math.max(0,th.length-ti)}.`,(pi>=pr.length&&ti>=th.length)?'ok':'info');
-    return true;
+    this.state.calendar=[];this.renderCalendar();
+    try{const P=window.ITISyllabusPlanning;if(!P)throw Error('Reload the planning calculator.');
+      const result=P.allocate(this.state.items,{startDate:document.getElementById('uStart').value,endDate:document.getElementById('uEnd').value,practicalHours:Number(document.getElementById('uHours').value),theoryHours:Number(document.getElementById('uTheoryHours').value),workdays:[...document.querySelectorAll('#uDays input:checked')].map(x=>Number(x.value)),alternateSaturdays:!!document.getElementById('uAltSat')?.checked,includeExistingHolidays:!!document.getElementById('uUseExistingHolidays')?.checked,holidays:this.parseHolidayText(document.getElementById('uHolidays')?.value||'')},DATA.holidays||[]);
+      this.state.calendar=result.rows;this.state.summary=result.summary;this._calendarContext=typeof syllabusContext==='function'?syllabusContext():null;this._unscheduled=result.summary.practical.incompleteTopics+result.summary.theory.incompleteTopics;this.renderCalendar();
+      this.status(`Calendar calculated: ${result.summary.workingDays} working days. Remaining practical ${result.summary.practical.remainingHours}h; theory ${result.summary.theory.remainingHours}h. Review holidays for ${result.years.join(', ')} before saving.`,'ok');return true;
+    }catch(e){this.status(e.message||'Review the syllabus and daily-hour settings.','error');return false;}
   },
   renderCalendar(){
     const body=document.getElementById('uCalendarBody'); if(!body)return;
     body.innerHTML=this.state.calendar.map(r=>`<tr><td>${r.date}</td><td>${r.day}</td><td>${r.week}</td><td style="text-align:left">${this.esc(r.practical||'—')}</td><td style="text-align:left">${this.esc(r.theory||'—')}</td><td>${r.hours||'—'}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">Generate a calendar to see it here.</td></tr>';
   },
   weekLabel(d){const x=new Date(d);const day=x.getDay()||7;x.setDate(x.getDate()-day+1);return 'W'+Math.ceil((((x-new Date(x.getFullYear(),0,1))/86400000)+1)/7);},
-  applyToRegister(){
-    if(!this.state.items.length){this.status('Analyze a syllabus first.','error');return;}
-    if(SESSION.role!=='instructor'){this.status('Only the instructor can apply a new syllabus to the register.','error');return;}
-    if(!this.validateIdentifiers())return;
-    // Syllabus-only replacement is initial setup only. An existing register carries plans,
-    // completion, evaluations and trainee links that must not be reset by an import.
-    if(!window.InstructorPlanSafety){this.status('Planning protection is unavailable. Reload the application before saving.','error');return;}
-    const existing=window.InstructorPlanSafety.assess(DATA,this.state.items,this.state.trade);
-    if(!existing.ok||existing.mode!=='create'){
-      this.status('Existing syllabus/records cannot be overwritten by Apply Syllabus Only. Use Create/Revise Training Plan for an unchanged syllabus; otherwise arrange a reviewed migration.','error');return;
-    }
-    const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    const moduleMap=new Map();
-    this.state.items.forEach(x=>{const name=(x.module||'General').trim(); if(!moduleMap.has(name))moduleMap.set(name,{id:uid(),code:`M${String(moduleMap.size+1).padStart(2,'0')}`,name,hours:0,description:'Imported from '+this.state.sourceName,topics:[]}); const m=moduleMap.get(name); m.hours+=Number(x.hours)||0; m.topics.push({id:uid(),type:x.type,title:x.title,hours:x.hours,sequence:m.topics.length+1});});
-    if(!confirm(`Create the initial syllabus with ${ps.length} practicals and ${ts.length} theory topics for ${this.state.trade||'this trade'}?\n\nThis action is permitted only when the current register, modules and year plan are empty.`))return;
-    const fresh=window.InstructorPlanSafety.assess(DATA,this.state.items,this.state.trade);
-    if(!fresh.ok||fresh.mode!=='create'){this.status('Records changed while confirming. No syllabus data was written.','error');return;}
-    DATA.meta.trade=this.state.trade||DATA.meta.trade; DATA.meta.officialPlanPack=/desktop publishing|dtpo|\bdtp\b/i.test(DATA.meta.trade||'')?'DTPO':'NONE'; DATA.practicals=ps; DATA.theory=ts; DATA.modules=[...moduleMap.values()]; DATA.meta.tradeSource=this.state.sourceName; DATA.meta.syllabusImportedAt=todayISO();
-    saveData();
-    Practicals.render(); Theory.render(); Schedule.render(); Dashboard.render(); if(typeof InstructorAI!=='undefined'){InstructorAI.refreshTopicPicker();InstructorAI.renderToday();}
-    this.status('Syllabus applied to the main register. Generate the alternate schedule from Split-up Syllabus if you want those dates there too.','ok');
-    alert('Syllabus applied successfully.');
-  },
-  createCompletePlan(){
-    if(!this.state.items.length){this.status('Analyze a syllabus first.','error');return;}
-    if(SESSION?.role!=='instructor'){this.status('Only the instructor can create the complete training plan.','error');return;}
-    if(this._calendarContext&& !syllabusContextCurrent(this._calendarContext)){this.status('Account or workspace changed. Review the syllabus and generate a fresh calendar before saving.','error');return;}
-    if(!this.generateCalendar())return;
-    const context=this._calendarContext;
-    if(!window.InstructorPlanSafety){this.status('Planning protection is unavailable. Reload before saving.','error');return;}
-    const preflight=window.InstructorPlanSafety.assess(DATA,this.state.items,this.state.trade);
-    if(!preflight.ok){this.status(preflight.reason,'error');return;}
-    if(preflight.mode==='revise'&&this._unscheduled){
-      this.status('The revised calendar does not fully schedule all existing topics. Extend the session before revising.','error');return;
-    }
-    const history=Array.isArray(DATA.meta.trainingPlanHistory)?DATA.meta.trainingPlanHistory:[];
-    const previous=DATA.meta.trainingPlan;
-    if(preflight.mode==='revise'&&previous&&(history.length>=3||JSON.stringify([...history,previous]).length>250000)){
-      this.status('Revision history is at its safe storage limit. Export or archive prior plans before another revision.','error');return;
-    }
-    const start=document.getElementById('uStart').value, end=document.getElementById('uEnd').value;
-    const rows=this.state.calendar.filter(r=>r.hours>0 && !r.holiday);
-    const revisionMessage=preflight.mode==='revise'
-      ? 'Revise only the saved calendar dates for the same topics and hours? Existing teaching completion, lesson/demonstration plans, materials, identifiers and module records will be preserved.'
-      : 'Create an initial plan in an empty syllabus register?';
-    if(!confirm(revisionMessage+(this._unscheduled?'\n\nWarning: '+this._unscheduled+' topics are not fully allocated.':'')))return;
-    if(SESSION?.role!=='instructor'||(context&&!syllabusContextCurrent(context)))return;
-    const verified=window.InstructorPlanSafety.assess(DATA,this.state.items,this.state.trade);
-    if(!verified.ok||verified.mode!==preflight.mode||DATA.meta.trainingPlan!==previous){this.status('Plan or register changed during confirmation; generate and review again before saving.','error');return;}
-    const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    // Assign practical dates from generated calendar rows.
-    const prRows=rows.filter(r=>(r.practicalItems||[]).length || (r.practical && r.practical!=='—'));
-    const thRows=rows.filter(r=>(r.theoryItems||[]).length || (r.theory && r.theory!=='—'));
-    const sourcePracticals=this.state.items.filter(x=>x.type==='practical'),sourceTheory=this.state.items.filter(x=>x.type==='theory');
-    ps.forEach((p,i)=>{const seq=sourcePracticals[i].seq,row=prRows.find(r=>(r.practicalItems||[]).some(x=>Number(x.seq)===Number(seq)));if(row)p.plannedDate=row.date;});
-    ts.forEach((t,i)=>{const seq=sourceTheory[i].seq,row=thRows.find(r=>(r.theoryItems||[]).some(x=>Number(x.seq)===Number(seq)));if(row)t.plannedDate=row.date;});
-    // Existing topic numbers/IDs and evidence remain authoritative for a calendar-only revision.
-    const savedPs=verified.mode==='revise'?ps.map((p,i)=>({...verified.practicals[i],plannedDate:p.plannedDate,sourceNo:verified.practicals[i].sourceNo||p.sourceNo})):ps;
-    const savedTs=verified.mode==='revise'?ts.map((t,i)=>({...verified.theory[i],plannedDate:t.plannedDate,sourceNo:verified.theory[i].sourceNo||t.sourceNo})):ts;
-    const pNumbers=new Map(sourcePracticals.map((x,i)=>[Number(x.seq),savedPs[i].no])),tNumbers=new Map(sourceTheory.map((x,i)=>[Number(x.seq),savedTs[i].no]));
-    const dayPlan=this.state.calendar.map(r=>{const practicalItems=(r.practicalItems||[]).map(x=>({...x,seq:pNumbers.get(Number(x.seq))})),theoryItems=(r.theoryItems||[]).map(x=>({...x,seq:tNumbers.get(Number(x.seq))})),text=items=>items.map(x=>`${x.seq}. ${x.title} (${x.hours}h)`).join('; ');return {...r,practicalItems,theoryItems,practical:r.holiday?r.practical:text(practicalItems),theory:r.holiday?r.theory:text(theoryItems)};});
-    const moduleMap=new Map();
-    this.state.items.forEach(x=>{const name=(x.module||'General').trim(); if(!moduleMap.has(name))moduleMap.set(name,{id:uid(),code:`M${String(moduleMap.size+1).padStart(2,'0')}`,name,hours:0,description:'Imported from '+this.state.sourceName,topics:[]}); const m=moduleMap.get(name); m.hours+=Number(x.hours)||0; m.topics.push({id:uid(),type:x.type,title:x.title,hours:Number(x.hours)||1,sequence:m.topics.length+1});});
-    DATA.meta.trade=this.state.trade||DATA.meta.trade;
-    DATA.meta.officialPlanPack=/desktop publishing|dtpo|\bdtp\b/i.test(DATA.meta.trade||'')?'DTPO':'NONE';
-    DATA.meta.tradeSource=this.state.sourceName;
-    DATA.meta.syllabusImportedAt=todayISO();
-    if(verified.mode==='revise'&&previous)DATA.meta.trainingPlanHistory=[...history,JSON.parse(JSON.stringify(previous))];
-    DATA.meta.trainingPlan={createdAt:new Date().toISOString(),revision:previous?Number(previous.revision||1)+1:1,startDate:start,endDate:end,hoursPerDay:Number(document.getElementById('uHours').value),practicalHoursPerDay:Number(document.getElementById('uHours').value)-Number(document.getElementById('uTheoryHours')?.value),theoryHoursPerDay:Number(document.getElementById('uTheoryHours')?.value),fixedDailySplit:!!document.getElementById('uFixedSplit')?.checked,calendarRows:this.state.calendar.length,dayPlan:dayPlan};
-    DATA.meta.scheduleMode='training-plan';DATA.meta.scheduleStartDate=start;DATA.meta.scheduleEndDate=end;
-    this.state.calendar.filter(r=>r.holiday).forEach(r=>{if(!DATA.holidays.some(h=>h.date===r.date))DATA.holidays.push({date:r.date,label:r.label||'Holiday'});});
-    DATA.holidays.sort((a,b)=>a.date.localeCompare(b.date));
-    DATA.practicals=savedPs; DATA.theory=savedTs;
-    if(verified.mode==='create')DATA.modules=[...moduleMap.values()];
-    DATA.practicals.forEach(p=>{if(p.plannedDate){const d=new Date(p.plannedDate+'T00:00:00'); p.week=this.weekLabel(d);}});
-    DATA.theory.forEach(t=>{if(t.plannedDate){const d=new Date(t.plannedDate+'T00:00:00'); t.week=this.weekLabel(d);}});
-    saveData(); Practicals.render(); Theory.render(); Schedule.render(); Dashboard.render(); if(typeof InstructorAI!=='undefined'){InstructorAI.refreshTopicPicker();InstructorAI.renderToday();} if(typeof ModuleManager!=='undefined')ModuleManager.refresh();
-    this.status(`Training plan saved: ${DATA.modules.length} modules, ${ps.length} practicals, ${ts.length} theory topics and ${this.state.calendar.length} calendar rows.${this._unscheduled?' '+this._unscheduled+' topics are not fully allocated; review the session date range.':''}`,this._unscheduled?'info':'ok');
-    alert(verified.mode==='revise'?'Calendar revised. Existing topic records and evidence were retained.':'Initial training plan saved. Review the allocation in Year Planning / Split-up.');
-  },
+  applyToRegister(){return this.createCompletePlan();},
+  createCompletePlan(){this.status('Sign in to the secure V15 Instructor workspace to save a reviewed year-plan revision. Preview and printing do not require an AI key.','error');},
   exportJSON(){
     if(!this.state.items.length){this.status('Nothing to export yet.','error');return;}
     const out={trade:this.state.trade,source:this.state.sourceName,analyzedAt:this.state.analyzedAt,items:this.state.items,calendar:this.state.calendar};
@@ -3893,7 +3744,7 @@ const UniversalSyllabus = {
 };
 
 // The original app binds the tab events during App.init(). Add a second listener for the new module.
-document.addEventListener('DOMContentLoaded',()=>{UniversalSyllabus.init();UniversalSyllabus.showCapacity(); if(typeof ModuleManager!=='undefined') ModuleManager.refresh();});
+document.addEventListener('DOMContentLoaded',()=>{UniversalSyllabus.init(); if(typeof ModuleManager!=='undefined') ModuleManager.refresh();});
 
 
 // The Instructor import adapter accesses lexical records without exposing DATA publicly.
