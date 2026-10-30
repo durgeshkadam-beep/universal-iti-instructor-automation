@@ -3633,7 +3633,7 @@ const UniversalSyllabus = {
     const body=document.getElementById('uPreviewBody'); if(!body)return;
     const items=this.state.items;
     document.getElementById('uCounts').textContent=`${items.filter(x=>x.type==='practical').length} practical · ${items.filter(x=>x.type==='theory').length} theory · ${items.reduce((s,x)=>s+x.hours,0)} hrs detected`;
-    body.innerHTML=items.map((x,i)=>`<tr><td>${i+1}</td><td><select onchange="UniversalSyllabus.updateItem(${i},'type',this.value)"><option value="theory" ${x.type==='theory'?'selected':''}>Theory</option><option value="practical" ${x.type==='practical'?'selected':''}>Practical</option></select></td><td><input value="${this.esc(x.module)}" onchange="UniversalSyllabus.updateItem(${i},'module',this.value)" style="min-width:150px"></td><td style="text-align:left"><textarea rows="2" onchange="UniversalSyllabus.updateItem(${i},'title',this.value)" style="min-width:260px">${this.esc(x.title)}</textarea></td><td><input type="number" min="0.5" step="0.5" value="${x.hours}" onchange="UniversalSyllabus.updateItem(${i},'hours',this.value)" style="width:75px"></td><td>${Math.round(x.confidence*100)}% <button class="btn ghost small" onclick="UniversalSyllabus.removeItem(${i})">✕</button></td></tr>`).join('')||'<tr><td colspan="6" class="muted">No syllabus items detected yet.</td></tr>';
+    body.innerHTML=items.map((x,i)=>`<tr><td>${i+1}</td><td><input aria-label="Topic source number" value="${this.esc(x.sourceNo||String(x.seq||i+1))}" onchange="UniversalSyllabus.updateItem(${i},'sourceNo',this.value)" style="width:95px"></td><td><select onchange="UniversalSyllabus.updateItem(${i},'type',this.value)"><option value="theory" ${x.type==='theory'?'selected':''}>Theory</option><option value="practical" ${x.type==='practical'?'selected':''}>Practical</option></select></td><td><input value="${this.esc(x.module)}" onchange="UniversalSyllabus.updateItem(${i},'module',this.value)" style="min-width:150px"></td><td style="text-align:left"><textarea rows="2" onchange="UniversalSyllabus.updateItem(${i},'title',this.value)" style="min-width:260px">${this.esc(x.title)}</textarea></td><td><input type="number" min="0.5" step="0.5" value="${x.hours}" onchange="UniversalSyllabus.updateItem(${i},'hours',this.value)" style="width:75px"></td><td>${Math.round(x.confidence*100)}% <button class="btn ghost small" onclick="UniversalSyllabus.removeItem(${i})">✕</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted">No syllabus items detected yet.</td></tr>';
   },
   updateItem(i,key,value){const x=this.state.items[i];if(!x)return;if(key==='hours')value=Math.max(0.5,Number(value)||1);x[key]=value;x.confidence=Math.min(Number(x.confidence)||0.7,0.95);document.getElementById('uCounts').textContent=`${this.state.items.filter(x=>x.type==='practical').length} practical · ${this.state.items.filter(x=>x.type==='theory').length} theory · ${this.state.items.reduce((sum,x)=>sum+Number(x.hours||0),0)} hrs detected`;},
   removeItem(i){this.state.items.splice(i,1);this.state.items.forEach((x,j)=>x.seq=j+1);this.renderPreview();},
@@ -3652,6 +3652,19 @@ const UniversalSyllabus = {
   isSecondOrFourthSaturday(date){
     if(date.getDay()!==6)return false; const n=Math.floor((date.getDate()-1)/7)+1; return n===2||n===4;
   },
+  validateIdentifiers(){
+    const ids=new Set();
+    for(const item of this.state.items){
+      const number=String(item.sourceNo||item.seq||'').trim(),type=item.type;
+      if(!number||!['practical','theory'].includes(type)){
+        this.status('Each topic needs a valid number and a Theory or Practical type.','error');return false;
+      }
+      const id=type+'|'+number.toLowerCase();
+      if(ids.has(id)){this.status('Duplicate '+type+' number '+number+'. Correct it before generating or saving.','error');return false;}
+      ids.add(id);
+    }
+    return true;
+  },
   showCapacity(){
     const total=Number(document.getElementById('uHours')?.value);
     const theory=Number(document.getElementById('uTheoryHours')?.value);
@@ -3666,6 +3679,7 @@ const UniversalSyllabus = {
     this.state.calendar=[];
     this.renderCalendar();
     if(!this.state.items.length){this.status('Analyze a syllabus before generating the calendar.','error');return;}
+    if(!this.validateIdentifiers())return;
     const start=document.getElementById('uStart').value, end=document.getElementById('uEnd').value;
     const valid=iso=>/^\d{4}-\d{2}-\d{2}$/.test(iso)&&Number.isFinite(Date.parse(iso+'T00:00:00Z'))&&new Date(iso+'T00:00:00Z').toISOString().slice(0,10)===iso;
     if(!valid(start)||!valid(end)||start>end||(Date.parse(end+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/86400000>=5000){this.status('Enter valid session dates in order, covering fewer than 5000 days.','error');return;}
@@ -3736,8 +3750,9 @@ const UniversalSyllabus = {
   applyToRegister(){
     if(!this.state.items.length){this.status('Analyze a syllabus first.','error');return;}
     if(SESSION.role!=='instructor'){this.status('Only the instructor can apply a new syllabus to the register.','error');return;}
-    const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
+    if(!this.validateIdentifiers())return;
+    const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
+    const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
     const moduleMap=new Map();
     this.state.items.forEach(x=>{const name=(x.module||'General').trim(); if(!moduleMap.has(name))moduleMap.set(name,{id:uid(),code:`M${String(moduleMap.size+1).padStart(2,'0')}`,name,hours:0,description:'Imported from '+this.state.sourceName,topics:[]}); const m=moduleMap.get(name); m.hours+=Number(x.hours)||0; m.topics.push({id:uid(),type:x.type,title:x.title,hours:x.hours,sequence:m.topics.length+1});});
     if(!confirm(`Replace the current register syllabus with ${ps.length} practicals and ${ts.length} theory topics for ${this.state.trade||'this trade'}?\n\nYour trainee, attendance and other records will remain.`))return;
@@ -3757,8 +3772,8 @@ const UniversalSyllabus = {
     const rows=this.state.calendar.filter(r=>r.hours>0 && !r.holiday);
     if(!confirm(`Create the ${this.state.trade||'trade'} training plan?\n\nThis replaces modules, theory/practical records and planned dates. Existing trainee and attendance records will remain.${this._unscheduled?'\n\nWarning: '+this._unscheduled+' topics are not fully allocated within the selected dates. Extend the period or retain this as a partial plan.':''}`)) return;
     if(SESSION?.role!=='instructor'||(context&&!syllabusContextCurrent(context)))return;
-    const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
+    const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
+    const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,sourceNo:String(x.sourceNo||i+1),title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
     // Assign practical dates from generated calendar rows.
     const prRows=rows.filter(r=>(r.practicalItems||[]).length || (r.practical && r.practical!=='—'));
     const thRows=rows.filter(r=>(r.theoryItems||[]).length || (r.theory && r.theory!=='—'));
