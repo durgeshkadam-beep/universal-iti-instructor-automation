@@ -163,6 +163,7 @@
             <input id="uFile" type="file" accept=".pdf,.txt,.csv,.xlsx,.xls,.docx">
             <small class="muted">PDF, Word, Excel, CSV or text. Text-based PDFs work directly; scanned/image-only PDFs still require OCR.</small>
           </div>
+          <div class="field-row"><button class="btn ghost" type="button" onclick="InstructorTemplates.downloadSyllabus()">⬇ Download Excel Template</button></div>
           <div class="field-row">
             <button class="btn primary" onclick="InstructorAI.analyzeSyllabusFile()">✨ Analyze with AI</button>
             <button class="btn secondary" onclick="UniversalSyllabus.analyzeFile()">🔍 Basic Analyze</button>
@@ -1174,6 +1175,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="official-plans.js"></script>
+<script src="instructor-templates.js"></script>
 <script src="app.js"></script>
 <script src="cloud.js"></script>
 <script src="ai.js"></script>
