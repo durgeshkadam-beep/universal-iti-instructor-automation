@@ -50,7 +50,7 @@ test('alternate generator rejects invalid inputs before changing the calendar',(
  const d=f.w.document;d.querySelector('#splitupStart').value='2026-10-30';const before=JSON.stringify(f.w.DATA);
  for(const [id,value] of [['splitupHoursPerDay','0'],['splitupHoursPerDay','-1'],['splitupHoursPerDay','99'],['splitupDaysPerTheory','1.5']]){d.querySelector('#splitupHoursPerDay').value='7';d.querySelector('#splitupDaysPerTheory').value='1';d.querySelector('#'+id).value=value;f.S.generate();assert.equal(JSON.stringify(f.w.DATA),before);assert.equal(f.saves(),0);}
 }finally{f.close();}});
-function configure(f){const d=f.w.document;d.querySelector('#uStart').value='2026-10-30';d.querySelector('#uEnd').value='2026-11-06';d.querySelector('#uHours').value='7';d.querySelector('#uTheoryHours').value='1';d.querySelector('#uAltSat').checked=false;f.U.state.items=[{seq:1,type:'theory',title:'Safety',hours:1},{seq:2,type:'practical',title:'Synthetic circuit',hours:14}];}
+function configure(f){const d=f.w.document;d.querySelector('#uStart').value='2026-10-30';d.querySelector('#uEnd').value='2026-11-06';d.querySelector('#uHours').value='7';d.querySelector('#uTheoryHours').value='1';d.querySelector('#uAltSat').checked=false;d.querySelector('#uFixedSplit').checked=false;f.U.state.items=[{seq:1,type:'theory',title:'Safety',hours:1},{seq:2,type:'practical',title:'Synthetic circuit',hours:14}];}
 test('complete plan recalculates changed dates and hours; zero theory budget is retained',()=>{const f=setup();try{
  configure(f);f.U.generateCalendar();f.w.document.querySelector('#uStart').value='2026-11-02';f.w.document.querySelector('#uTheoryHours').value='0';f.U.createCompletePlan();
  assert.equal(f.S.buildRows()[0].date,'2026-11-02');assert.equal(f.w.DATA.meta.trainingPlan.theoryHoursPerDay,0);assert.equal(f.S.buildRows()[0].hours,7);assert.equal(f.S.buildRows()[0].theoryItems.length,0);assert.equal(f.S.buildRows().reduce((sum,r)=>sum+r.hours,0),15);
@@ -66,4 +66,34 @@ test('partial allocations are disclosed before and after saving',()=>{const f=se
 }finally{f.close();}});
 test('split-up print escapes titles and holiday labels',()=>{const f=setup();try{
  const src=fs.readFileSync('app.js','utf8'),method=src.slice(src.indexOf('  printSplitUp(){'),src.indexOf('  printExtraTopics(){'));let printed='';f.w.Reports={header:()=>'',signBlock:()=>'',markPending(){},doPrint:html=>printed=html};f.w.eval('window.R={'+method+'};');f.w.DATA.meta.trainingPlan={dayPlan:[{date:'2026-10-30',day:'Fri',week:1,practical:'<img src=x onerror="alert(1)">',theory:'<script>evil</script>'}]};f.w.R.printSplitUp();const template=f.w.document.createElement('template');template.innerHTML=printed;assert.equal(template.content.querySelectorAll('img,script').length,0);assert.match(template.content.textContent,/<img/);
+}finally{f.close();}});
+
+test('new 5 practical + 3 theory split retains separate hours when theory finishes',()=>{const f=setup();try{
+ const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-06';
+ d.querySelector('#uHours').value='8';d.querySelector('#uTheoryHours').value='3';d.querySelector('#uFixedSplit').checked=true;d.querySelector('#uAltSat').checked=false;
+ f.U.state.items=[{seq:1,type:'practical',title:'Seven-hour practical',hours:7},{seq:2,type:'practical',title:'Next practical',hours:5},{seq:3,type:'theory',title:'Theory topic',hours:3}];
+ assert.equal(f.U.generateCalendar(),true);
+ const rows=f.U.state.calendar.filter(x=>!x.holiday),first=rows[0],second=rows[1],third=rows[2];
+ assert.equal(first.practicalItems[0].hours,5);assert.equal(first.theoryItems[0].hours,3);assert.equal(first.hours,8);
+ assert.equal(second.practicalItems[0].hours,2);assert.equal(second.practicalItems[1].hours,3);assert.equal(second.theoryItems.length,0);assert.equal(second.hours,5);
+ assert.equal(third.practicalItems[0].hours,2);assert.equal(third.hours,2);
+ assert.equal(f.saves(),0);assert.equal(f.w.DATA.practicals[0].hours,14);
+}finally{f.close();}});
+test('fixed daily split validates zero-capacity topic and preserves legacy optional mode',()=>{const f=setup();try{
+ const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-03';
+ d.querySelector('#uHours').value='8';d.querySelector('#uTheoryHours').value='0';d.querySelector('#uFixedSplit').checked=true;
+ f.U.state.items=[{seq:1,type:'theory',title:'Needs theory hours',hours:1},{seq:2,type:'practical',title:'Practical',hours:7}];
+ assert.equal(f.U.generateCalendar(),undefined);assert.equal(f.U.state.calendar.length,0);assert.equal(f.saves(),0);
+ d.querySelector('#uFixedSplit').checked=false;
+ assert.equal(f.U.generateCalendar(),true);assert.equal(f.U.state.calendar[0].hours,8);assert.equal(f.U.state.calendar[0].theoryItems.length,0);
+}finally{f.close();}});
+test('fixed split skips holidays without silently merging subject capacities',()=>{const f=setup();try{
+ const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-05';
+ d.querySelector('#uHours').value='8';d.querySelector('#uTheoryHours').value='3';d.querySelector('#uFixedSplit').checked=true;
+ d.querySelector('#uHolidays').value='2026-11-03 | Synthetic closure';
+ f.U.state.items=[{seq:1,type:'practical',title:'Long practice',hours:10},{seq:2,type:'theory',title:'Short theory',hours:2}];
+ assert.equal(f.U.generateCalendar(),true);
+ assert.equal(f.U.state.calendar[1].holiday,true);
+ assert.equal(f.U.state.calendar[2].practicalItems[0].hours,5);
+ assert.equal(f.U.state.calendar[2].theoryItems.length,0);
 }finally{f.close();}});
