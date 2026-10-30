@@ -2420,6 +2420,7 @@ const Trainees = {
     alert(`Trainee added. Their login PIN is ${pin} — share this with them along with their Roll No.`);
   },
   loadSample(){
+    if(window.__ITI_V15){alert("Sample trainees are disabled in the live institute workspace.");return;}
     if(DATA.trainees.length && !confirm("This adds 5 sample trainees to your current list (for testing). Continue?")) return;
     const sample = [
       ["01","Rahul Jadhav","","OPEN"],
@@ -2437,6 +2438,7 @@ const Trainees = {
     alert("5 sample trainees added, each with a random PIN (check the Trainees table). Remove them later with 'Clear all trainees' once your real list is ready.");
   },
   clearAll(){
+    if(window.__ITI_V15){alert("Clear all is disabled in the institute workspace to protect attendance, marks and trainee identity links.");return;}
     if(!confirm("Remove ALL trainees? This does not affect attendance/marks already saved against them, but they'll disappear from lists. Use this to clear sample data before entering your real roster.")) return;
     DATA.trainees = [];
     saveData(); Trainees.render(); Evaluation.populateSelects(); Reports.populateSelects();
@@ -2475,6 +2477,10 @@ const Trainees = {
     const body=document.getElementById("traineeTableBody");
     if(!body)return;
     body.replaceChildren();
+    // Hide legacy destructive/demo shortcuts in V15. Keep single-trainee management available.
+    if(window.__ITI_V15){
+      document.querySelectorAll('#instructorOnlyTrainees button[onclick*="Trainees.loadSample"],#instructorOnlyTrainees button[onclick*="Trainees.clearAll"]').forEach(b=>b.hidden=true);
+    }
     const instructor=SESSION?.role==="instructor";
     const addCell=(tr,value)=>{const td=document.createElement("td");td.textContent=String(value??"");tr.appendChild(td);return td;};
     const makeButton=(label,action)=>{
