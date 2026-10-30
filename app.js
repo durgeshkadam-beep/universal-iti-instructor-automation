@@ -2412,12 +2412,16 @@ const Trainees = {
     const guardianPhone = document.getElementById("mGuardianPhone").value.trim();
     if(!roll || !name){ alert("Roll No. and Name are required."); return; }
     if(DATA.trainees.some(t=>t.roll===roll)){ alert("A trainee with this Roll No. already exists."); return; }
-    const pin = generatePin();
-    DATA.trainees.push({id:uid(), roll, name, prn, prnStatus: prn? "Allotted":"Pending", category, phone, guardianName, guardianPhone, pin});
+    const modern=!!window.__ITI_V15;
+    const trainee={id:uid(), roll, name, prn, prnStatus: prn? "Allotted":"Pending", category, phone, guardianName, guardianPhone};
+    if(modern)trainee.accountStatus="not-linked";
+    else trainee.pin=generatePin();
+    DATA.trainees.push(trainee);
     saveData();
     Trainees.closeForm();
     Trainees.render(); Evaluation.populateSelects(); Reports.populateSelects(); Leave.populateSelects();
-    alert(`Trainee added. Their login PIN is ${pin} — share this with them along with their Roll No.`);
+    if(modern)alert("Trainee record added. Student login is not created automatically; use the institute account activation process.");
+    else alert(`Trainee added. Their login PIN is ${trainee.pin} — share this with them along with their Roll No.`);
   },
   loadSample(){
     if(window.__ITI_V15){alert("Sample trainees are disabled in the live institute workspace.");return;}
@@ -2449,6 +2453,7 @@ const Trainees = {
     saveData(); Trainees.render(); Evaluation.populateSelects(); Reports.populateSelects();
   },
   resetPin(id){
+    if(window.__ITI_V15){alert("Legacy trainee PIN reset is disabled. Use the institute account recovery process.");return;}
     const t = DATA.trainees.find(x=>x.id===id);
     if(!t) return;
     if(!confirm(`Generate a new PIN for ${t.name}? Their old PIN will stop working.`)) return;
