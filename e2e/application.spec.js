@@ -622,3 +622,16 @@ test('Instructor saves a sanitised real landscape report PDF through mocked Driv
  const multipart=uploads[0],start=multipart.indexOf(Buffer.from('%PDF-')),end=multipart.lastIndexOf(Buffer.from('%%EOF'));expect(start).toBeGreaterThan(0);expect(end).toBeGreaterThan(start+1000);const pdf=multipart.subarray(start,end+5),box=/\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/.exec(pdf.toString('latin1'));expect(box).not.toBeNull();expect(Number(box[1])).toBeGreaterThan(Number(box[2]));require('node:fs').writeFileSync('.tmp/drive-report-'+test.info().project.name+'.pdf',pdf);expect(await page.locator('.drive-pdf-stage').count()).toBe(0);
  await page.evaluate(async()=>{await V15Sync.switchWorkspace('planning-demo');await V15Sync.finalOpenTab('cloud');await CloudCenter.saveLastReportToDrive();});await expect(page.locator('#cloudStatusMessage')).toContainText('Generate a report in this workspace first');expect(uploads.length).toBe(1);await expect(page.locator('#driveFolderId')).toHaveValue('');
 });
+
+
+test('Instructor dashboard renders local charts with all external requests blocked',async({page})=>{
+ await login(page,'instructor');
+ await page.evaluate(()=>{V15Sync.finalOpenTab('dashboard');Dashboard.render();});
+ await expect.poll(()=>page.evaluate(()=>['chartSyllabus','chartAttendance'].every(id=>{const chart=Chart.getChart(id);return chart&&chart.width>0&&chart.height>0;}))).toBeTruthy();
+ const values=await page.evaluate(()=>({version:Chart.version,syllabus:Chart.getChart('chartSyllabus').data.datasets[0].data,expected:[DATA.practicals.filter(x=>x.status==='completed').length,DATA.practicals.filter(x=>x.status!=='completed').length,DATA.theory.filter(x=>x.status==='completed').length,DATA.theory.filter(x=>x.status!=='completed').length]}));
+ expect(values.version).toBe('4.4.4');expect(values.syllabus).toEqual(values.expected);
+ await expect.poll(()=>page.evaluate(()=>{const c=document.getElementById('chartSyllabus'),pixels=c.getContext('2d').getImageData(0,0,c.width,c.height).data;let count=0;for(let i=3;i<pixels.length;i+=4)if(pixels[i]>0)count++;return count;})).toBeGreaterThan(200);
+ await page.evaluate(()=>Dashboard.render());
+ expect(await page.evaluate(()=>Object.values(Chart.instances).filter(c=>['chartSyllabus','chartAttendance'].includes(c.canvas.id)).length)).toBe(2);
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
+});

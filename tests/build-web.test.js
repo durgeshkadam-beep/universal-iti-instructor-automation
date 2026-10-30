@@ -15,3 +15,11 @@ test('backend-free staging release requires an isolated staging project',()=>{
  assert.throws(()=>validateRuntime({...runtime,staging:'true'},{required:true}),/isolated/);
  assert.throws(()=>validateRuntime({...runtime,apiUrl:''},{required:true}),/Explicit staging/);
 });
+
+test('dashboard chart dependency is pinned, hosted locally and available in both offline caches',()=>{
+ const crypto=require('node:crypto');
+ assert.equal(crypto.createHash('sha256').update(fs.readFileSync('assets/vendor/chart.umd.js')).digest('hex'),'fed6a739f8d0f0687174de6cd14745fc0fc7809144ab113d22908a26bf0d7fea');
+ assert.match(fs.readFileSync('assets/vendor/Chartjs-LICENSE.md','utf8'),/MIT License/);
+ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'iti-charts-'));
+ try{const out=path.join(temp,'web');const built=buildWeb({outputDir:out,runtime});assert(built.files.some(f=>f.path==='assets/vendor/chart.umd.js'));assert(built.files.some(f=>f.path==='assets/vendor/Chartjs-LICENSE.md'));const shell=fs.readFileSync(path.join(out,'index.html'),'utf8');assert.match(shell,/<script src="assets\/vendor\/chart\.umd\.js"><\/script>/);assert(!shell.includes('cdnjs.cloudflare.com/ajax/libs/Chart.js'));for(const worker of ['sw.js','v15/sw.js'])assert(fs.readFileSync(path.join(out,worker),'utf8').includes('assets/vendor/chart.umd.js'));}finally{fs.rmSync(temp,{recursive:true,force:true});}
+});

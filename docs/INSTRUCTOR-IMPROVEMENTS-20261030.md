@@ -21,7 +21,7 @@ Initial local validation: 289 native Node tests and 16/16 selected desktop/mobil
 5. Honest AI capability status and nearby JSON/manual help are implemented. Instructor-owned API keys require protected server storage and deployment/configuration; do not store keys in browser storage or public code. Year-plan revisions now have authoritative transaction tests; individual lesson/demo-plan revision history still needs its own work.
 6. Final Instructor module acceptance, including an actual supplied MCQ test file and real-account Drive consent/printing. Accepted existing modules should not be redesigned unnecessarily.
 
-No Firebase Hosting deployment was performed by this Work environment. A working authenticated Firebase CLI/operator session is not available here. Existing staging remains a previous release until the tested commit is deployed. No production deployment, main merge, real-student test write or credential publication is part of this change.
+The operator subsequently reported deployment of 74b106b; independent checks matched all 68 hosted files and desktop/mobile login screens. See INSTRUCTOR-HOSTED-ACCEPTANCE-20261030.md for the exact scope, discovered CDN chart defect and follow-up publication status. This Work environment still has no authenticated Firebase CLI/operator session. No production deployment, main merge, real-student test write or credential publication is part of this change.
 
 ## Second workstream
 
