@@ -3652,6 +3652,16 @@ const UniversalSyllabus = {
   isSecondOrFourthSaturday(date){
     if(date.getDay()!==6)return false; const n=Math.floor((date.getDate()-1)/7)+1; return n===2||n===4;
   },
+  showCapacity(){
+    const total=Number(document.getElementById('uHours')?.value);
+    const theory=Number(document.getElementById('uTheoryHours')?.value);
+    const fixed=!!document.getElementById('uFixedSplit')?.checked;
+    const label=document.getElementById('uDailyCapacityHint');
+    if(!label)return;
+    label.textContent=Number.isFinite(total)&&total>0&&Number.isFinite(theory)&&theory>=0&&theory<=total
+      ? `${total-theory} practical + ${theory} theory = ${total} training hours/day. ${fixed?'Unused hours stay with their own subject.':'Unused hours may be reassigned.'}`
+      : 'Enter a valid total and theory hour allocation.';
+  },
   generateCalendar(){
     this.state.calendar=[];
     this.renderCalendar();
@@ -3662,6 +3672,12 @@ const UniversalSyllabus = {
     const hoursPerDay=Number(document.getElementById('uHours')?.value);
     const theoryHoursPerDay=Number(document.getElementById('uTheoryHours')?.value);
     if(!Number.isFinite(hoursPerDay)||hoursPerDay<1||hoursPerDay>12||!Number.isFinite(theoryHoursPerDay)||theoryHoursPerDay<0||theoryHoursPerDay>hoursPerDay||this.state.items.some(x=>!Number.isFinite(Number(x.hours))||Number(x.hours)<=0)){this.status('Enter positive topic hours, daily hours from 1 to 12, and theory hours within that daily budget.','error');this.renderCalendar();return;}
+    const fixedSplit=!!document.getElementById('uFixedSplit')?.checked;
+    const practicalHoursPerDay=hoursPerDay-theoryHoursPerDay;
+    const hasPractical=this.state.items.some(x=>x.type==='practical'),hasTheory=this.state.items.some(x=>x.type==='theory');
+    if(fixedSplit && ((hasPractical&&practicalHoursPerDay<=0)||(hasTheory&&theoryHoursPerDay<=0))){
+      this.status('Fixed daily hours require a positive Practical and Theory allocation for each subject present. Adjust the daily hours before generating.','error');return;
+    }
     const workdays=[...document.querySelectorAll('#uDays input:checked')].map(x=>Number(x.value));
     if(!workdays.length){this.status('Select at least one working weekday.','error');this.renderCalendar();return;}
     const holidayMap=new Map(this.parseHolidayText(document.getElementById('uHolidays')?.value||'').map(x=>[x.date,x.label]));
@@ -3689,8 +3705,17 @@ const UniversalSyllabus = {
         rows.push({date:iso,day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow],week:this.weekLabel(date),holiday:true,label:holidayLabel,practical:'HOLIDAY — '+holidayLabel,theory:'HOLIDAY — '+holidayLabel,practicalItems:[],theoryItems:[],hours:0});
       }else{
         const both=pi<pr.length&&ti<th.length;
-        let tCap=both?theoryHoursPerDay:(ti<th.length?hoursPerDay:0), pCap=both?Math.max(0,hoursPerDay-tCap):(pi<pr.length?hoursPerDay:0);
-        if(both && pCap<=0 && pi<pr.length){pCap=Math.min(hoursPerDay,Math.max(.5,hoursPerDay/2));tCap=hoursPerDay-pCap;}
+        let tCap, pCap;
+        if(fixedSplit){
+          // Keep subject budgets separate. Never transfer unused hours across streams.
+          tCap=ti<th.length?theoryHoursPerDay:0;
+          pCap=pi<pr.length?practicalHoursPerDay:0;
+        }else{
+          // Explicit legacy mode for existing schedules; new planning defaults to fixed split.
+          tCap=both?theoryHoursPerDay:(ti<th.length?hoursPerDay:0);
+          pCap=both?Math.max(0,hoursPerDay-tCap):(pi<pr.length?hoursPerDay:0);
+          if(both&&pCap<=0&&pi<pr.length){pCap=Math.min(hoursPerDay,Math.max(.5,hoursPerDay/2));tCap=hoursPerDay-pCap;}
+        }
         const ta=allocate(th,'theory',tCap), pa=allocate(pr,'practical',pCap);
         const fmt=parts=>parts.map(x=>`${x.seq}. ${x.title} (${x.hours}h)`).join('; ');
         rows.push({date:iso,day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow],week:this.weekLabel(date),holiday:false,label:'',practical:fmt(pa.parts),theory:fmt(ta.parts),practicalItems:pa.parts,theoryItems:ta.parts,hours:Math.round((pa.used+ta.used)*100)/100});
@@ -3748,7 +3773,7 @@ const UniversalSyllabus = {
     DATA.meta.officialPlanPack=/desktop publishing|dtpo|\bdtp\b/i.test(DATA.meta.trade||'')?'DTPO':'NONE';
     DATA.meta.tradeSource=this.state.sourceName;
     DATA.meta.syllabusImportedAt=todayISO();
-    DATA.meta.trainingPlan={createdAt:new Date().toISOString(),startDate:start,endDate:end,hoursPerDay:Number(document.getElementById('uHours').value),theoryHoursPerDay:Number(document.getElementById('uTheoryHours')?.value),calendarRows:this.state.calendar.length,dayPlan:dayPlan};
+    DATA.meta.trainingPlan={createdAt:new Date().toISOString(),startDate:start,endDate:end,hoursPerDay:Number(document.getElementById('uHours').value),practicalHoursPerDay:Number(document.getElementById('uHours').value)-Number(document.getElementById('uTheoryHours')?.value),theoryHoursPerDay:Number(document.getElementById('uTheoryHours')?.value),fixedDailySplit:!!document.getElementById('uFixedSplit')?.checked,calendarRows:this.state.calendar.length,dayPlan:dayPlan};
     DATA.meta.scheduleMode='training-plan';DATA.meta.scheduleStartDate=start;DATA.meta.scheduleEndDate=end;
     this.state.calendar.filter(r=>r.holiday).forEach(r=>{if(!DATA.holidays.some(h=>h.date===r.date))DATA.holidays.push({date:r.date,label:r.label||'Holiday'});});
     DATA.holidays.sort((a,b)=>a.date.localeCompare(b.date));
@@ -3786,5 +3811,5 @@ const UniversalSyllabus = {
 };
 
 // The original app binds the tab events during App.init(). Add a second listener for the new module.
-document.addEventListener('DOMContentLoaded',()=>{UniversalSyllabus.init(); if(typeof ModuleManager!=='undefined') ModuleManager.refresh();});
+document.addEventListener('DOMContentLoaded',()=>{UniversalSyllabus.init();UniversalSyllabus.showCapacity(); if(typeof ModuleManager!=='undefined') ModuleManager.refresh();});
 
