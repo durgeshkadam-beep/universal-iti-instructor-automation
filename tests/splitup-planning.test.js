@@ -97,3 +97,22 @@ test('fixed split skips holidays without silently merging subject capacities',()
  assert.equal(f.U.state.calendar[2].practicalItems[0].hours,5);
  assert.equal(f.U.state.calendar[2].theoryItems.length,0);
 }finally{f.close();}});
+
+test('reviewed template source numbers survive a newly created training plan',()=>{const f=setup();try{
+ const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-04';
+ d.querySelector('#uHours').value='8';d.querySelector('#uTheoryHours').value='3';d.querySelector('#uFixedSplit').checked=true;
+ f.U.state.trade='Synthetic';f.U.state.items=[{seq:1,type:'theory',sourceNo:'01.01.001',title:'Theory',hours:3},{seq:2,type:'practical',sourceNo:'01.02.003',title:'Practical',hours:5}];
+ f.U.createCompletePlan();
+ assert.equal(f.saves(),1);
+ assert.equal(f.w.DATA.theory[0].sourceNo,'01.01.001');
+ assert.equal(f.w.DATA.practicals[0].sourceNo,'01.02.003');
+ assert.equal(f.w.DATA.meta.trainingPlan.practicalHoursPerDay,5);
+ assert.equal(f.w.DATA.meta.trainingPlan.fixedDailySplit,true);
+}finally{f.close();}});
+test('duplicate source numbering within one subject prevents saving',()=>{const f=setup();try{
+ const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-04';
+ f.U.state.items=[{seq:1,type:'practical',sourceNo:'01.01.001',title:'One',hours:5},{seq:2,type:'practical',sourceNo:'01.01.001',title:'Two',hours:5}];
+ assert.equal(f.U.generateCalendar(),undefined);
+ assert.match(d.querySelector('#uStatus').textContent,/Duplicate practical number/);
+ f.U.createCompletePlan();assert.equal(f.saves(),0);
+}finally{f.close();}});
