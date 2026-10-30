@@ -1,0 +1,42 @@
+name: Published staging verification (read only)
+on:
+  push:
+    branches: ['phase1/security-student-career-20261021']
+    paths: ['.github/workflows/verify-staging-release.yml']
+  pull_request:
+    paths: ['.github/workflows/verify-staging-release.yml']
+  workflow_dispatch:
+    inputs:
+      release_commit:
+        description: Exact already-published staging commit (40 hex characters)
+        required: true
+        default: '7c4f6415abc885f4ffc8a6464bc081153a018b89'
+permissions:
+  contents: read
+concurrency:
+  group: published-staging-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node --test tests/hosted-staging.test.js
+      - run: npx --no-install playwright install --with-deps chromium
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_commit || '7c4f6415abc885f4ffc8a6464bc081153a018b89' }}
+          path: .tmp/hosted-source
+          persist-credentials: false
+      - name: Verify published public files and desktop/mobile shell
+        env:
+          EXPECTED_RELEASE: ${{ inputs.release_commit || '7c4f6415abc885f4ffc8a6464bc081153a018b89' }}
+        run: node scripts/verify-hosted-staging.js --source-dir .tmp/hosted-source --expected-commit "$EXPECTED_RELEASE" --browser

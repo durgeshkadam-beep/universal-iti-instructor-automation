@@ -23,3 +23,11 @@ Validation and exact publication status for this small follow-up are maintained 
 - Reviewed scanned-PDF OCR, source-backed practical/industry guidance and secure optional personal AI configuration.
 - Supplied MCQ-file acceptance; then Student, Admin/Principal and Staff review.
 - Production MFA/recovery and full disaster recovery remain separate unfinished work.
+
+## Follow-up deployment reported by operator
+
+The operator subsequently reported completing the Hosting publication of **7c4f641**. Initial direct checks in this Work session were blocked by its network approval/tunnel, the browser plugin could not initialise, and the web retrieval fallback could not open the staging endpoints. Those attempts do not prove a Hosting failure or successful release.
+
+A separate **Published staging verification (read only)** Actions workflow now checks the public release from a GitHub runner. It compares the exact pinned source commit's generated staging manifest against the live manifest and downloads/hashes every listed asset, checks public backend health/version and opens fresh desktop/mobile browser contexts. The browser permits only GET requests to public static hosts, loads the same-origin Chart.js, renders a detached synthetic chart and checks canvas pixels plus login-screen containment. It does not sign in, write data or access Firestore/Drive. Credentials and private records are not provided to this job. Its exact results are recorded on PR #16.
+
+The workflow runs when its own configuration changes (and supports manual dispatch after becoming available on the default branch); ordinary future app commits do not silently redefine the expected deployed release. It checks commit **7c4f6415abc885f4ffc8a6464bc081153a018b89** explicitly, without deploying anything. Verifier-only commits are outside the web build allowlist and do not require another app deployment. This checks public assets and an unauthenticated browser shell, not Instructor password/Google login, business saves, active security rules or real Drive/AI acceptance.
