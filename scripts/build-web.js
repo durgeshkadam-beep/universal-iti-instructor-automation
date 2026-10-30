@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const ROOT=path.resolve(__dirname,'..');
-const ROOT_ASSETS=['index.html','start.html','style.css','app.js','ai.js','cloud.js','security-patch.js','admission-import.js','other-printable-records.js','official-plans.js','sw.js','manifest.json','icon.svg','logo.png'];
+const ROOT_ASSETS=['index.html','start.html','style.css','app.js','ai.js','cloud.js','security-patch.js','admission-import.js','instructor-templates.js','other-printable-records.js','official-plans.js','sw.js','manifest.json','icon.svg','logo.png'];
 function validateRuntime(runtime,{required=false}={}){
  if(!runtime&&required)throw Error('Explicit staging Firebase config and HTTPS API URL are required before release');
  if(!runtime||typeof runtime!=='object'||Array.isArray(runtime))throw Error('Public runtime must be an object');
