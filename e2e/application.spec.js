@@ -457,25 +457,33 @@ test('split-up complete plan persists to cloud and a fresh Student calendar with
  try{
   await page.evaluate(()=>V15Sync.finalOpenTab('syllabus-ai'));
   await page.locator('#uStart').fill('2026-10-30');await page.locator('#uEnd').fill('2026-11-06');await page.locator('#uAltSat').uncheck();await page.locator('#uUseExistingHolidays').uncheck();await page.locator('#uHolidays').fill('2026-10-31 | Synthetic holiday');
-  await page.evaluate(()=>{UniversalSyllabus.state.trade='Electrician';UniversalSyllabus.state.items=[{seq:1,type:'theory',title:'Synthetic safe circuits',hours:1},{seq:2,type:'practical',title:'Synthetic circuit <img src=x onerror="window.splitInjected=1">',hours:6},{seq:3,type:'theory',title:'Synthetic testing theory',hours:1},{seq:4,type:'practical',title:'Synthetic testing practical',hours:6}];UniversalSyllabus.renderPreview();});
+   await page.evaluate(()=>{
+     // Revise the existing synthetic syllabus without erasing teaching records.
+     UniversalSyllabus.state.trade=DATA.meta.trade;
+     UniversalSyllabus.state.items=[
+       ...DATA.practicals.map((p,i)=>({seq:i+1,type:'practical',sourceNo:p.sourceNo||String(p.no),title:p.title,hours:p.hours})),
+       ...DATA.theory.map((t,i)=>({seq:DATA.practicals.length+i+1,type:'theory',sourceNo:t.sourceNo||String(t.no),title:t.title,hours:t.hours}))
+     ];
+     UniversalSyllabus.renderPreview();
+   });
   page.on('dialog',d=>d.accept());
   await page.getByRole('button',{name:'Create Complete Training Plan',exact:false}).click();
   await expect.poll(()=>page.evaluate(async()=>{const V=V15Sync,s=await V.fb.M.getDocFromServer(V.ws());return {mode:s.data()?.scheduleMode,first:s.data()?.trainingPlan?.dayPlan?.[0]?.date,queued:V.queueRead().length};}),{timeout:20000}).toEqual({mode:'training-plan',first:'2026-10-30',queued:0});
   await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('splitup'));
-  const body=page.locator('#splitupTableBody');await expect(body).toContainText('2026-11-02');await expect(body).toContainText('Synthetic testing practical');await expect(body).toContainText('<img src=x');await expect(body.locator('img,script,[onerror]')).toHaveCount(0);await expect(page.locator('#splitupOfficial')).toBeHidden();
+  const body=page.locator('#splitupTableBody');await expect(body).toContainText('2026-11-02');await expect(body).toContainText('Typography');await expect(body).toContainText('Layout basics');await expect(body.locator('img,script,[onerror]')).toHaveCount(0);await expect(page.locator('#splitupOfficial')).toBeHidden();
   expect(await page.evaluate(()=>DATA.practicals.map(p=>p.plannedDate))).toEqual(['2026-10-30','2026-11-02']);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
   await page.evaluate(()=>{window.print=()=>{};});await page.getByRole('button',{name:'Print Split-up Syllabus',exact:true}).click();
-  await expect(page.locator('#printArea')).toContainText('Synthetic testing practical');await expect(page.locator('#printArea img[src=x],#printArea script')).toHaveCount(0);
+  await expect(page.locator('#printArea')).toContainText('Typography');await expect(page.locator('#printArea img[src=x],#printArea script')).toHaveCount(0);
   const pdf=await page.pdf({path:'.tmp/splitup-'+test.info().project.name+'.pdf',preferCSSPageSize:true});expect(pdf.length).toBeGreaterThan(1000);const box=/\/MediaBox\s*\[0 0 ([\d.]+) ([\d.]+)\]/.exec(pdf.toString('latin1'));expect(box).not.toBeNull();expect(Number(box[1])).toBeGreaterThan(Number(box[2]));
   const student=await fresh.newPage();await login(student,'student');await student.evaluate(()=>V15Sync.finalOpenTab('splitup'));
-  await expect(student.locator('#splitupTableBody')).toContainText('Synthetic testing practical');
+  await expect(student.locator('#splitupTableBody')).toContainText('Typography');
   await expect(student.getByRole('button',{name:'Generate Alternate Schedule',exact:true})).toBeHidden();
   const before=await student.evaluate(()=>JSON.stringify(DATA.meta));await student.evaluate(()=>{Schedule.generate();Schedule.useRealCalendar();});expect(await student.evaluate(()=>JSON.stringify(DATA.meta))).toBe(before);
  }finally{
   await fresh.close();await page.evaluate(async data=>{DATA=data;saveData();await V15Sync.diff();await V15Sync.flushQueue();},original);
   await expect.poll(()=>page.evaluate(()=>V15Sync.queueRead().length),{timeout:20000}).toBe(0);
-  await page.evaluate(async data=>{const V=V15Sync,remove=Object.fromEntries(['trainingPlan','scheduleMode','scheduleStartDate','scheduleEndDate','tradeSource','syllabusImportedAt','officialPlanPack'].filter(key=>!Object.hasOwn(data.meta,key)).map(key=>[key,V.fb.M.deleteField()]));if(Object.keys(remove).length)await V.fb.M.updateDoc(V.ws(),remove);},original);
+  await page.evaluate(async data=>{const V=V15Sync,remove=Object.fromEntries(['trainingPlan','trainingPlanHistory','scheduleMode','scheduleStartDate','scheduleEndDate','tradeSource','syllabusImportedAt','officialPlanPack'].filter(key=>!Object.hasOwn(data.meta,key)).map(key=>[key,V.fb.M.deleteField()]));if(Object.keys(remove).length)await V.fb.M.updateDoc(V.ws(),remove);},original);
  }
 });
 
