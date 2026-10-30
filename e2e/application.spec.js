@@ -581,3 +581,33 @@ test('Instructor checks authenticated AI availability and retains invalid pasted
  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));await expect(page.locator('#aiConnectionBadge')).toContainText('not checked');await expect(page.locator('#aiApiKey')).toHaveCount(0);await page.getByRole('button',{name:'Check AI availability',exact:true}).click();await expect(page.locator('#aiConnectionHelp')).toContainText('generative AI is disabled');
  await page.evaluate(()=>{const p=DATA.practicals[0];InstructorAI.openPlanDraft('practical',p.no);});await expect(page.locator('#aiGenerateBtn')).toBeHidden();await page.getByText('ⓘ How to copy a prompt and paste JSON',{exact:true}).click();await expect(page.locator('#aiModal')).toContainText('including the opening { and closing }');const invalid='{ "objective": [';await page.locator('#aiResultText').fill(invalid);await page.getByRole('button',{name:'Preview Result',exact:true}).click();await expect(page.locator('#aiResultText')).toHaveValue(invalid);await expect(page.locator('#aiModalStatus')).toContainText('JSON error');await expect(page.locator('#aiPreviewBox')).toBeHidden();
 });
+
+test('Instructor CSV trainee import previews safely, syncs without logins and survives reload',async({page})=>{
+ await login(page,'instructor');
+ await page.evaluate(()=>V15Sync.finalOpenTab('trainees'));
+ const roll='BULK-'+test.info().project.name.toUpperCase(),name='Synthetic Bulk Student '+test.info().project.name;
+ const before=await page.evaluate(()=>JSON.parse(JSON.stringify(DATA.trainees)));
+ const csv='Roll No.,Name,PRN / Application ID,Category,Mobile\n'+roll+','+name+',BULK-'+test.info().project.name+',OPEN,0123456789\n';
+ try{
+  await page.locator('#traineeBulkFile').setInputFiles({name:'roster.csv',mimeType:'text/csv',buffer:Buffer.from(csv)});
+  await expect(page.locator('#traineeBulkPreview')).toContainText('1 valid, 0 require correction');
+  await expect(page.locator('#traineeBulkPreview')).toContainText(name);
+  page.on('dialog',d=>d.accept());
+  await page.getByRole('button',{name:'Import 1 trainees',exact:true}).click();
+  await expect(page.locator('#traineeTableBody')).toContainText(name);
+  const newRecord=await page.evaluate(roll=>DATA.trainees.find(t=>t.roll===roll),roll);
+  expect(newRecord).toMatchObject({name,roll,accountStatus:'not-linked'});
+  expect(newRecord).not.toHaveProperty('pin');
+  await expect.poll(()=>page.evaluate(async roll=>{
+    const V=V15Sync;await V.diff();await V.flushQueue();
+    const s=await V.fb.M.getDocs(V.col('trainees'));
+    return s.docs.some(d=>d.data()?.data?.roll===roll);
+  },roll),{timeout:30000}).toBe(true);
+  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('trainees'));
+  await expect(page.locator('#traineeTableBody')).toContainText(name);
+ }finally{
+  await page.evaluate(async original=>{
+   const V=V15Sync;DATA.trainees=original;saveData();await V.diff();await V.flushQueue();
+  },before);
+ }
+});
