@@ -21,7 +21,8 @@ test('lesson preview includes review, motivation, information, summary, assignme
  const f=setup('theory');try{f.ai.previewResult();for(const text of ['LESSON PLAN','Synthetic circuit lesson',theory.review,theory.motivation,...Object.values(theory.steps[0]),theory.summary,theory.assignment,theory.nextLesson])assert(f.preview().textContent.includes(text),text);}finally{f.close();}
 });
 test('edited JSON refreshes the full preview and explicit approval saves the same plan',()=>{
- const f=setup();try{const edited={...practical,objective:['Instructor revised objective']};f.w.document.querySelector('#aiResultText').value=JSON.stringify(edited);f.ai.previewResult();assert(f.preview().textContent.includes(edited.objective[0]));f.ai.saveResult(true);assert.equal(f.saves(),1);assert.equal(f.w.DATA.practicals[0].plan.objective[0],edited.objective[0]);assert.equal(f.w.DATA.practicals[0].plan.steps[0][1],practical.steps[0].keyPoint);assert.equal(f.w.DATA.practicals[0].planMeta.status,'approved');}finally{f.close();}
+ const f=setup();try{f.w.__ITI_V15=false; // Legacy save path; authoritative V15 saves are tested separately.
+ const edited={...practical,objective:['Instructor revised objective']};f.w.document.querySelector('#aiResultText').value=JSON.stringify(edited);f.ai.previewResult();assert(f.preview().textContent.includes(edited.objective[0]));f.ai.saveResult(true);assert.equal(f.saves(),1);assert.equal(f.w.DATA.practicals[0].plan.objective[0],edited.objective[0]);assert.equal(f.w.DATA.practicals[0].plan.steps[0][1],practical.steps[0].keyPoint);assert.equal(f.w.DATA.practicals[0].planMeta.status,'approved');}finally{f.close();}
 });
 test('AI preview escapes both generated content and workspace header fields',()=>{
  const f=setup();try{const payload='<img src=x onerror="window.injected=true">';f.w.DATA.meta.institute=payload;f.w.document.querySelector('#aiResultText').value=JSON.stringify({...practical,objective:[payload]});f.ai.previewResult();assert(f.preview().textContent.includes(payload));assert.equal(f.preview().querySelectorAll('img,script,[onerror]').length,0);assert.equal(f.w.injected,undefined);}finally{f.close();}
@@ -57,3 +58,5 @@ test('syllabus text reading abandons a changed workspace and never automatically
 });
 
 test('non-object JSON stays editable and cannot become a preview or saved plan',()=>{for(const raw of ['null','[]','"text"']){const f=setup();try{f.w.document.querySelector('#aiResultText').value=raw;f.ai.previewResult();f.ai.saveResult();assert.equal(f.preview().style.display,'none');assert.equal(f.saves(),0);assert.equal(f.w.document.querySelector('#aiResultText').value,raw);assert.match(f.w.document.querySelector('#aiModalStatus').textContent,/JSON error/);}finally{f.close();}}});
+
+test('V15 JSON cannot fall back to direct legacy writes when the authoritative saver is unavailable',()=>{const f=setup();try{f.ai.saveResult(true);assert.equal(f.saves(),0);assert.equal(f.w.DATA.practicals[0].planMeta,undefined);assert.match(f.w.document.querySelector('#aiModalStatus').textContent,/Secure plan saving is unavailable/);assert(f.w.document.querySelector('#aiResultText').value);}finally{f.close();}});

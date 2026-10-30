@@ -12,7 +12,7 @@ function createHandler({service,origins=[]}){
   if(origin){res.setHeader('Access-Control-Allow-Origin',origin);res.setHeader('Vary','Origin');}
   let pathname;try{pathname=new URL(req.url,'http://localhost').pathname;}catch{return send(400,{error:'Invalid URL'});}
   if(req.method==='GET'&&pathname==='/healthz')return send(200,{ok:true});
-  if(req.method==='GET'&&pathname==='/security-version')return send(200,{adminDelegation:'v1',yearPlanning:'v1'});
+  if(req.method==='GET'&&pathname==='/security-version')return send(200,{adminDelegation:'v1',yearPlanning:'v1',teachingPlans:'v1'});
   if(pathname!=='/api')return send(404,{error:'Route not found'});
   if(req.method==='OPTIONS'){
    if(req.headers['access-control-request-method']&&req.headers['access-control-request-method']!=='POST')return send(405,{error:'POST required'});

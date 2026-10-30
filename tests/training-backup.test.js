@@ -40,3 +40,4 @@ test('Drive save requires a connected account and uploads the same training-only
 test('V15 storage guidance never claims a full local record copy or a device quota for cloud data',()=>{
  const f=ui();try{f.w.Reports.renderStorageStats();const card=f.w.document.querySelector('#storageStats').closest('.card').textContent;assert.match(card,/Pending changes/);assert.match(card,/separate institution backup/);assert(!card.includes('5 MB'));assert(!card.includes('Local copy always'));}finally{f.close();}
 });
+test('missing managed teaching topics cannot be recreated without their revision history',async()=>{let writes=0;const M={doc:()=>({}),runTransaction:async(_db,fn)=>fn({get:async()=>({exists:()=>false}),set:()=>writes++})};await assert.rejects(B.restore({M,db:{},workspace:{},items:[{section:'practicals',...record,data:{...record.data,teachingPlanRevision:1}}],uid:'teacher',current:()=>true,allowed:()=>true}),/revision history/);assert.equal(writes,0);});

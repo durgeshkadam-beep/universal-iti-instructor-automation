@@ -1122,7 +1122,7 @@ const RecordFormats = {
     for(const [key,target] of Object.entries(mappings))if(Object.prototype.hasOwnProperty.call(custom,key))d[target]=custom[key];
     if(item.hours)d.time=`${item.hours} Hours (${isDemo?'Practical':'Theory'} Period)`;
     for(const key of ['objectives','tools','materials','questions'])d[key]=Array.isArray(d[key])?d[key]:typeof d[key]==='string'&&d[key]?[d[key]]:[];
-    d.steps=Array.isArray(d.steps)?d.steps.filter(Array.isArray):[];
+    d.steps=Array.isArray(d.steps)?d.steps.filter(r=>r&&typeof r==='object').map(r=>Array.isArray(r)?r:[r.procedure??r.topic??r['0']??'',r.keyPoint??r.information??r.informationPoint??r['1']??'',r.spotHint??r['2']??'']):[];
     d.instructor=p.name; d.designation=p.designation; d.trade=p.trade; d.batch=p.batch; d.session=p.session; d.institute=p.institute;
     return d;
   },
@@ -1845,7 +1845,8 @@ const PlanViewer = {
   readCurrent(edit=false){
     const c=this.current;if(!c||(edit&&SESSION?.role!=='instructor'))return null;
     const item=this.find(c.type,c.no);
-    if(SESSION?.role!==c.role||!syllabusContextCurrent(c.context)||!item||syllabusRecordVersion(item)!==c.version){this.close();alert('The syllabus or account changed. Reopen the plan before continuing.');return null;}
+    if(SESSION?.role!==c.role||c.context.uid!==(window.V15Sync?.fb?.user?.uid??null)||c.context.workspace!==(window.V15Sync?.workspaceId??null)||c.context.institute!==window.V15Sync?.INSTITUTE_ID||c.context.db!==window.V15Sync?.fb?.db){this.close();alert('The account or workspace changed. Reopen the plan before continuing.');return null;}
+    if(!syllabusContextCurrent(c.context)||!item||syllabusRecordVersion(item)!==c.version){if(!edit)this.close();alert(edit?'The topic changed. Your draft is retained; copy it before reopening the latest plan.':'The syllabus changed. Reopen the plan before continuing.');return null;}
     return item;
   },
   node(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;},
@@ -1892,6 +1893,7 @@ const PlanViewer = {
   savePlan(){
     const item=this.readCurrent(true);if(!item)return;const {type,no}=this.current,newPlan={};
     for(const [key,label,isArray] of PLAN_FIELDS[type]){const input=document.getElementById('planField_'+key);if(!input)return;const raw=input.value;newPlan[key]=isArray?raw.split('\n').map(s=>s.trim()).filter(Boolean):raw.trim();}
+    if(window.__ITI_V15){if(!window.V15Sync?.saveReviewedTeachingPlan){alert('Secure plan saving is unavailable. Reload; your editor text is retained.');return;}return V15Sync.saveReviewedTeachingPlan({type,no,plan:newPlan,mode:'patch',status:'instructor-edited',editor:this.current});}
     item.plan={...(item.plan||{}),...newPlan};delete item.planReviewRequired;const version=Number(item.planMeta?.version);item.planMeta={...(item.planMeta||{}),status:'instructor-edited',editedAt:new Date().toISOString(),editedBy:SESSION?.name||'Instructor',version:Number.isSafeInteger(version)&&version>=0&&version<Number.MAX_SAFE_INTEGER?version+1:1};
     saveData();alert('Plan saved. Review it before final use.');this.open(type,no);
   },
@@ -2631,8 +2633,8 @@ function syllabusRecordVersion(record){
   const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
   return JSON.stringify(canonical(record));
 }
-function syllabusContext(){return {data:DATA,workspace:window.V15Sync?.workspaceId??null,uid:window.V15Sync?.fb?.user?.uid??null};}
-function syllabusContextCurrent(context){const current=syllabusContext();return !!context&&context.data===current.data&&context.workspace===current.workspace&&context.uid===current.uid;}
+function syllabusContext(){return {data:DATA,workspace:window.V15Sync?.workspaceId??null,uid:window.V15Sync?.fb?.user?.uid??null,institute:window.V15Sync?.INSTITUTE_ID,db:window.V15Sync?.fb?.db};}
+function syllabusContextCurrent(context){const current=syllabusContext();return !!context&&context.data===current.data&&context.workspace===current.workspace&&context.uid===current.uid&&context.institute===current.institute&&context.db===current.db;}
 const MarkComplete = {
   pending:null,
   open(type, no, label){

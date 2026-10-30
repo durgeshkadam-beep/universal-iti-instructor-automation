@@ -101,6 +101,19 @@ service cloud.firestore {
       return section in ['theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams'];
     }
     function genericSection(section) { return section in ['theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams','warnings','undertakings'] || section.matches('^map_[A-Za-z0-9_-]+$'); }
+    // Teaching plan history: topic.data.teachingPlanRevision is server-owned.
+    // Legacy unversioned imports are not attested history. Managed topic parents cannot be deleted.
+    function validTeachingTopic(record) {
+      let d = record.data;
+      return d is map && d.no != null
+        && ((d.no is string && d.no.size() > 0 && d.no.size() <= 180) || (d.no is number && d.no >= 0 && d.no <= 1000000000))
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 5000
+        && d.get('teachingPlanRevision', 0) is int
+        && d.get('teachingPlanRevision', 0) >= 0 && d.get('teachingPlanRevision', 0) < 100000;
+    }
+    function teachingFieldsUnchanged(before, after) {
+      return !after.data.diff(before.data).affectedKeys().hasAny(['plan','planMeta','teachingPlanRevision','planReviewRequired']);
+    }
     function validRole(role) { return role in ['principal','instructor','staff','student']; }
     function ownerCanCreateRole(inst, role) { return isOwner(inst) && validRole(role); }
     function principalCanCreateRole(inst, role) { return isPrincipal(inst) && role in ['instructor','staff']; }
@@ -240,6 +253,12 @@ service cloud.firestore {
 
         match /planningRevisions/{revision} {
           allow read: if exists(/databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid)) && workspaceAllowed(inst, wid) && isStaff(inst);
+          allow create, update, delete: if false;
+        }
+        match /{teachingSection}/{topicId}/teachingPlanRevisions/{revision} {
+          allow read: if teachingSection in ['practicals','theory'] && workspaceAllowed(inst, wid) && isStaff(inst)
+            && exists(/databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid))
+            && exists(/databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid)/$(teachingSection)/$(topicId));
           allow create, update, delete: if false;
         }
         // Archive instead of permanent workspace deletion.
@@ -436,7 +455,14 @@ service cloud.firestore {
           // Legacy exams contain correctIndex; Firestore cannot hide individual fields.
           allow read: if genericSection(section) && workspaceAllowed(inst, wid) && (canReadInstitute(inst)
             || (isStudent(inst) && section != 'exams' && publicStudentSection(section)));
-          allow create, update, delete: if genericSection(section) && workspaceAllowed(inst, wid) && isStaff(inst)
+          allow create: if genericSection(section) && workspaceAllowed(inst, wid) && isStaff(inst)
+            && (!(section in ['practicals','theory']) || (validTeachingTopic(request.resource.data) && request.resource.data.data.get('teachingPlanRevision', 0) == 0))
+            && section != 'skillVerifications' && section != 'careerOpportunities' && section != 'skillApplications';
+          allow update: if genericSection(section) && workspaceAllowed(inst, wid) && isStaff(inst)
+            && (!(section in ['practicals','theory']) || (validTeachingTopic(request.resource.data) && teachingFieldsUnchanged(resource.data, request.resource.data)))
+            && section != 'skillVerifications' && section != 'careerOpportunities' && section != 'skillApplications';
+          allow delete: if genericSection(section) && workspaceAllowed(inst, wid) && isStaff(inst)
+            && (!(section in ['practicals','theory']) || resource.data.data.get('teachingPlanRevision', 0) == 0)
             && section != 'skillVerifications'
             && section != 'careerOpportunities'
             && section != 'skillApplications';

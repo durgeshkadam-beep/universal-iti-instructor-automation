@@ -36,6 +36,10 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
    return {aiConfigured};
   }
   const teacher=owner||['principal','instructor'].includes(member?.role);
+  if(action==='saveTeachingPlan'){
+   requireValue(member?.active===true&&member.role==='instructor','Only the assigned Instructor can save teaching plans.',403);
+   return require('./teaching-plans').saveTeachingPlan({db,ws,uid:u.uid,body,now});
+  }
   if(action==='reviewLeave'){
    requireValue(member?.active===true&&member.role==='instructor','Only the active assigned Instructor can review leave.',403);
    requireValue(typeof body.leaveId==='string'&&/^[a-z0-9._@-]{1,180}$/.test(body.leaveId)&&!['.','..'].includes(body.leaveId)&&['approved','rejected'].includes(body.status),'Invalid leave review');
