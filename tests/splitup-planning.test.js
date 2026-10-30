@@ -8,6 +8,7 @@ function setup(){
  for(const name of ['Practicals','Theory','Dashboard','ModuleManager'])w[name]={render(){},refresh(){}};
  w.Dashboard.topicState=()=>({code:'unplanned',label:'Not scheduled'});
  w.isHoliday=iso=>w.DATA.holidays.some(h=>h.date===iso);w.SEED_SPLITUP=[['2026-08-10',1,1,null]];
+ w.eval(fs.readFileSync('instructor-plan-safety.js','utf8'));
  const src=fs.readFileSync('app.js','utf8');
  const context=src.slice(src.indexOf('function syllabusRecordVersion('),src.indexOf('const MarkComplete ='));
  const schedule=src.slice(src.indexOf('const Schedule ='),src.indexOf('/* ===================== EVALUATION'));
@@ -42,7 +43,7 @@ test('bundled dates remain available for DTPO and cannot leak through an incorre
 }finally{f.close();}});
 test('complete plan maps interleaved source sequences to each practical and theory number',()=>{const f=setup();try{
  const d=f.w.document;d.querySelector('#uStart').value='2026-10-30';d.querySelector('#uEnd').value='2026-11-06';d.querySelector('#uHours').value='7';d.querySelector('#uTheoryHours').value='1';d.querySelector('#uAltSat').checked=false;
- f.U.state.trade='Electrician';f.U.state.items=[{seq:1,type:'theory',title:'Safety',hours:1},{seq:2,type:'practical',title:'Circuit one',hours:6},{seq:3,type:'theory',title:'Testing',hours:1},{seq:4,type:'practical',title:'Circuit two',hours:6}];
+ f.w.DATA.practicals=[];f.U.state.trade='Electrician';f.U.state.items=[{seq:1,type:'theory',title:'Safety',hours:1},{seq:2,type:'practical',title:'Circuit one',hours:6},{seq:3,type:'theory',title:'Testing',hours:1},{seq:4,type:'practical',title:'Circuit two',hours:6}];
  f.U.generateCalendar();f.U.createCompletePlan();
  assert.deepEqual(Array.from(f.w.DATA.practicals,p=>p.plannedDate),['2026-10-30','2026-10-31']);assert.deepEqual(Array.from(f.w.DATA.theory,t=>t.plannedDate),['2026-10-30','2026-10-31']);assert.match(f.S.buildRows()[0].practical,/1\. Circuit one/);assert.equal(f.w.DATA.meta.trainingPlan.dayPlan[1].practicalItems[0].seq,2);assert.equal(f.w.DATA.meta.scheduleStartDate,'2026-10-30');assert.equal(f.saves(),1);
 }finally{f.close();}});
@@ -50,7 +51,7 @@ test('alternate generator rejects invalid inputs before changing the calendar',(
  const d=f.w.document;d.querySelector('#splitupStart').value='2026-10-30';const before=JSON.stringify(f.w.DATA);
  for(const [id,value] of [['splitupHoursPerDay','0'],['splitupHoursPerDay','-1'],['splitupHoursPerDay','99'],['splitupDaysPerTheory','1.5']]){d.querySelector('#splitupHoursPerDay').value='7';d.querySelector('#splitupDaysPerTheory').value='1';d.querySelector('#'+id).value=value;f.S.generate();assert.equal(JSON.stringify(f.w.DATA),before);assert.equal(f.saves(),0);}
 }finally{f.close();}});
-function configure(f){const d=f.w.document;d.querySelector('#uStart').value='2026-10-30';d.querySelector('#uEnd').value='2026-11-06';d.querySelector('#uHours').value='7';d.querySelector('#uTheoryHours').value='1';d.querySelector('#uAltSat').checked=false;d.querySelector('#uFixedSplit').checked=false;f.U.state.items=[{seq:1,type:'theory',title:'Safety',hours:1},{seq:2,type:'practical',title:'Synthetic circuit',hours:14}];}
+function configure(f){const d=f.w.document;d.querySelector('#uStart').value='2026-10-30';d.querySelector('#uEnd').value='2026-11-06';d.querySelector('#uHours').value='7';d.querySelector('#uTheoryHours').value='1';d.querySelector('#uAltSat').checked=false;d.querySelector('#uFixedSplit').checked=false;f.w.DATA.practicals=[];f.U.state.items=[{seq:1,type:'theory',title:'Safety',hours:1},{seq:2,type:'practical',title:'Synthetic circuit',hours:14}];}
 test('complete plan recalculates changed dates and hours; zero theory budget is retained',()=>{const f=setup();try{
  configure(f);f.U.generateCalendar();f.w.document.querySelector('#uStart').value='2026-11-02';f.w.document.querySelector('#uTheoryHours').value='0';f.U.createCompletePlan();
  assert.equal(f.S.buildRows()[0].date,'2026-11-02');assert.equal(f.w.DATA.meta.trainingPlan.theoryHoursPerDay,0);assert.equal(f.S.buildRows()[0].hours,7);assert.equal(f.S.buildRows()[0].theoryItems.length,0);assert.equal(f.S.buildRows().reduce((sum,r)=>sum+r.hours,0),15);
@@ -101,7 +102,7 @@ test('fixed split skips holidays without silently merging subject capacities',()
 test('reviewed template source numbers survive a newly created training plan',()=>{const f=setup();try{
  const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-04';
  d.querySelector('#uHours').value='8';d.querySelector('#uTheoryHours').value='3';d.querySelector('#uFixedSplit').checked=true;
- f.U.state.trade='Synthetic';f.U.state.items=[{seq:1,type:'theory',sourceNo:'01.01.001',title:'Theory',hours:3},{seq:2,type:'practical',sourceNo:'01.02.003',title:'Practical',hours:5}];
+ f.w.DATA.practicals=[];f.w.DATA.meta.trade='Synthetic';f.U.state.trade='Synthetic';f.U.state.items=[{seq:1,type:'theory',sourceNo:'01.01.001',title:'Theory',hours:3},{seq:2,type:'practical',sourceNo:'01.02.003',title:'Practical',hours:5}];
  f.U.createCompletePlan();
  assert.equal(f.saves(),1);
  assert.equal(f.w.DATA.theory[0].sourceNo,'01.01.001');
@@ -115,4 +116,44 @@ test('duplicate source numbering within one subject prevents saving',()=>{const 
  assert.equal(f.U.generateCalendar(),undefined);
  assert.match(d.querySelector('#uStatus').textContent,/Duplicate practical number/);
  f.U.createCompletePlan();assert.equal(f.saves(),0);
+}finally{f.close();}});
+
+test('revised calendar keeps previous approved topic objects and actual teaching evidence',()=>{const f=setup();try{
+ const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-06';
+ d.querySelector('#uHours').value='8';d.querySelector('#uTheoryHours').value='3';d.querySelector('#uFixedSplit').checked=true;
+ f.w.DATA.meta.trade='Electrician';f.U.state.trade='Electrician';
+ const practical={no:42,title:'Original topic',hours:10,id:'stable-practical',status:'completed',doneDate:'2026-10-31',plan:{id:'approved-demo'},materials:{pdfLink:'original.pdf'},marks:{student1:35}};
+ const theory={no:19,title:'Class safety',hours:3,status:'completed',doneDate:'2026-10-30',plan:{id:'theory-approved'}};
+ f.w.DATA.practicals=[practical];f.w.DATA.theory=[theory];f.w.DATA.modules=[{id:'original-module'}];
+ f.w.DATA.meta.trainingPlan={revision:2,dayPlan:[{date:'2026-10-30',practical:'Original topic'}]};
+ f.U.state.items=[{seq:1,type:'practical',title:'Original topic',hours:10},{seq:2,type:'theory',title:'Class safety',hours:3}];
+ const before=JSON.stringify(f.w.DATA.meta.trainingPlan);
+ f.U.createCompletePlan();
+ assert.equal(f.saves(),1);
+ assert.equal(f.w.DATA.practicals[0].no,42);
+ assert.equal(f.w.DATA.practicals[0].id,'stable-practical');
+ assert.equal(f.w.DATA.practicals[0].doneDate,'2026-10-31');
+ assert.equal(f.w.DATA.practicals[0].plan.id,'approved-demo');
+ assert.equal(f.w.DATA.practicals[0].marks.student1,35);
+ assert.equal(f.w.DATA.theory[0].plan.id,'theory-approved');
+ assert.equal(f.w.DATA.modules[0].id,'original-module');
+ assert.equal(f.w.DATA.meta.trainingPlan.revision,3);
+ assert.equal(JSON.stringify(f.w.DATA.meta.trainingPlanHistory[0]),before);
+ assert.equal(f.w.DATA.meta.trainingPlan.dayPlan[0].practicalItems[0].seq,42);
+}finally{f.close();}});
+test('unsafe new syllabus and changed duration cannot erase existing records',()=>{for(const changed of ['topic','hours','count','trade']){const f=setup();try{
+ const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-07';
+ f.w.DATA.practicals=[{no:12,title:'Original topic',hours:5,id:'keep',status:'completed',doneDate:'2026-10-29'}];f.w.DATA.theory=[];
+ f.U.state.trade=changed==='trade'?'COPA':'Electrician';
+ const item={seq:1,type:'practical',title:changed==='topic'?'Different topic':'Original topic',hours:changed==='hours'?10:5};
+ f.U.state.items=changed==='count'?[item,{seq:2,type:'practical',title:'Extra',hours:2}]:[item];
+ const before=JSON.stringify(f.w.DATA);f.U.createCompletePlan();f.U.applyToRegister();
+ assert.equal(f.saves(),0);assert.equal(JSON.stringify(f.w.DATA),before);
+}finally{f.close();}}});
+test('a changing register between confirmation and save does not overwrite records',()=>{const f=setup();try{
+ const d=f.w.document;d.querySelector('#uStart').value='2026-11-02';d.querySelector('#uEnd').value='2026-11-07';
+ f.U.state.trade='Electrician';f.w.DATA.practicals=[{no:5,title:'Original',hours:5,id:'A'}];
+ f.U.state.items=[{seq:1,type:'practical',title:'Original',hours:5}];
+ f.w.confirm=()=>{f.w.DATA.practicals[0].hours=10;return true;};
+ f.U.createCompletePlan();assert.equal(f.saves(),0);assert.equal(f.w.DATA.practicals[0].id,'A');
 }finally{f.close();}});
