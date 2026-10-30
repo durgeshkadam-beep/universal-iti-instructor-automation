@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cryp
 const {execFileSync}=require('node:child_process');
 const ORIGIN='https://universal-iti-dk-staging.web.app';
 const API='https://universal-iti-staging-api.onrender.com';
-const RELEASE='7c4f6415abc885f4ffc8a6464bc081153a018b89';
+const RELEASE='c77a76978498e6bdc9251e3efe32b606c9e0f5f7';
 const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 function entries(manifest){
  if(!manifest||!Array.isArray(manifest.files)||manifest.files.length<1||manifest.files.length>150)throw Error('Invalid public manifest');
@@ -58,17 +58,23 @@ async function browserCheck(){
    try{
     const response=await page.goto(ORIGIN+'/v15/',{waitUntil:'domcontentloaded',timeout:60000});
     if(response?.status()!==200)throw Error('Hosted login shell unavailable');
-    await page.waitForFunction(()=>!!window.V15Sync&&!!window.ITISyllabusPlanning&&!!window.CloudCenter&&typeof Chart==='function',{},{timeout:30000});
+    await page.waitForFunction(()=>!!window.V15Sync&&!!window.ITISyllabusPlanning&&!!window.CloudCenter&&typeof Chart==='function'&&typeof V15Sync.workplaceDraftPrompt==='function'&&typeof V15Sync.parseWorkplaceDraft==='function',{},{timeout:30000});
     await page.locator('#loginScreen').waitFor({state:'visible',timeout:15000});
     const result=await page.evaluate(()=>{
      const canvas=document.createElement('canvas');canvas.width=240;canvas.height=160;
      const chart=new Chart(canvas,{type:'doughnut',data:{labels:['Synthetic complete','Synthetic pending'],datasets:[{data:[1,2],backgroundColor:['#16834a','#dd4035']}]},options:{responsive:false,animation:false}});
      const rgba=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let painted=0;
      for(let i=3;i<rgba.length;i+=4)if(rgba[i])painted++;
-     const result={version:Chart.version,paintedPixels:painted,localChart:[...document.scripts].some(s=>s.src===location.origin+'/assets/vendor/chart.umd.js'),oldChartCDN:[...document.scripts].some(s=>/cdnjs.*Chart\.js/.test(s.src)),contained:document.documentElement.scrollWidth<=innerWidth+1};
+     // Exercise only pure draft helpers with synthetic text; do not open a role or sign in.
+     const input={practicalId:'practical-smoke',title:'Synthetic layout operation',trade:'DTP',sourceUrl:'https://example.org/synthetic-source',excerpt:'Synthetic demonstration text describes arranging a page layout and reviewing a print proof.',language:'mr'};
+     const prompt=V15Sync.workplaceDraftPrompt(input),draft={supported:true,practicalId:input.practicalId,sourceUrl:input.sourceUrl,industry:'Synthetic source example',applicationText:'A synthetic source describes this layout operation before reviewing a print proof.'};
+     const parsed=V15Sync.parseWorkplaceDraft(JSON.stringify(draft),input);let wrongSourceRejected=false;
+     try{V15Sync.parseWorkplaceDraft(JSON.stringify({...draft,sourceUrl:'https://example.org/wrong-source'}),input);}catch{wrongSourceRejected=true;}
+     const workplace={marathiPrompt:prompt.includes('Marathi'),reviewedSourceRetained:parsed.sourceUrl===input.sourceUrl,wrongSourceRejected};
+     const result={version:Chart.version,paintedPixels:painted,localChart:[...document.scripts].some(s=>s.src===location.origin+'/assets/vendor/chart.umd.js'),oldChartCDN:[...document.scripts].some(s=>/cdnjs.*Chart\.js/.test(s.src)),contained:document.documentElement.scrollWidth<=innerWidth+1,workplace};
      chart.destroy();return result;
     });
-    if(result.version!=='4.4.4'||result.paintedPixels<200||!result.localChart||result.oldChartCDN||!result.contained||errors.length||firstPartyFailures.length)throw Error('Hosted browser checks failed: '+JSON.stringify({viewport,result,pageErrors:errors.length,firstPartyFailures}));
+    if(result.version!=='4.4.4'||result.paintedPixels<200||!result.localChart||result.oldChartCDN||!result.contained||!Object.values(result.workplace).every(x=>x===true)||errors.length||firstPartyFailures.length)throw Error('Hosted browser checks failed: '+JSON.stringify({viewport,result,pageErrors:errors.length,firstPartyFailures}));
     results.push({viewport,...result,pageErrors:errors.length});
    }finally{await context.close();}
   }
