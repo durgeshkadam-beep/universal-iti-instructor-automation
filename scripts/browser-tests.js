@@ -8,6 +8,9 @@ const esbuild=require('esbuild'),{randomBytes}=require('node:crypto');
  fs.mkdirSync('.tmp',{recursive:true});
  await esbuild.build({stdin:{contents:"export * from 'firebase/app'; export * from 'firebase/auth'; export * from 'firebase/firestore';",resolveDir:process.cwd()},bundle:true,format:'iife',globalName:'ITITestFirebase',outfile:'.tmp/test-sdk.js'});
  const {initializeApp}=require('firebase-admin/app'),{getAuth}=require('firebase-admin/auth'),{getFirestore}=require('firebase-admin/firestore');
+ const pdfPath='.tmp/html2pdf.bundle.min.js',pdfHash='9563c45f032179c73454293a649929e60fc24c05a326e8ab2811cfa8f25c3607';
+ if(!fs.existsSync(pdfPath)){const response=await fetch('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.14.0/html2pdf.bundle.min.js',{signal:AbortSignal.timeout(30000)});if(!response.ok)throw Error('Pinned PDF test dependency could not download');fs.mkdirSync('.tmp',{recursive:true});fs.writeFileSync(pdfPath,Buffer.from(await response.arrayBuffer()));}
+ if(require('node:crypto').createHash('sha256').update(fs.readFileSync(pdfPath)).digest('hex')!==pdfHash)throw Error('PDF test dependency hash mismatch');
  const admin=initializeApp({projectId:'demo-universal-iti'}),db=getFirestore(admin),auth=getAuth(admin),base='institutes/brdbagiti-mumbai-01';
  await db.doc(base).set({ownerUid:'admin',schemaVersion:15,name:'Synthetic ITI',code:'TEST'});
  await db.doc(base+'/workspaces/w1').set({name:'Synthetic Workspace',trade:'DTP',session:'2026-27',batch:'A',schemaVersion:15,arraySections:['trainees','practicals','theory','notices','holidays','leaves'],mapSections:['attendance','marks','submissions']});
