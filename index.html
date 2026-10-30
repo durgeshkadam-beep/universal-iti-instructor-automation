@@ -130,10 +130,8 @@
         <div class="card">
           <div class="field-row" style="justify-content:space-between"><h3>AI Connection</h3><span id="aiConnectionBadge" class="badge">○ Manual / no-key mode</span></div>
           <p id="aiConnectionHelp" class="muted"></p>
-          <div class="field"><label>Gemini API key <span class="muted">(optional)</span></label><input id="aiApiKey" type="password" autocomplete="off" placeholder="Paste key for this session only"></div>
-          <div class="field"><label>Model</label><input id="aiModel" value="gemini-3.6-flash"></div>
-          <div class="field-row"><button class="btn primary" onclick="InstructorAI.setKey()">Connect Gemini</button><button class="btn ghost" onclick="InstructorAI.disconnect()">Disconnect</button></div>
-          <div class="callout" style="margin-top:12px"><b>Privacy:</b> API key stays only in browser sessionStorage and is not saved in the app database. Do not send trainee Aadhaar, phone numbers or other personal records to free AI services.</div>
+          <div class="field-row"><button id="aiCheckConnection" class="btn primary" onclick="InstructorAI.testConnection()">Check AI availability</button><button class="btn ghost" onclick="InstructorAI.disconnect()">Use manual mode</button></div>
+          <div class="callout" style="margin-top:12px"><b>Privacy:</b> Provider keys stay on the server. Personal-key setup is not yet available. Keep student names, phone numbers and other personal records out of AI prompts. An availability check uses no generation request; free provider quotas still apply when generating.</div>
         </div>
         <div class="card"><h3>Today's Teaching</h3><div id="aiToday"></div></div>
       </div>
@@ -146,7 +144,7 @@
       <div class="hero" style="margin-bottom:16px">
         <div class="hero-content">
           <div>
-            <h2>🤖 Universal Syllabus AI</h2>
+            <h2>Syllabus Import &amp; Year Planning</h2>
             <p>Upload a trade syllabus once. The app extracts modules, practicals, theory and hours, then builds a working-day calendar.</p>
           </div>
         </div>
@@ -1083,7 +1081,7 @@
   <div class="modal-card">
     <h3>Mark Complete</h3>
     <p class="muted" id="markCompleteItemLabel"></p>
-    <div class="field"><label>Date actually taught</label><input id="markCompleteDate" type="date"></div>
+    <div class="field"><label for="markCompleteDate">Date actually taught</label><input id="markCompleteDate" type="date"></div>
     <p class="muted">Defaults to today, but change it if your device's date is wrong or you're logging this after the fact.</p>
     <div class="field-row" style="justify-content:flex-end">
       <button class="btn ghost" onclick="MarkComplete.close()">Cancel</button>
@@ -1160,7 +1158,8 @@
     <div class="field-row" style="justify-content:space-between"><h3 id="aiModalTitle">AI Assistant</h3><button class="btn ghost small" onclick="InstructorAI.closeModal()">✕ Close</button></div>
     <div id="aiModalStatus" class="callout">AI draft</div>
     <div class="field"><label>Prompt</label><textarea id="aiPromptText" rows="10"></textarea></div>
-    <div class="field-row"><button class="btn ghost" onclick="InstructorAI.copyPrompt()">📋 Copy Prompt</button><button id="aiGenerateBtn" class="btn primary" onclick="InstructorAI.generatePending()">✨ Generate with Gemini</button></div>
+    <div class="field-row"><button class="btn ghost" onclick="InstructorAI.copyPrompt()">📋 Copy Prompt</button><button id="aiGenerateBtn" class="btn primary" onclick="InstructorAI.generatePending()">✨ Generate AI draft</button></div>
+    <details class="callout"><summary>ⓘ How to copy a prompt and paste JSON</summary><ol><li>Open the intended Theory or Practical topic and check its number, trade and duration in the prompt.</li><li>Copy Prompt, then paste it into an external AI service you choose. Ask it to return only the JSON structure requested in that prompt. Exclude student personal data.</li><li>Copy the complete response, including the opening { and closing }, into AI JSON result below. Do not paste a webpage link or a screenshot.</li><li>Choose Preview Result and review the complete plan. Fix any JSON error in the text; your pasted text is retained.</li><li>Save as Draft or Approve &amp; Keep explicitly. A draft is not teaching completion.</li></ol><p>A practical response uses arrays such as <code>"objective": ["Demonstrate safe working"]</code> and <code>"steps": [{"procedure":"Show the task","keyPoint":"Check accuracy","spotHint":"Observe safe practice"}]</code>. Follow the complete schema in your selected prompt; a lesson has different fields.</p></details>
     <div class="field"><label>AI JSON result <span class="muted">(you may edit before saving)</span></label><textarea id="aiResultText" rows="14" placeholder="Paste JSON returned by your AI here"></textarea></div>
     <div class="field-row"><button class="btn secondary" onclick="InstructorAI.previewResult()">Preview Result</button><button class="btn ghost" onclick="InstructorAI.saveResult(false)">Save as Draft</button><button class="btn primary" onclick="InstructorAI.saveResult(true)">✅ Approve & Keep</button></div>
     <div id="aiPreviewBox" class="callout" style="display:none;margin-top:12px"></div>

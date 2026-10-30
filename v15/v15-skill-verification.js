@@ -69,9 +69,9 @@ V.renderSkillPassport=function(){
   priorStudentRender?.call(this);
   this.renderVerifiedSkillList().catch(console.error);
 };
-V.renderInstructorSkillVerification=async function(){
+V.renderInstructorSkillVerification=async function(target){
   if(!this.ready||role()!=='instructor')return;
-  const host=document.getElementById('tab-skill-review');
+  const host=target?.nodeType===1?target:document.getElementById('tab-skill-review');
   if(!host)return;
   const generation=++instructorRenderGeneration;
   const actor=this.fb?.user?.uid, institute=this.INSTITUTE_ID, workspace=this.workspaceId;

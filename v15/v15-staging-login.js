@@ -3,10 +3,11 @@
 'use strict';
 const runtime=window.ITI_RUNTIME||{},project=runtime.firebaseConfig?.projectId||'';
 if(!V||runtime.staging!==true||!project.endsWith('-staging'))return;
+if(V.stagingLoginInstalled){V.showRoleLogin();return;}
+V.stagingLoginInstalled=true;
 const show=V.showRoleLogin;
-const domain=String(runtime.instituteLoginDomain||'').trim().toLowerCase();
-const stageDomain=/^[a-z0-9.-]+\.test$/.test(domain)&&!domain.includes('..')?domain:'';
 function stageEmail(id){
+ const domain=String(window.ITI_RUNTIME?.instituteLoginDomain||'').trim().toLowerCase(),stageDomain=/^[a-z0-9.-]+\.test$/.test(domain)&&!domain.includes('..')?domain:'';
  const text=String(id||'').trim().toLowerCase();
  if(text.includes('@'))return V.validEmail(text)?text:null;
  return stageDomain&&/^[a-z0-9][a-z0-9._-]{2,39}$/.test(text)?text+'@'+stageDomain:null;

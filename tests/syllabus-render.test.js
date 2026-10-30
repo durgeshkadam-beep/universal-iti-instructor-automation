@@ -48,3 +48,8 @@ test('completion checks identity/workspace even when DATA and record references 
 test('unchanged cloud clones do not invalidate an open completion dialog',()=>{
  const {w,saves}=setup();try{w.M.open('practical',1,'Synthetic');w.DATA.practicals=[Object.fromEntries(Object.entries(w.DATA.practicals[0]).reverse())];w.M.confirm();assert.equal(w.DATA.practicals[0].status,'completed');assert.equal(saves(),1);}finally{w.close();}
 });
+for(const [kind,key,handle] of [['practical','practicals','P'],['theory','theory','T']])test(kind+' completed teaching date can be corrected without losing completion or its plan',()=>{
+ const {w,saves}=setup();try{const item=w.DATA[key][0];item.status='completed';item.doneDate='2026-10-20';item.plan={objective:['Kept objective']};w[handle].render();const body=w.document.querySelector('#'+kind+'TableBody'),edit=[...body.querySelectorAll('button')].find(b=>b.textContent==='Edit completion date');assert(edit);edit.click();assert.equal(w.document.querySelector('#markCompleteDate').value,'2026-10-20');w.document.querySelector('#markCompleteDate').value='2026-10-22';w.M.confirm();assert.equal(item.doneDate,'2026-10-22');assert.equal(item.status,'completed');assert.equal(item.plan.objective[0],'Kept objective');assert.equal(saves(),1);assert.match(body.textContent,/Done 2026-10-22/);
+ edit.click();w.V15Sync={workspaceId:'another',fb:{user:{uid:'different'}}};w.document.querySelector('#markCompleteDate').value='2026-10-23';w.M.confirm();assert.equal(item.doneDate,'2026-10-22');assert.equal(saves(),1);
+ }finally{w.close();}
+});

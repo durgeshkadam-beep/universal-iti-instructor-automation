@@ -2603,7 +2603,8 @@ const MarkComplete = {
     const item=(type==='practical'?DATA.practicals:DATA.theory).find(x=>x.no===no);if(!item)return;
     this.pending = {type,no,snapshot:syllabusRecordVersion(item),context:syllabusContext()};
     document.getElementById("markCompleteItemLabel").textContent = label;
-    document.getElementById("markCompleteDate").value = todayISO();
+    const heading=document.querySelector("#markCompleteModal h3");if(heading)heading.textContent=item.status==="completed"?"Edit completion date":"Mark completed";
+    document.getElementById("markCompleteDate").value = item.status==="completed"&&item.doneDate?item.doneDate:todayISO();
     document.getElementById("markCompleteModal").style.display="flex";
   },
   close(){ this.pending=null;document.getElementById("markCompleteModal").style.display="none"; },
@@ -2613,7 +2614,7 @@ const MarkComplete = {
     const list=type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>x.no===no);
     if(!syllabusContextCurrent(context)||!item||syllabusRecordVersion(item)!==snapshot){this.close();alert('The syllabus changed. Reopen the topic before marking it complete.');return;}
     const date = document.getElementById("markCompleteDate").value;
-    if(!date){ alert("Select a date."); return; }
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+"T00:00:00Z"))||new Date(date+"T00:00:00Z").toISOString().slice(0,10)!==date){ alert("Select a valid date."); return; }
     item.status="completed"; item.doneDate=date;
     saveData();
     MarkComplete.close();
@@ -2882,7 +2883,7 @@ function renderSyllabusRows(type, records, manager){
       if(item.status!=='completed')primary.append(button('Mark Complete',()=>MarkComplete.open(type,item.no,`${practical?'Demo':'Lesson'} ${item.no}: ${item.title??''}`)));
       const more=make('details',undefined,'syllabus-more'),summary=make('summary','More actions');summary.setAttribute('aria-label',`More actions for ${practical?'Demo':'Lesson'} ${item.no}`);more.append(summary);
       const options=make('div',undefined,'syllabus-secondary-actions'),up=button('↑',()=>manager.moveSeq(item.no,-1)),down=button('↓',()=>manager.moveSeq(item.no,1));up.disabled=i===0;down.disabled=i===sorted.length-1;up.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} up`);down.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} down`);
-      options.append(button('Edit',()=>manager.openEdit(item.no)),up,down,button('Delete',()=>manager.remove(item.no)));more.append(options);actions.append(more);
+      options.append(button('Edit',()=>manager.openEdit(item.no)),up,down,button('Delete',()=>manager.remove(item.no)));if(item.status==='completed')options.append(button('Edit completion date',()=>MarkComplete.open(type,item.no,`${practical?'Demo':'Lesson'} ${item.no}: ${item.title??''}`)));more.append(options);actions.append(more);
     }
     row.append(date,status,actions);[...row.children].forEach((cell,j)=>cell.dataset.label=(practical?['No.','Unit','Skill / Practical','Planned date','Status','Actions']:['No.','Topic','Planned date','Status','Actions'])[j]);body.append(row);
   }

@@ -54,7 +54,7 @@ assert.match(skillRules,/request\.resource\.data\.diff\(resource\.data\)\.affect
 assert.match(rules,/section != 'skillVerifications'/,'generic workspace writes cannot bypass verification rules');
 assert.match(verifyModule,/runTransaction/,'skill verification update is transactional');
 assert.match(loader,/v15\/v15-skill-verification\.js/,'new skill verification module loaded');
-assert.match(controller,/\['skill-review','✅ Verify Skills'\]/,'instructor skill verification navigation registered');
+assert.match(controller,/\['skill-review','✅ Skills & Workplace Use'\]/,'instructor skill verification navigation registered');
 console.log('PASS Firebase verified skills static access invariants.');
 
 
