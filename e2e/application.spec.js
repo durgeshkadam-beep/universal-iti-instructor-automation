@@ -467,7 +467,11 @@ test('split-up complete plan persists to cloud and a fresh Student calendar with
      UniversalSyllabus.renderPreview();
    });
   page.on('dialog',d=>d.accept());
+  const preflight=await page.evaluate(()=>({state:InstructorPlanSafety.assess(DATA,UniversalSyllabus.state.items,UniversalSyllabus.state.trade),records:DATA.practicals.map(x=>({no:x.no,title:x.title,hours:x.hours})),trade:DATA.meta.trade}));
+  expect(preflight.state,JSON.stringify(preflight)).toMatchObject({ok:true,mode:'revise'});
   await page.getByRole('button',{name:'Create Complete Training Plan',exact:false}).click();
+  const submission=await page.evaluate(()=>({notice:document.getElementById('uStatus')?.textContent,mode:DATA.meta.scheduleMode,rows:DATA.meta.trainingPlan?.dayPlan?.length}));
+  expect(submission,JSON.stringify({preflight,submission})).toMatchObject({mode:'training-plan'});
   await expect.poll(()=>page.evaluate(async()=>{const V=V15Sync,s=await V.fb.M.getDocFromServer(V.ws());return {mode:s.data()?.scheduleMode,first:s.data()?.trainingPlan?.dayPlan?.[0]?.date,queued:V.queueRead().length};}),{timeout:20000}).toEqual({mode:'training-plan',first:'2026-10-30',queued:0});
   await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('splitup'));
   const body=page.locator('#splitupTableBody');await expect(body).toContainText('2026-11-02');await expect(body).toContainText('Typography');await expect(body).toContainText('Layout basics');await expect(body.locator('img,script,[onerror]')).toHaveCount(0);await expect(page.locator('#splitupOfficial')).toBeHidden();
