@@ -9,6 +9,9 @@ const rollKey=v=>txt(v).toLowerCase();
 const prnKey=v=>txt(v).toLowerCase();
 const T={
   pending:null,
+  api:null,
+  bind(adapter){this.api=adapter;},
+  data(){return this.api?.data?.();},
   headers,
   template(){
     if(!root.XLSX)throw Error('Excel reader is unavailable. Reload with an internet connection.');
@@ -62,13 +65,13 @@ const T={
     return {rows:preview,errors,valid:preview.length-errors.length,invalid:errors.length,sheetName};
   },
   access(){
-    const V=root.V15Sync,role=V?.currentRole?.()||root.SESSION?.role;
-    return !!(V?.ready&&V.fb?.user?.uid&&V.workspaceId&&role==='instructor');
+    const V=root.V15Sync,role=V?.currentRole?.()||this.api?.role?.();
+    return !!(this.api?.data&&V?.ready&&V.fb?.user?.uid&&V.workspaceId&&role==='instructor');
   },
   context(){
     const V=root.V15Sync;
-    return {uid:V?.fb?.user?.uid||'',workspaceId:V?.workspaceId||'',instituteId:V?.INSTITUTE_ID||'',data:root.DATA,
-      roster:JSON.stringify((root.DATA?.trainees||[]).map(t=>[t.id,t.roll,t.prn||t.applicationId]))};
+    return {uid:V?.fb?.user?.uid||'',workspaceId:V?.workspaceId||'',instituteId:V?.INSTITUTE_ID||'',data:this.data(),
+      roster:JSON.stringify((this.data()?.trainees||[]).map(t=>[t.id,t.roll,t.prn||t.applicationId]))};
   },
   sameContext(c){
     if(!c||!this.access())return false;
@@ -86,7 +89,7 @@ const T={
       if(file.size>3*1024*1024)throw Error('File exceeds the 3 MB preview limit.');
       const wb=root.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
       if(!this.sameContext(c))throw Error('Workspace or roster changed during import. Select the file again.');
-      const parsed=this.parseBook(wb,root.DATA.trainees||[]);
+      const parsed=this.parseBook(wb,this.data().trainees||[]);
       this.pending={...parsed,c,fileName:file.name};this.render();
     }catch(e){this.cancel();this.message(e.message||String(e),true);}
   },
@@ -117,14 +120,14 @@ const T={
     const p=this.pending;
     if(!p||!this.sameContext(p.c)){this.cancel();this.message('Account, workspace or trainee roster changed. Review the file again.',true);return false;}
     // Revalidate immediately before saving, including duplicate identifiers.
-    const again=this.parseRowsAgainstCurrent(p.rows,root.DATA.trainees||[]);
+    const again=this.parseRowsAgainstCurrent(p.rows,this.data().trainees||[]);
     if(again.length){this.cancel();this.message('Duplicate or invalid records found. Import cancelled; no trainees changed.',true);return false;}
     if(!root.confirm('Add '+p.rows.length+' trainee records to this workspace? No login accounts or PINs will be created.'))return false;
     if(!this.sameContext(p.c)){this.cancel();this.message('Workspace changed during confirmation; import cancelled.',true);return false;}
-    const created=p.rows.map(x=>({id:(root.crypto?.randomUUID?.()||root.uid?.()||('import-'+x.line+'-'+Date.now())),roll:x.roll,name:x.name,prn:x.prn,prnStatus:x.prn?'Allotted':'Pending',category:x.category,phone:x.phone,accountStatus:'not-linked'}));
-    root.DATA.trainees.push(...created);
-    root.saveData();
-    root.Trainees?.render?.();root.Evaluation?.populateSelects?.();root.Reports?.populateSelects?.();root.Leave?.populateSelects?.();
+    const created=p.rows.map(x=>({id:(root.crypto?.randomUUID?.()||this.api?.id?.()||('import-'+x.line+'-'+Date.now())),roll:x.roll,name:x.name,prn:x.prn,prnStatus:x.prn?'Allotted':'Pending',category:x.category,phone:x.phone,accountStatus:'not-linked'}));
+    this.data().trainees.push(...created);
+    this.api.save();
+    this.api.refresh();
     this.cancel();this.message('Added '+created.length+' trainee records. Cloud sync must complete before another device sees them. Student accounts are not created automatically.',false);
     return true;
   },
