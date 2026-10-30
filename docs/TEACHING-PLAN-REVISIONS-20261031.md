@@ -28,7 +28,7 @@ Unversioned legacy topic creation/import remains compatible and does not attest 
 
 ## Validation and failure history
 
-Native validation currently passes 388 tests. Two desktop/mobile queued-draft recovery cases pass. Final complete emulator/browser results and CI links are maintained in PR #16, not inferred from focused checks.
+The complete desktop/mobile browser suite passed 94/94 (4.8 minutes), all eight emulator suites passed, and the native Node runner passed 388 tests. The surrounding native command also executes standalone contracts: its final exit-status review exposed an obsolete 460-line rules-size heuristic, despite the real rules compiling and passing emulator tests. It now checks unique rule blocks/helpers directly instead of assuming a fixed file length. The complete native command must pass after that correction; final exit status and CI links are maintained in PR #16. Production/development-inclusive dependency audits found zero advisories, and the explicit staging build contains 72 public files.
 
 Actual failures corrected during this workstream:
 
