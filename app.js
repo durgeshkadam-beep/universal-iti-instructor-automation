@@ -3564,13 +3564,16 @@ const UniversalSyllabus = {
     if(!file){this.status('Please select a syllabus file first.','error');return;}
     this.status('Reading and analyzing '+file.name+' …');
     try{
-      const text=await this.extractText(file);
+      let reviewed=null;
+      if(/\.xlsx?$/i.test(file.name) && window.InstructorTemplates){reviewed=await window.InstructorTemplates.parseFile(file);}
+      const text=reviewed?'':await this.extractText(file);
       const trade=(document.getElementById('uTrade').value||this.detectTrade(text)||file.name.replace(/\.[^.]+$/,'')).trim();
       document.getElementById('uTrade').value=trade;
       this.state.trade=trade; this.state.sourceName=file.name; this.state.analyzedAt=new Date().toISOString();
-      this.state.items=this.classifyLines(text);
+      this.state.items=reviewed?reviewed.items:this.classifyLines(text);
       this.renderPreview();
-      this.status(`Analysis complete: ${this.state.items.length} syllabus items found. Review them before generating the calendar.`,'ok');
+      if(reviewed)this.status('Excel template validated. Review the Theory and Practical items; nothing has been saved to the register.','ok');
+      if(!reviewed)this.status(`Analysis complete: ${this.state.items.length} syllabus items found. Review them before generating the calendar.`,'ok');
     }catch(e){console.error(e);this.status('Could not read this file: '+(e.message||e),'error');}
   },
   async extractText(file){
