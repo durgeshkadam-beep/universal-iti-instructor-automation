@@ -20,14 +20,42 @@ const T={
     root.XLSX.utils.book_append_sheet(wb,sheet,'Trainees');return wb;
   },
   download(){
-    try{root.XLSX.writeFile(this.template(),'ITI-Trainee-Master-Template.xlsx');}
-    catch(e){this.message(e.message||String(e),true);}
+    try{
+      if(root.XLSX){root.XLSX.writeFile(this.template(),'ITI-Trainee-Master-Template.xlsx');return;}
+      // Offline fallback: CSV opens in Excel without third-party libraries.
+      const csv='\uFEFF'+headers.join(',')+'\r\n',blob=new root.Blob([csv],{type:'text/csv;charset=utf-8'});
+      const url=root.URL.createObjectURL(blob),a=root.document.createElement('a');
+      a.href=url;a.download='ITI-Trainee-Master-Template.csv';a.click();
+      root.URL.revokeObjectURL(url);
+      this.message('Downloaded CSV template (offline mode). Open it in Excel and keep Roll No. / PRN columns formatted as Text.',false);
+    }catch(e){this.message(e.message||String(e),true);}
   },
-  parseBook(wb,existing=[]){
-    if(!root.XLSX)throw Error('Excel reader is unavailable.');
-    const sheetName=wb.SheetNames.find(n=>key(n)==='trainees')||wb.SheetNames[0];
-    if(!sheetName)throw Error('The workbook has no sheet.');
-    const rows=root.XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,raw:false,defval:'',blankrows:false});
+  parseCSV(text){
+    const input=String(text||'').replace(/^\uFEFF/,'');
+    if(input.length>3*1024*1024)throw Error('CSV exceeds the 3 MB limit.');
+    const rows=[];let row=[],value='',quoted=false,closed=false;
+    const add=()=>{row.push(value);value='';closed=false;};
+    const done=()=>{add();rows.push(row);row=[];if(rows.length>MAX_ROWS+30)throw Error('Too many CSV rows. Import 500 trainees at a time.');};
+    for(let i=0;i<input.length;i++){
+      const ch=input[i];
+      if(quoted){
+        if(ch==='"'&&input[i+1]==='"'){value+='"';i++;}
+        else if(ch==='"')quoted=false;
+        else value+=ch;
+      }else if(ch==='"'&&value==='')quoted=true;
+      else if(ch===',')add();
+      else if(ch==='\r'||ch==='\n'){
+        if(ch==='\r'&&input[i+1]==='\n')i++;
+        done();
+      }else if(ch==='"')throw Error('Invalid CSV quoting near row '+(rows.length+1));
+      else value+=ch;
+    }
+    if(quoted)throw Error('Unclosed CSV quote near row '+(rows.length+1));
+    if(value||row.length)done();
+    return rows;
+  },
+  parseRows(rows,existing=[]){
+    const sheetName='Trainees';
     const aliases=[
       ['rollno','rollnumber','roll'],
       ['name','traineename','studentname','candidatename'],
@@ -64,6 +92,12 @@ const T={
     if(!preview.length)throw Error('No trainee rows found after the header.');
     return {rows:preview,errors,valid:preview.length-errors.length,invalid:errors.length,sheetName};
   },
+  parseBook(wb,existing=[]){
+    if(!root.XLSX)throw Error('Excel reader is unavailable.');
+    const sheetName=wb.SheetNames.find(n=>key(n)==='trainees')||wb.SheetNames[0];
+    if(!sheetName)throw Error('The workbook has no sheet.');
+    return this.parseRows(root.XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,raw:false,defval:'',blankrows:false}),existing);
+  },
   access(){
     const V=root.V15Sync,role=V?.currentRole?.()||this.api?.role?.();
     return !!(this.api?.data&&V?.ready&&V.fb?.user?.uid&&V.workspaceId&&role==='instructor');
@@ -85,12 +119,17 @@ const T={
     if(!file)return;
     const c=this.context();
     try{
-      if(!root.XLSX)throw Error('Excel reader unavailable. Check internet and reload.');
       if(!/\.(xlsx|xls|csv)$/i.test(file.name))throw Error('Choose an Excel or CSV file.');
       if(file.size>3*1024*1024)throw Error('File exceeds the 3 MB preview limit.');
-      const wb=root.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
+      let parsed;
+      if(/\.csv$/i.test(file.name)){
+        parsed=this.parseRows(this.parseCSV(await file.text()),this.data().trainees||[]);
+      }else{
+        if(!root.XLSX)throw Error('Excel reader unavailable. Save as CSV to import offline.');
+        const wb=root.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
+        parsed=this.parseBook(wb,this.data().trainees||[]);
+      }
       if(!this.sameContext(c))throw Error('Workspace or roster changed during import. Select the file again.');
-      const parsed=this.parseBook(wb,this.data().trainees||[]);
       this.pending={...parsed,c,fileName:file.name};this.render();
     }catch(e){this.cancel();this.message(e.message||String(e),true);}
   },
