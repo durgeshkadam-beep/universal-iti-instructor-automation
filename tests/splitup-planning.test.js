@@ -6,6 +6,7 @@ function setup(){
  w.SESSION={role:'instructor'};w.V15Sync={workspaceId:'one',fb:{user:{uid:'one'}}};let saves=0;
  w.saveData=()=>saves++;w.confirm=()=>true;w.alert=()=>{};w.uid=()=> 'synthetic';w.todayISO=()=> '2026-10-28';
  for(const name of ['Practicals','Theory','Dashboard','ModuleManager'])w[name]={render(){},refresh(){}};
+ w.Dashboard.topicState=()=>({code:'unplanned',label:'Not scheduled'});
  w.isHoliday=iso=>w.DATA.holidays.some(h=>h.date===iso);w.SEED_SPLITUP=[['2026-08-10',1,1,null]];
  const src=fs.readFileSync('app.js','utf8');
  const context=src.slice(src.indexOf('function syllabusRecordVersion('),src.indexOf('const MarkComplete ='));

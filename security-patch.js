@@ -226,13 +226,18 @@
 
       if(typeof Holidays!=='undefined') Holidays.render=function(){
         const body=document.getElementById('holidayTableBody');if(!body)return;body.replaceChildren();
-        if(!(DATA.holidays||[]).length){const tr=document.createElement('tr'),td=SecurityPatch.cell(tr,'No holidays marked yet.');td.colSpan=3;td.className='muted';body.appendChild(tr);return;}
-        DATA.holidays.forEach(h=>{const tr=document.createElement('tr');SecurityPatch.cell(tr,h.date);SecurityPatch.cell(tr,h.label);SecurityPatch.cell(tr,SecurityPatch.btn('Remove','btn ghost small',()=>Holidays.remove(h.date)));body.appendChild(tr);});
+        const month=(document.getElementById('attDate')?.value||todayISO()).slice(0,7);
+        const records=(DATA.holidays||[]).filter(h=>String(h.date||'').slice(0,7)===month).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+        let caption=document.getElementById('holidayMonthSummary');if(!caption){caption=SecurityPatch.mk('p',null,'muted');caption.id='holidayMonthSummary';body.closest('table').before(caption);}
+        caption.textContent=`Holidays for ${month}: ${records.length}. All saved holidays remain available to year planning.`;
+        if(!records.length){const tr=document.createElement('tr'),td=SecurityPatch.cell(tr,'No saved holidays in this month.');td.colSpan=3;td.className='muted';body.appendChild(tr);return;}
+        records.forEach(h=>{const tr=document.createElement('tr');const day=new Date(h.date+'T00:00:00Z');SecurityPatch.cell(tr,h.date+(Number.isFinite(day.getTime())?' · '+day.toLocaleDateString('en-IN',{weekday:'short',timeZone:'UTC'}):''));SecurityPatch.cell(tr,h.label);SecurityPatch.cell(tr,SecurityPatch.btn('Remove','btn ghost small',()=>Holidays.remove(h.date)));body.appendChild(tr);});
       };
 
       if(typeof Attendance!=='undefined'){
         Attendance.loadDay=function(){
           if(!SecurityPatch.roleAllowed(['instructor'])){SecurityPatch.deny(['instructor']);return;}
+          Holidays.render();
           const date=document.getElementById('attDate')?.value||'';const holiday=(DATA.holidays||[]).find(h=>h.date===date);const warn=document.getElementById('attHolidayWarning');
           if(warn){warn.replaceChildren();if(holiday){const d=SecurityPatch.mk('div',null,'notice');d.style.borderLeftColor='var(--bad)';d.append(SecurityPatch.mk('b',`⚠ This is marked a holiday: ${holiday.label}`),document.createTextNode(" — attendance on this day won't count toward working-day totals."));warn.appendChild(d);}}
           const rec=DATA.attendance[date]||{},body=document.getElementById('attTableBody');if(!body)return;body.replaceChildren();

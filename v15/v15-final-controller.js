@@ -18,7 +18,7 @@ const NAV={
 const LABEL={admin:'System Admin',principal:'Principal',instructor:'Instructor',staff:'Staff',student:'Student / Trainee'};
 const START={
   principal:[['users','Staff & Access','Review staff access and assignments.'],['inspection','Inspection & Compliance','Review submitted training records.'],['reports','Institute Reports','Open institute reports.']],
-  instructor:[['attendance','Take Attendance','Open the daily attendance register.'],['skill-review','Verify Student Skills','Record practical evidence and progress.'],['modules','Plan Training','Organise your training modules.']],
+  instructor:[['attendance','Take Attendance','Open the daily attendance register.'],['skill-review','Verify Student Skills','Record practical evidence and progress.'],['splitup','Plan Training','Review your saved year plan and day-wise training schedule.']],
   staff:[['notices','Read Notices','View institute announcements.'],['record-formats','Record Formats','Open the available record formats.'],['reports','View Reports','Review the available reports.']],
   student:[['attendance','My Attendance','Check your attendance record.'],['skills','My Skills','View your skills and instructor verification.'],['career-lens','See Your Skill’s Future','Link verified practicals to reviewed career examples.']]
 };
@@ -141,13 +141,16 @@ V.finalAttendanceGovernance=async function(){
   if(role()!=='instructor')return;
   const p=panel('attendance');if(!p)return;
   removeAttendanceDuplicates();
-  const m=new Date().toISOString().slice(0,7),l=await V.getAttendanceLock?.(m);
+  const m=(document.getElementById('attDate')?.value||todayISO()).slice(0,7),scope=V.workspaceId,uid=V.fb?.user?.uid,l=await V.getAttendanceLock?.(m);
+  if(role()!=='instructor'||V.workspaceId!==scope||V.fb?.user?.uid!==uid||(document.getElementById('attDate')?.value||todayISO()).slice(0,7)!==m)return;
   const d=document.createElement('div');d.className='card';d.id='v15AttendanceGovernance';d.dataset.v15AttendanceGovernance='1';
-  d.innerHTML=`<h3>🔒 Monthly Attendance Submission</h3><p class="muted">Submit a completed month to Principal. Submitted/approved months are locked until Principal reopens them.</p><div class="field-row"><div class="field"><label>Month</label><input id="v15AttMonth" type="month" value="${esc(m)}"></div><div><span class="badge">Current: ${esc(l?.status||'Open')}</span></div></div><button class="btn secondary" id="v15AttSubmit">Submit month to Principal</button>`;
+  d.innerHTML=`<h3>🔒 Monthly Attendance Submission</h3><p class="muted">Submit a completed month to Principal. Submitted/approved months are locked until Principal reopens them.</p><div class="field-row"><div class="field"><label>Submission month</label><input id="v15AttMonth" type="month" value="${esc(m)}"></div><div><span class="badge">Current: ${esc(l?.status||'Open')}</span></div></div><button class="btn secondary" id="v15AttSubmit">Submit month to Principal</button>`;
   p.prepend(d);
+  const monthInput=d.querySelector('#v15AttMonth');monthInput.addEventListener('change',async()=>{const date=document.getElementById('attDate');if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(monthInput.value))return;date.value=monthInput.value+'-01';Attendance.loadDay();await V.finalAttendanceGovernance();});
   d.querySelector('#v15AttSubmit').addEventListener('click',async()=>{const month=d.querySelector('#v15AttMonth').value;try{await V.submitAttendanceMonth(month);alert('Attendance month submitted and locked for Principal review.');await V.finalAttendanceGovernance();}catch(e){alert(e.message||e);}});
 };
 V.injectAttendanceGovernance=V.finalAttendanceGovernance;
+document.addEventListener('change',e=>{if(e.target.id==='attDate'&&role()==='instructor')V.finalAttendanceGovernance().catch(console.error);});
 
 function renderLegacyInstructor(name){
   try{if(name==='dashboard')Dashboard?.render?.();}catch(e){}

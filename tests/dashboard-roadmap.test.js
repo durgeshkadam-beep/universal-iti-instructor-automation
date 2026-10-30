@@ -31,3 +31,17 @@ test('notice with missing date stays readable and stored notice markup cannot ex
  const f=setup();try{const w=f.w;w.DATA.notices=[{title:'<img src=x onerror="window.injected=1">',body:'<script>bad</script>'}];w.D.render();const box=w.document.querySelector('#dashLatestNotice');assert.match(box.textContent,/Date not recorded/);assert.equal(box.querySelectorAll('img,script').length,0);assert.match(box.textContent,/<img/);assert.equal(w.injected,undefined);
  }finally{f.close();}
 });
+test('progress uses the full allocated finish and preserves overdue work despite later completions',()=>{
+ const f=setup();try{const w=f.w;w.DATA.practicals=[{no:'1.1.01',title:'Long practical',hours:7,plannedDate:'2026-10-26'},{no:'1.1.02',title:'Later',hours:2,status:'completed'}];w.DATA.meta={scheduleMode:'training-plan',trainingPlan:{dayPlan:[{date:'2026-10-26',practicalItems:[{seq:'1.1.01',hours:5}]},{date:'2026-10-27',practicalItems:[{seq:'1.1.01',hours:2}]},{date:'2026-10-30',practicalItems:[{seq:'1.1.02',hours:2}]}]}};
+ assert.equal(w.D.topicState('practical',w.DATA.practicals[0],'2026-10-26').label,'Upcoming');assert.equal(w.D.topicState('practical',w.DATA.practicals[0],'2026-10-27').label,'Due today');assert.equal(w.D.topicState('practical',w.DATA.practicals[0],'2026-10-28').code,'overdue');
+ const summary=w.D.progressSummary('practical','2026-10-28');assert.equal(summary.expected,1);assert.equal(summary.completed,1);assert.equal(summary.overdue.length,1);assert.equal(summary.lastExpected.no,'1.1.01');
+ w.DATA.practicals[1].status='pending';assert.equal(w.D.progressSummary('practical','2026-10-28').notStarted,true);
+ }finally{f.close();}
+});
+test('partial, invalid and changed-date schedules do not invent a completed allocation or overdue finish',()=>{
+ const f=setup();try{const w=f.w,item={no:1,hours:11,plannedDate:'2026-10-26'};w.DATA.meta={trainingPlan:{dayPlan:[{date:'2026-10-26',practicalItems:[{seq:1,hours:5}]}]}};
+ assert.equal(w.D.topicState('practical',item,'2026-10-30').code,'unplanned');assert.equal(w.D.topicTiming('practical',item).finish,null);
+ w.DATA.meta.trainingPlan.dayPlan.push({date:'2026-10-27',practicalItems:[{seq:1,hours:6}]});item.plannedDate='2026-10-28';assert.equal(w.D.topicTiming('practical',item).finish,null);
+ delete w.DATA.meta.trainingPlan;item.plannedEndDate='2026-02-30';assert.equal(w.D.topicTiming('practical',item).finish,null);item.plannedEndDate='2026-10-29';assert.equal(w.D.topicState('practical',item,'2026-10-30').code,'overdue');item.status='completed';assert.equal(w.D.topicState('practical',item,'2026-10-30').code,'complete');
+ }finally{f.close();}
+});

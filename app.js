@@ -2179,6 +2179,56 @@ let _chartSyllabus=null, _chartAttendance=null;
 /* ===================== DASHBOARD ===================== */
 const Dashboard = {
   escape(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));},
+  validTrainingDate(value){return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;},
+  trainingToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());},
+  topicTiming(type,item){
+    const valid=Dashboard.validTrainingDate,meta=DATA.meta||{},plan=meta.trainingPlan;
+    const start=valid(item.plannedDate)?item.plannedDate:null;
+    // An allocated finish is authoritative only if the complete topic fits in the saved plan.
+    if(meta.scheduleMode!=='official'&&meta.scheduleMode!=='generated'&&Array.isArray(plan?.dayPlan)){
+      const key=type==='practical'?'practicalItems':'theoryItems',parts=plan.dayPlan.filter(r=>valid(r.date)&&!r.holiday).flatMap(r=>(r[key]||[]).filter(x=>String(x.seq)===String(item.no)).map(x=>({date:r.date,hours:Number(x.hours)}))).sort((a,b)=>a.date.localeCompare(b.date));
+      if(parts.length&&(!start||start===parts[0].date)){
+        const allocated=parts.reduce((sum,x)=>sum+(Number.isFinite(x.hours)?x.hours:0),0),hours=Number(item.hours);
+        return {start:parts[0].date,finish:Number.isFinite(hours)&&hours>0&&allocated+0.001>=hours?parts.at(-1).date:null};
+      }
+      return {start,finish:null};
+    }
+    if(meta.scheduleMode==='generated'&&typeof Schedule!=='undefined'&&start){
+      const capacity=Number(meta.hoursPerWorkingDay),days=type==='practical'&&capacity>0?Math.ceil(Number(item.hours)/capacity):Number(meta.theoryDaysPerTopic);
+      const dates=Schedule.workingDaysFrom(start,days);return {start,finish:dates.length===days?dates.at(-1):null};
+    }
+    if(typeof Schedule!=='undefined'&&typeof SEED_SPLITUP!=='undefined'&&Schedule.hasOfficialCalendar()){
+      let active=null;const dates=[];for(const row of SEED_SPLITUP){const no=row[type==='practical'?1:2];if(no!=null)active=no;if(!row[3]&&String(active)===String(item.no)&&valid(row[0]))dates.push(row[0]);}
+      if(dates.length&&(!start||start===dates[0]))return {start:dates[0],finish:dates.at(-1)};
+    }
+    // A start date alone does not prove when a multi-day topic should finish.
+    return {start,finish:valid(item.plannedEndDate)&&(!start||item.plannedEndDate>=start)?item.plannedEndDate:null};
+  },
+  topicState(type,item,day=Dashboard.trainingToday()){
+    const timing=Dashboard.topicTiming(type,item);
+    if(item.status==='completed')return {...timing,code:'complete',label:'Done '+(item.doneDate||'')};
+    if(!timing.finish)return {...timing,code:'unplanned',label:timing.start?'Finish not scheduled':'Not scheduled'};
+    if(timing.finish<day)return {...timing,code:'overdue',label:'Overdue'};
+    return {...timing,code:'pending',label:timing.finish===day?'Due today':'Upcoming'};
+  },
+  progressSummary(type,day=Dashboard.trainingToday()){
+    const records=Dashboard.pendingTopics(type==='practical'?DATA.practicals:DATA.theory),all=type==='practical'?DATA.practicals:DATA.theory;
+    const expected=all.filter(x=>{const d=Dashboard.topicTiming(type,x).finish;return d&&d<=day;});
+    const overdue=records.filter(x=>Dashboard.topicState(type,x,day).code==='overdue');
+    const unknown=all.filter(x=>!Dashboard.topicTiming(type,x).finish).length,done=all.filter(x=>x.status==='completed').length;
+    return {expected:expected.length,completed:done,total:all.length,overdue,unknown,lastExpected:Dashboard.pendingTopics(expected.map(x=>({...x,status:'pending'}))).at(-1),notStarted:done===0&&overdue.length>0};
+  },
+  renderTrainingProgress(){
+    let host=document.getElementById('trainingProgress');const roadmap=document.getElementById('dashRoadmap');
+    if(!host&&roadmap){host=document.createElement('div');host.id='trainingProgress';roadmap.before(host);}
+    if(!host)return;host.hidden=SESSION?.role!=='instructor';if(host.hidden){host.replaceChildren();return;}
+    const e=Dashboard.escape,day=Dashboard.trainingToday();
+    host.innerHTML=`<p class="muted">Plan compared with teaching marked complete · ${e(day)} (India). Saving an AI plan does not mark teaching complete.</p><div class="training-progress-grid">${['practical','theory'].map(type=>{
+      const p=Dashboard.progressSummary(type,day),behind=p.overdue.length>0,state=behind?'overdue':p.unknown===p.total?'unplanned':'complete';
+      const label=behind?(p.notStarted?'Not started — behind plan':'Behind plan'):p.unknown===p.total?'Schedule needs review':p.unknown?'No known overdue topics':'On track';
+      return `<article class="training-progress-card training-${state}"><h4>${type==='practical'?'Practicals':'Theory'} <span class="training-status training-${state}">${label}</span></h4><p><b>${p.expected}</b> topics planned to finish by today · <b>${p.completed} / ${p.total}</b> marked complete</p><p>Expected position: ${p.lastExpected?e(p.lastExpected.no)+'. '+e(p.lastExpected.title):'No scheduled finish yet'}</p><p><b>${p.overdue.length}</b> overdue incomplete${p.overdue[0]?' · Next action: '+e(p.overdue[0].no)+'. '+e(p.overdue[0].title):''}</p>${p.unknown?`<p class="muted">${p.unknown} topic(s) have no confirmed finish date. Review year planning.</p>`:''}</article>`;
+    }).join('')}</div>`;
+  },
   renderIdentity(){
     const profile=RecordFormats.profile();
     const brand=document.getElementById('brandSub'),hero=document.getElementById('heroSub');
@@ -2267,6 +2317,7 @@ const Dashboard = {
       ? `<div class="notice"><span class="date">${Dashboard.escape(latest.date||"Date not recorded")}</span><h4>${Dashboard.escape(latest.title||"Untitled notice")}</h4><p>${Dashboard.escape(latest.body||"")}</p></div>`
       : `<p class="muted">No notices posted yet.</p>`;
 
+    Dashboard.renderTrainingProgress();
     const nextPracs = Dashboard.pendingTopics(DATA.practicals).slice(0,3);
     const nextTheory = Dashboard.pendingTopics(DATA.theory).slice(0,3);
     const roadmapText=Dashboard.escape;
@@ -2816,22 +2867,26 @@ const ModuleManager = {
 function renderSyllabusRows(type, records, manager){
   const practical=type==='practical',body=document.getElementById(practical?'practicalTableBody':'theoryTableBody');if(!body)return;
   const make=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;};
-  const sorted=records.slice().sort((a,b)=>a.sequence-b.sequence),instructor=SESSION?.role==='instructor';body.replaceChildren();
+  const sorted=records.slice().sort((a,b)=>(Number(a.sequence)||0)-(Number(b.sequence)||0)||String(a.no).localeCompare(String(b.no),undefined,{numeric:true})),instructor=SESSION?.role==='instructor';body.replaceChildren();
+  body.closest('table')?.classList.toggle('instructor-syllabus',instructor);
   const button=(label,action)=>{const node=make('button',label,'btn ghost small');node.type='button';node.addEventListener('click',action);return node;};
   for(const [i,item] of sorted.entries()){
-    const row=make('tr'),title=make('td',item.title),date=make('td'),status=make('td'),actions=make('td');row.append(make('td',item.no));
-    if(practical){row.append(make('td',item.unit));title.append(' ',make('span',`(${item.hours??''} hrs)`,'muted'));}row.append(title);
-    if(instructor){const input=make('input');input.type='date';input.value=item.plannedDate||'';input.style.width='130px';input.setAttribute('aria-label',`Planned date for ${practical?'Demo':'Lesson'} ${item.no}`);input.addEventListener('change',()=>manager.setPlanned(item.no,input.value));date.append(input);}else date.textContent=String(item.plannedDate||'—');
-    status.append(make('span',item.status==='completed'?`Done ${item.doneDate||''}`:'Pending',item.status==='completed'?'badge signed':'badge pending'));
-    actions.append(button(SESSION?.role==='student'?'View Notes':'View Plan',()=>PlanViewer.open(type,item.no)));
+    const state=Dashboard.topicState(type,item),row=make('tr'),title=make('td'),date=make('td'),status=make('td'),actions=make('td');
+    row.className=instructor?'training-row training-'+state.code:'';row.append(make('td',item.no));
+    if(practical)row.append(make('td',item.unit));
+    title.append(make('strong',item.title,'syllabus-topic'));if(item.hours!=null)title.append(make('small',`${item.hours} hours`,'syllabus-hours'));row.append(title);
+    if(instructor){const input=make('input');input.type='date';input.value=item.plannedDate||'';input.setAttribute('aria-label',`Planned date for ${practical?'Demo':'Lesson'} ${item.no}`);input.addEventListener('change',()=>manager.setPlanned(item.no,input.value));date.append(input);if(state.finish)date.append(make('small',`Finish: ${state.finish}`,'syllabus-hours'));}else date.textContent=String(item.plannedDate||'—');
+    status.append(make('span',instructor?state.label:item.status==='completed'?`Done ${item.doneDate||''}`:'Pending',instructor?'training-status training-'+state.code:item.status==='completed'?'badge signed':'badge pending'));
+    const primary=make('div',undefined,'syllabus-primary-actions');primary.append(button(SESSION?.role==='student'?'View Notes':'View Plan',()=>PlanViewer.open(type,item.no)));actions.append(primary);
     if(instructor){
-      if(item.status!=='completed')actions.append(button('Mark Complete',()=>MarkComplete.open(type,item.no,`${practical?'Demo':'Lesson'} ${item.no}: ${item.title??''}`)));
-      const up=button('↑',()=>manager.moveSeq(item.no,-1)),down=button('↓',()=>manager.moveSeq(item.no,1));up.disabled=i===0;down.disabled=i===sorted.length-1;up.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} up`);down.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} down`);
-      actions.append(up,down,button('Edit',()=>manager.openEdit(item.no)),button('Delete',()=>manager.remove(item.no)));
+      if(item.status!=='completed')primary.append(button('Mark Complete',()=>MarkComplete.open(type,item.no,`${practical?'Demo':'Lesson'} ${item.no}: ${item.title??''}`)));
+      const more=make('details',undefined,'syllabus-more'),summary=make('summary','More actions');summary.setAttribute('aria-label',`More actions for ${practical?'Demo':'Lesson'} ${item.no}`);more.append(summary);
+      const options=make('div',undefined,'syllabus-secondary-actions'),up=button('↑',()=>manager.moveSeq(item.no,-1)),down=button('↓',()=>manager.moveSeq(item.no,1));up.disabled=i===0;down.disabled=i===sorted.length-1;up.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} up`);down.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} down`);
+      options.append(button('Edit',()=>manager.openEdit(item.no)),up,down,button('Delete',()=>manager.remove(item.no)));more.append(options);actions.append(more);
     }
-    row.append(date,status,actions);body.append(row);
+    row.append(date,status,actions);[...row.children].forEach((cell,j)=>cell.dataset.label=(practical?['No.','Unit','Skill / Practical','Planned date','Status','Actions']:['No.','Topic','Planned date','Status','Actions'])[j]);body.append(row);
   }
-  if(!sorted.length&&!practical){const row=make('tr'),cell=make('td','No theory topics added yet. Use "+ Add Theory Topics" to paste in your 58-topic list.','muted');cell.colSpan=5;row.append(cell);body.append(row);}
+  if(!sorted.length){const row=make('tr'),cell=make('td',`No ${practical?'practicals':'theory topics'} added yet.`,'muted');cell.colSpan=practical?6:5;row.append(cell);body.append(row);}
 }
 const Practicals = {
   render(){ renderSyllabusRows('practical',DATA.practicals,this);
@@ -2993,56 +3048,56 @@ const Theory = {
 const CRITERIA = [["prep",5],["process",8],["accuracy",8],["safety",4],["time",4],["finish",6]];
 
 const Evaluation = {
+  _dirty:false,
+  context(){return {...syllabusContext(),role:SESSION?.role};},
+  sameContext(){const c=this._context,n=this.context();return !!c&&c.data===n.data&&c.uid===n.uid&&c.workspace===n.workspace&&c.role===n.role;},
+  orderedPracticals(){return (DATA.practicals||[]).slice().sort((a,b)=>{const seq=x=>Number.isFinite(Number(x.sequence))&&Number(x.sequence)>0?Number(x.sequence):Number.MAX_SAFE_INTEGER;return seq(a)-seq(b)||String(a.no??'').localeCompare(String(b.no??''),undefined,{numeric:true});});},
   populateSelects(){
-    const opts = DATA.practicals.map(p=>`<option value="${p.no}">${p.no}. ${p.title}</option>`).join("");
-    document.getElementById("evalPracticalSelect").innerHTML = opts;
-    document.getElementById("studentSubmitSelect").innerHTML = opts;
+    const same=this.sameContext();if(!same){this._dirty=false;this._loadedNo=null;document.getElementById('evalTableBody')?.replaceChildren();}
+    if(same&&this._dirty)return;
+    for(const id of ['evalPracticalSelect','studentSubmitSelect']){
+      const select=document.getElementById(id);if(!select)continue;const previous=select.value;select.replaceChildren();
+      for(const p of this.orderedPracticals()){const option=document.createElement('option');option.value=String(p.no);option.textContent=`${p.no}. ${p.title??''}`;select.append(option);}
+      if([...select.options].some(o=>o.value===previous))select.value=previous;
+    }
+    this._context=this.context();
   },
+  render(){if(!this.sameContext()||this._loadedNo==null)this.loadGrid();},
   loadGrid(){
-    const no = document.getElementById("evalPracticalSelect").value;
-    const marksForPractical = DATA.marks[no] || {};
-    const subs = DATA.submissions[no] || {};
-    document.getElementById("evalTableBody").innerHTML = DATA.trainees.map(t=>{
-      const m = marksForPractical[t.id] || {};
-      const sub = subs[t.id];
-      const inputs = CRITERIA.map(([key,max])=>
-        `<td><input type="number" min="0" max="${max}" value="${m[key]??''}" data-key="${key}" onchange="Evaluation.recalc('${t.id}')" id="ev-${t.id}-${key}"></td>`
-      ).join("");
-      return `<tr data-trainee="${t.id}">
-        <td>${t.roll} — ${t.name}</td>
-        ${inputs}
-        <td id="ev-${t.id}-total">${m.total ?? 0}</td>
-        <td>${sub? `<a href="${sub.link}" target="_blank">View</a> (${sub.date})` : '<span class="muted">—</span>'}</td>
-      </tr>`;
-    }).join("") || `<tr><td colspan="9" class="muted">Add trainees first.</td></tr>`;
+    if(SESSION?.role!=='instructor')return;
+    const select=document.getElementById('evalPracticalSelect'),no=select.value;
+    if(this.sameContext()&&this._dirty&&!confirm('Discard unsaved marks and load this practical?')){select.value=this._loadedNo;return;}
+    const body=document.getElementById('evalTableBody');body.replaceChildren();this._context=this.context();this._loadedNo=no;this._dirty=false;
+    this._marksSnapshot=JSON.stringify(DATA.marks[no]||{});
+    const records=Reports.sortedTrainees();this._traineeSnapshot=JSON.stringify(records.map(t=>t.id));
+    const cell=(row,text)=>{const td=document.createElement('td');if(text!==undefined)td.textContent=String(text??'');row.append(td);return td;};
+    records.forEach((t,index)=>{
+      const row=document.createElement('tr');row.dataset.trainee=t.id;const marks=DATA.marks[no]?.[t.id]||{},sub=DATA.submissions[no]?.[t.id];
+      cell(row,index+1);cell(row,t.roll);cell(row,t.name);
+      for(const [key,max] of CRITERIA){const input=document.createElement('input');input.type='number';input.min=0;input.max=max;input.step='1';input.value=marks[key]??'';input.id=`ev-${t.id}-${key}`;input.dataset.key=key;input.setAttribute('aria-label',`${t.roll} ${t.name} ${key} out of ${max}`);input.addEventListener('input',()=>{this._dirty=true;this.recalc(t.id);});cell(row).append(input);}
+      const total=cell(row,marks.total??0);total.id=`ev-${t.id}-total`;const submission=cell(row,'—');
+      try{const url=new URL(sub?.link);if(url.protocol==='https:'&&!url.username&&!url.password){const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='View submission';submission.replaceChildren(link);}}catch(e){}
+      body.append(row);
+    });
+    if(!records.length){const row=document.createElement('tr');cell(row,'Add trainees first.').colSpan=11;body.append(row);}
   },
   recalc(traineeId){
-    let total = 0;
-    CRITERIA.forEach(([key])=>{
-      const el = document.getElementById(`ev-${traineeId}-${key}`);
-      total += Number(el.value)||0;
-    });
-    document.getElementById(`ev-${traineeId}-total`).textContent = total;
+    let total=0;for(const [key] of CRITERIA)total+=Number(document.getElementById(`ev-${traineeId}-${key}`)?.value)||0;
+    const cell=document.getElementById(`ev-${traineeId}-total`);if(cell)cell.textContent=total;
   },
   saveGrid(){
-    const no = document.getElementById("evalPracticalSelect").value;
-    const rec = {};
-    document.querySelectorAll("#evalTableBody tr").forEach(row=>{
-      const id = row.dataset.trainee;
-      if(!id) return;
-      const entry = {};
-      let total=0;
-      CRITERIA.forEach(([key])=>{
-        const val = Number(document.getElementById(`ev-${id}-${key}`).value)||0;
-        entry[key]=val; total+=val;
-      });
-      entry.total = total;
-      rec[id]=entry;
-    });
-    DATA.marks[no] = rec;
-    saveData();
-    alert("Marks saved for practical "+no);
-    Trainees.render(); Dashboard.render();
+    if(SESSION?.role!=='instructor')return;
+    const no=document.getElementById('evalPracticalSelect').value;
+    if(!this.sameContext()||no!==this._loadedNo||JSON.stringify(DATA.marks[no]||{})!==this._marksSnapshot||JSON.stringify(Reports.sortedTrainees().map(t=>t.id))!==this._traineeSnapshot){alert('The workspace, practical, trainees or saved marks changed. Reload the grid before saving.');return;}
+    if(!DATA.practicals.some(p=>String(p.no)===no)){alert('Select a valid practical.');return;}
+    const rec={};
+    for(const row of document.querySelectorAll('#evalTableBody tr[data-trainee]')){
+      const id=row.dataset.trainee,entry={};let total=0;
+      for(const [key,max] of CRITERIA){const input=document.getElementById(`ev-${id}-${key}`),val=input.value===''?0:Number(input.value);if(!Number.isInteger(val)||val<0||val>max){alert(`Enter ${key} marks from 0 to ${max}.`);input.focus();return;}entry[key]=val;total+=val;}
+      entry.total=total;rec[id]=entry;
+    }
+    DATA.marks[no]=rec;saveData();this._marksSnapshot=JSON.stringify(rec);this._dirty=false;
+    alert('Marks saved for practical '+no);Trainees.render();Dashboard.render();
   },
   studentSubmit(){
     const no = document.getElementById("studentSubmitSelect").value;

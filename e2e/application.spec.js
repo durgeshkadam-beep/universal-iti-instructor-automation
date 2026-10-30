@@ -240,7 +240,7 @@ test('syllabus tables keep hostile fields inert and reject stale completion dial
   await page.evaluate(kind=>{const V=V15Sync;V.suppressLocalSync=true;clearTimeout(V.pendingTimer);const key=kind==='practical'?'practicals':'theory';window.syllabusOriginal=DATA[key];const markup='<img src=x onerror="window.syllabusInjection=true">';DATA[key]=[{no:"x');window.syllabusInjection=true;//",title:markup,unit:markup,hours:markup,sequence:1,status:'pending'}];(kind==='practical'?Practicals:Theory).render();},kind);
   const body=page.locator('#'+kind+'TableBody'),modal=page.locator('#'+kind+'EditModal');
   await expect(body.locator('img,script,[onclick],[onchange],[onerror]')).toHaveCount(0);await expect(body).toContainText('<img src=x');
-  await body.getByRole('button',{name:'Edit',exact:true}).click();await expect(modal.locator('textarea')).toHaveValue('<img src=x onerror="window.syllabusInjection=true">');await modal.getByRole('button',{name:'Cancel',exact:true}).click();
+  await body.locator('summary').click();await body.getByRole('button',{name:'Edit',exact:true}).click();await expect(modal.locator('textarea')).toHaveValue('<img src=x onerror="window.syllabusInjection=true">');await modal.getByRole('button',{name:'Cancel',exact:true}).click();
   await body.getByRole('button',{name:'Mark Complete',exact:true}).click();await expect(page.locator('#markCompleteItemLabel')).toContainText('<img src=x');
   await page.evaluate(kind=>{const key=kind==='practical'?'practicals':'theory';DATA[key]=[{...DATA[key][0],title:'Replacement topic'}];},kind);
   const dialog=page.waitForEvent('dialog'),click=page.locator('#markCompleteModal').getByRole('button',{name:'Confirm',exact:true}).click();const warning=await dialog;expect(warning.message()).toContain('syllabus changed');await warning.dismiss();await click;
@@ -526,4 +526,20 @@ test('Instructor Gmail approval activates a new Google Student with the issued c
  }finally{
   await context.close();await page.evaluate(async ({traineeId,email})=>{const V=V15Sync,M=V.fb.M;await M.deleteDoc(M.doc(V.col('trainees'),traineeId));await M.deleteDoc(V.secret(email));await M.deleteDoc(V.access(email));},{traineeId,email});
  }
+});
+
+test('Instructor progress, evaluation ordering and selected-month holidays use saved context',async({page})=>{
+ await login(page,'instructor');
+ await page.evaluate(()=>{
+  const V=V15Sync;V.suppressLocalSync=true;clearTimeout(V.pendingTimer);
+  DATA.practicals=[{no:'10',sequence:10,title:'Later topic',hours:2,status:'completed'},{no:'02',sequence:2,title:'Two-day practical',hours:7,plannedDate:'2026-10-27'},{no:'01',sequence:1,title:'First topic',hours:5,plannedDate:'2026-10-26'}];
+  DATA.theory=[];DATA.meta.scheduleMode='training-plan';DATA.meta.trainingPlan={dayPlan:[{date:'2026-10-26',practicalItems:[{seq:'01',hours:5}]},{date:'2026-10-27',practicalItems:[{seq:'02',hours:5}]},{date:'2026-10-30',practicalItems:[{seq:'02',hours:2}]}]};Dashboard.trainingToday=()=> '2026-10-30';
+  DATA.trainees=[{id:'synthetic-10',roll:'10',name:'Ten'},{id:'synthetic-2',roll:'02',name:'Two'},{id:'synthetic-1',roll:'1',name:'One'}];DATA.marks={};DATA.submissions={};DATA.holidays=[{date:'2026-10-02',label:'October holiday'},{date:'2026-11-01',label:'November holiday'}];
+ });
+ await page.evaluate(()=>V15Sync.finalOpenTab('dashboard'));const progress=page.locator('#trainingProgress');await expect(progress).toContainText('Behind plan');await expect(progress).toContainText('1 overdue incomplete');await expect(progress).toContainText('01. First topic');
+ await page.evaluate(()=>V15Sync.finalOpenTab('practicals'));const rows=page.locator('#practicalTableBody tr');await expect(rows.nth(0)).toHaveClass(/training-overdue/);await expect(rows.nth(1)).toContainText('Due today');await expect(rows.nth(2)).toHaveClass(/training-complete/);await expect(rows.nth(0).getByRole('button',{name:'Edit',exact:true})).not.toBeVisible();await rows.nth(0).locator('summary').click();await expect(rows.nth(0).getByRole('button',{name:'Edit',exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
+ if(test.info().project.name==='mobile')await page.locator('#tab-practicals').screenshot({path:'.tmp/instructor-practical-cards-mobile.png'});
+ await page.evaluate(()=>V15Sync.finalOpenTab('evaluation'));await expect(page.locator('#evalPracticalSelect option')).toHaveText(['01. First topic','02. Two-day practical','10. Later topic']);await expect(page.locator('#evalTableBody tr td:nth-child(2)')).toHaveText(['1','02','10']);
+ const mark=page.locator('#ev-synthetic-2-prep');await mark.fill('4');await page.evaluate(()=>{Evaluation.populateSelects();Evaluation.render();});await expect(mark).toHaveValue('4');page.once('dialog',d=>d.dismiss());await page.getByLabel('Practical for evaluation',{exact:true}).selectOption('02');await expect(page.getByLabel('Practical for evaluation',{exact:true})).toHaveValue('01');await expect(mark).toHaveValue('4');
+ await page.evaluate(()=>V15Sync.finalOpenTab('attendance'));await page.locator('#attDate').fill('2026-10-30');await page.locator('#attDate').dispatchEvent('change');await expect(page.locator('#holidayTableBody')).toContainText('October holiday');await expect(page.locator('#holidayTableBody')).not.toContainText('November holiday');await expect(page.locator('#v15AttMonth')).toHaveValue('2026-10');await page.locator('#v15AttMonth').fill('2026-11');await page.locator('#v15AttMonth').dispatchEvent('change');await expect(page.locator('#holidayTableBody')).toContainText('November holiday');await expect(page.locator('#attDate')).toHaveValue('2026-11-01');
 });

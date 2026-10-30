@@ -295,7 +295,7 @@
       </div>
 
       <div class="card accent-teal">
-        <h3>🗺️ Coming Up Next</h3>
+        <h3>🗺️ Plan vs Actual Progress</h3>
         <div id="dashRoadmap"></div>
       </div>
 
@@ -409,7 +409,7 @@
       <div id="instructorOnlyAttendance">
         <div class="field-row">
           <label>Date</label>
-          <input type="date" id="attDate">
+          <input type="date" id="attDate" onchange="Attendance.loadDay()">
           <button class="btn secondary" onclick="Attendance.loadDay()">Load</button>
         </div>
         <div id="attHolidayWarning"></div>
@@ -646,13 +646,13 @@
       <div id="instructorOnlyEval">
         <div class="field-row">
           <label>Practical No.</label>
-          <select id="evalPracticalSelect"></select>
+          <select id="evalPracticalSelect" aria-label="Practical for evaluation" onchange="Evaluation.loadGrid()"></select>
           <button class="btn secondary" onclick="Evaluation.loadGrid()">Load</button>
         </div>
         <table class="datatable" id="evalTable">
           <thead>
             <tr>
-              <th>Trainee</th>
+              <th>Sr. No.</th><th>Roll No.</th><th>Trainee</th>
               <th>Prep<br><small>/5</small></th>
               <th>Process<br><small>/8</small></th>
               <th>Accuracy<br><small>/8</small></th>
