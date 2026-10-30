@@ -71,3 +71,26 @@ test('instructor UI and public build include guarded bulk import',()=>{
  assert.match(html,/Download Excel Template/);
  assert.match(builder,/'trainee-bulk-import\.js'/);
 });
+
+test('offline CSV parses quoted commas, line breaks, unicode and leading zero rolls',()=>{
+ const f=setup();
+ const rows=f.T.parseCSV('\uFEFFRoll No.,Name,PRN / Application ID,Category,Mobile\r\n"001","More, One",PRN01,OPEN,0123\r\n"002","Line\nName",PRN02,SC,0456\r\n');
+ const result=f.T.parseRows(rows,f.data.trainees);
+ assert.equal(result.valid,2);assert.equal(result.rows[0].roll,'001');
+ assert.equal(result.rows[0].name,'More, One');
+ assert.equal(result.rows[1].name,'Line\nName');
+});
+test('offline CSV import works without SheetJS and never creates PIN',async()=>{
+ const f=setup();f.win.XLSX=null;
+ const csv='Roll No.,Name,PRN / Application ID,Category,Mobile\n004,Offline student,PRN004,OBC,0888\n';
+ await f.T.previewFile({name:'batch.csv',size:csv.length,text:async()=>csv});
+ assert.equal(f.T.pending.valid,1);assert.equal(f.T.commit(),true);assert.equal(f.data.trainees.at(-1).roll,'004');
+ assert.equal(f.data.trainees.at(-1).pin,undefined);
+});
+test('CSV malformed quoting rejects before preview and without any saved data',async()=>{
+ const f=setup();f.win.XLSX=null;
+ const csv='Roll No.,Name\n001,"unclosed';
+ await f.T.previewFile({name:'bad.csv',size:csv.length,text:async()=>csv});
+ assert.equal(f.T.pending,null);assert.equal(f.saves(),0);
+ assert.match(f.dom.elems.traineeBulkStatus.textContent,/Unclosed CSV quote/);
+});
