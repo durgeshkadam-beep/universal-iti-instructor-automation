@@ -2471,6 +2471,7 @@ const Trainees = {
     return (sum/count).toFixed(1)+"/35";
   },
   render(){
+    if(window.TraineeBulkImport)window.TraineeBulkImport.refreshScope();
     document.getElementById("traineeTableBody").innerHTML = DATA.trainees.map(t=>`
       <tr>
         <td>${t.roll}</td><td><div class="name-cell">${avatarChip(t.name)}<span>${t.name}</span></div></td>
@@ -3858,3 +3859,9 @@ const UniversalSyllabus = {
 // The original app binds the tab events during App.init(). Add a second listener for the new module.
 document.addEventListener('DOMContentLoaded',()=>{UniversalSyllabus.init();UniversalSyllabus.showCapacity(); if(typeof ModuleManager!=='undefined') ModuleManager.refresh();});
 
+
+// The Instructor import adapter accesses lexical records without exposing DATA publicly.
+if(window.TraineeBulkImport)window.TraineeBulkImport.bind({
+  data:()=>DATA,role:()=>SESSION?.role,id:()=>uid(),save:()=>saveData(),
+  refresh:()=>{Trainees.render();Evaluation.populateSelects();Reports.populateSelects();Leave.populateSelects();}
+});
