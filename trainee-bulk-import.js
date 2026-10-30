@@ -73,6 +73,7 @@ const T={
     return {uid:V?.fb?.user?.uid||'',workspaceId:V?.workspaceId||'',instituteId:V?.INSTITUTE_ID||'',data:this.data(),
       roster:JSON.stringify((this.data()?.trainees||[]).map(t=>[t.id,t.roll,t.prn||t.applicationId]))};
   },
+  refreshScope(){if(this.pending&&!this.sameContext(this.pending.c))this.cancel();},
   sameContext(c){
     if(!c||!this.access())return false;
     const now=this.context();
