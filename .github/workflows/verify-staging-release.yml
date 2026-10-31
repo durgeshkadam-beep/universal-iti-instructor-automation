@@ -10,7 +10,7 @@ on:
       release_commit:
         description: Exact already-published staging commit (40 hex characters)
         required: true
-        default: 'c77a76978498e6bdc9251e3efe32b606c9e0f5f7'
+        default: '22ce2670def02e703ba75800849a39e2543c6343'
 permissions:
   contents: read
 concurrency:
@@ -33,10 +33,10 @@ jobs:
       - run: npx --no-install playwright install --with-deps chromium
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_commit || 'c77a76978498e6bdc9251e3efe32b606c9e0f5f7' }}
+          ref: ${{ inputs.release_commit || '22ce2670def02e703ba75800849a39e2543c6343' }}
           path: .tmp/hosted-source
           persist-credentials: false
       - name: Verify published public files and desktop/mobile shell
         env:
-          EXPECTED_RELEASE: ${{ inputs.release_commit || 'c77a76978498e6bdc9251e3efe32b606c9e0f5f7' }}
+          EXPECTED_RELEASE: ${{ inputs.release_commit || '22ce2670def02e703ba75800849a39e2543c6343' }}
         run: node scripts/verify-hosted-staging.js --source-dir .tmp/hosted-source --expected-commit "$EXPECTED_RELEASE" --browser
