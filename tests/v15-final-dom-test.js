@@ -13,7 +13,7 @@ async function build(r){
   const dom=new JSDOM(html(),{url:'https://example.test/final/',runScripts:'outside-only',pretendToBeVisual:true});
   const w=dom.window;w.alert=()=>{};w.confirm=()=>true;w.prompt=()=>'';w.DATA={meta:{trade:'DTP',session:'2026-27',batch:'A'},trainees:[{id:'t1',name:'Student'}],attendance:{},practicals:[],theory:[],notices:[],leaves:[],exams:[]};
   w.Dashboard={render(){}};w.Trainees={render(){}};w.Attendance={loadDay(){}};w.Practicals={render(){}};w.Theory={render(){}};w.Schedule={render(){}};w.Evaluation={populateSelects(){},render(){}};w.Notices={render(){}};w.Leave={populateSelects(){},render(){}};w.Gallery={render(){}};w.ExtraTopics={render(){}};w.Activities={render(){}};w.Reports={populateSelects(){},renderSignatures(){}};w.Inspection={render(){}};w.ModuleManager={refresh(){}};w.InstructorAI={refreshTopicPicker(){},renderToday(){}};
-  w.todayISO=()=> '2026-10-30';w.UniversalSyllabus={state:{},renderPreview(){},renderCalendar(){},init(){}};w.RecordFormats={};
+  w.todayISO=()=> '2026-10-30';w.UniversalSyllabus={state:{},renderPreview(){},renderCalendar(){},init(){}};w.RecordFormats={};w.__printRefreshes=0;w.OtherPrintableRecords={init(){},refresh(){w.__printRefreshes++;}};
   w.App={buildMobileNav(){},switchTab(){throw new Error('legacy switchTab must not own final navigation');}};
   const calls={principalStaff:0};
   const V={ready:true,sessionRole:r,currentRole:()=>r,currentSession:()=>({role:r,name:'TEST USER'}),member:{owner:r==='admin',displayName:'TEST USER',workspaceIds:['w1','w2']},workspaceId:'w1',fb:{user:{displayName:'TEST USER'}},
@@ -35,6 +35,11 @@ async function build(r){
       ok(w.document.querySelectorAll('#v15FinalWorkspaceSwitcher').length===1,'instructor: exactly one Trade selector');
       const cards=[...w.document.querySelectorAll('#tab-attendance .card')].filter(x=>/Monthly Attendance Submission/i.test(x.textContent));
       ok(cards.length===1,'instructor: exactly one Monthly Attendance Submission card');
+      await V.finalOpenTab('record-formats');
+      const first=w.__printRefreshes;
+      await V.finalOpenTab('trainees');
+      await V.finalOpenTab('record-formats');
+      ok(first>0&&w.__printRefreshes===first+1,'instructor: reopening Record Formats refreshes current-workspace print selectors');
     }else ok(w.document.querySelectorAll('#v15FinalWorkspaceSwitcher').length===0,`${r}: no Instructor Trade selector`);
     w.close();
   }
