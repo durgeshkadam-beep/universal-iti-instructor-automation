@@ -60,3 +60,37 @@ test('syllabus text reading abandons a changed workspace and never automatically
 test('non-object JSON stays editable and cannot become a preview or saved plan',()=>{for(const raw of ['null','[]','"text"']){const f=setup();try{f.w.document.querySelector('#aiResultText').value=raw;f.ai.previewResult();f.ai.saveResult();assert.equal(f.preview().style.display,'none');assert.equal(f.saves(),0);assert.equal(f.w.document.querySelector('#aiResultText').value,raw);assert.match(f.w.document.querySelector('#aiModalStatus').textContent,/JSON error/);}finally{f.close();}}});
 
 test('V15 JSON cannot fall back to direct legacy writes when the authoritative saver is unavailable',()=>{const f=setup();try{f.ai.saveResult(true);assert.equal(f.saves(),0);assert.equal(f.w.DATA.practicals[0].planMeta,undefined);assert.match(f.w.document.querySelector('#aiModalStatus').textContent,/Secure plan saving is unavailable/);assert(f.w.document.querySelector('#aiResultText').value);}finally{f.close();}});
+
+test('free starter creates an unsaved practical scaffold from the real topic with no provider call',()=>{
+ const f=setup();try{
+  let backendCalls=0,writes=0;f.w.V15Sync.backendRequest=()=>{backendCalls++;throw Error('AI must not be used');};
+  f.w.V15Sync.saveReviewedTeachingPlan=()=>{writes++;};
+  const before=JSON.stringify(f.w.DATA);
+  f.ai.openPlanDraft('practical','002',true);
+  const json=JSON.parse(f.w.document.getElementById('aiResultText').value);
+  assert.equal(json.steps.length,1);
+  assert(json.objective[0].includes('Synthetic circuit demonstration'));
+  assert(json.steps[0].keyPoint.includes('[FILL BEFORE SAVE]'));
+  assert.equal(f.w.document.getElementById('aiPreviewBox').style.display,'block');
+  assert.match(f.w.document.getElementById('aiModalStatus').textContent,/created locally/);
+  f.ai.saveResult(true);f.ai.saveResult(false);
+  assert.match(f.w.document.getElementById('aiModalStatus').textContent,/Complete every/);
+  assert.equal(writes,0);assert.equal(backendCalls,0);assert.equal(f.saves(),0);
+  assert.equal(JSON.stringify(f.w.DATA),before);
+ }finally{f.close();}
+});
+test('free theory starter also requires completion before approval, preserving source identity and version',()=>{
+ const f=setup('theory');try{
+  let writes=0;
+  f.w.V15Sync.saveReviewedTeachingPlan=()=>{writes++;};
+  f.ai.openPlanDraft('theory','002',true);
+  const json=JSON.parse(f.w.document.getElementById('aiResultText').value);
+  assert.equal(json.steps[0].topic,'Synthetic circuit lesson');
+  assert(json.summary.includes('[FILL BEFORE SAVE]'));
+  f.ai.saveResult(true);assert.equal(writes,0);
+  // User edits all fields after reviewing the real lesson; no automatic approval.
+  const complete={objective:['Explain the reviewed learning outcome'],materials:['Reviewed reference diagram'],review:'Recall verified prerequisite',motivation:'State actual training relevance',steps:[{topic:'Synthetic circuit lesson',information:'Instructor verified information',spotHint:'Display a reviewed example'}],questions:['What is the reviewed concept?'],summary:'Instructor reviewed summary',assignment:'Complete the verified exercise',nextLesson:'Next verified lesson'};
+  f.w.document.getElementById('aiResultText').value=JSON.stringify(complete);
+  f.ai.saveResult(true);assert.equal(writes,1);
+ }finally{f.close();}
+});
