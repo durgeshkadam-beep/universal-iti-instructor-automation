@@ -2,12 +2,12 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {createService}=require('../server/service');
 const request={action:'ai',instituteId:'synthetic',workspaceId:'w',task:'career',language:'en',input:'Synthetic skill guidance',consent:true};
-function fixture({dailyLimit=5,fail=false,provider='gemini'}={}){
+function fixture({dailyLimit=5,globalAiDailyLimit=100,fail=false,provider='gemini'}={}){
  let time=Date.parse('2026-10-27T23:59:00Z'),calls=0;
  const records=new Map();
  function ref(path){return {path,collection:n=>ref(path+'/'+n),doc:n=>ref(path+'/'+n),get:async()=>({exists:true,data:()=>({ownerUid:'u',active:true,role:'student',workspaceIds:['w']})})};}
  const db={doc:ref,runTransaction:async fn=>fn({get:async r=>({exists:records.has(r.path),data:()=>records.get(r.path)}),set:(r,v)=>records.set(r.path,v)})};
- const config={provider,model:'synthetic',apiKey:'synthetic',dailyLimit};
+ const config={provider,model:'synthetic',apiKey:'synthetic',dailyLimit,globalAiDailyLimit};
  const api=createService({db,now:()=>time,verifyToken:async token=>{if(token==='invalid')throw Error('invalid');return {uid:token};},config,fetchImpl:async()=>{calls++;if(fail)throw Error('synthetic provider failure');return {ok:true,json:async()=>({candidates:[{content:{parts:[{text:'Synthetic reviewable draft'}]}}]})};}});
  return {api,calls:()=>calls,setLimit:n=>{config.dailyLimit=n;},nextDay:()=>{time+=86400000;}};
 }
@@ -45,4 +45,15 @@ test('Free Tier external AI blocks obvious student personal identifiers before c
  await f.api.execute('u',{...request,input:'Help practise a synthetic workshop interview'});
  assert.equal(f.calls(),1);
  await assert.rejects(f.api.execute('u',{...request,input:'Another synthetic interview'}),e=>e.status===429);
+});
+
+test('shared app-level provider cap protects a small Free Tier across students and instructors',async()=>{
+ const f=fixture({dailyLimit:5,globalAiDailyLimit:2});
+ await f.api.execute('student-one',request);
+ await f.api.execute('student-two',{...request,task:'interview'});
+ await assert.rejects(f.api.execute('instructor-three',{...request,task:'teaching'}),e=>e.status===429&&/Shared Free Tier/.test(e.message));
+ assert.equal(f.calls(),2);
+ f.nextDay();
+ await f.api.execute('student-one',request);
+ assert.equal(f.calls(),3);
 });
