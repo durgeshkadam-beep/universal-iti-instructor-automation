@@ -21,4 +21,14 @@ async function requestGemini(config,system,input,type,fetchImpl=fetch,pause=sign
  await pause(signal);signal.throwIfAborted();
  return fetchImpl(url,options);
 }
-module.exports={geminiBody,requestGemini,restSchema};
+function geminiChatBody(system,input,history){
+ return {systemInstruction:{parts:[{text:system}]},
+  contents:[...history.map(t=>({role:t.role==='assistant'?'model':'user',parts:[{text:t.text}]})),{role:'user',parts:[{text:input}]}],
+  generationConfig:{maxOutputTokens:1200}};
+}
+async function requestGeminiChat(config,system,input,history,fetchImpl=fetch){
+ const url=`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(config.model)}:generateContent`;
+ return fetchImpl(url,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':config.apiKey},
+  signal:AbortSignal.timeout(45000),body:JSON.stringify(geminiChatBody(system,input,history))});
+}
+module.exports={geminiBody,requestGemini,restSchema,geminiChatBody,requestGeminiChat};
