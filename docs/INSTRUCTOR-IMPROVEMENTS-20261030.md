@@ -19,7 +19,7 @@ Initial local validation: 289 native Node tests and 16/16 selected desktop/mobil
 3. Records/inspection/report/Drive navigation is grouped. Account/workspace-bound sanitised PDF capture and Drive consent/upload guards are implemented; see INSTRUCTOR-RECORDS-DRIVE-20261030.md. Real OAuth/Drive acceptance and overlapping-form review remain. PDF exports are not restorable institution backups.
 4. Existing branch work restored trainee Excel/CSV import with template, duplicate preview and stable IDs, independent of Firebase login provisioning. It was retained during year-planning integration; 12 focused combined browser checks passed; full CI acceptance remains required.
 5. Honest AI capability status and nearby JSON/manual help are implemented. Instructor-owned API keys require protected server storage and deployment/configuration; do not store keys in browser storage or public code. Year-plan revisions have authoritative transaction tests. Individual lesson/demo-plan revision history is implemented in the sixth workstream; its deployment and acceptance are separate.
-6. Final Instructor module acceptance, including an actual supplied MCQ test file and real-account Drive consent/printing. Accepted existing modules should not be redesigned unnecessarily.
+6. MCQ file review and transactional authority are implemented in the seventh workstream. An actual user-supplied MCQ file, real-account Drive consent/printing and final Instructor module acceptance remain pending. Accepted existing modules should not be redesigned unnecessarily.
 
 The operator subsequently published the chart-corrected 7c4f641 release. Independent GitHub runner checks matched all 70 hosted files and desktop/mobile login shells, local Chart.js canvas rendering and backend health/version (Published staging verification 41082061174 passed). See INSTRUCTOR-HOSTED-ACCEPTANCE-20261030.md for the exact scope, discovered CDN chart defect and follow-up publication status. This Work environment still has no authenticated Firebase CLI/operator session. No production deployment, main merge, real-student test write or credential publication is part of this change.
 
@@ -56,3 +56,7 @@ See [INSTRUCTOR-WORKPLACE-GUIDANCE-20261030.md](INSTRUCTOR-WORKPLACE-GUIDANCE-20
 ## Sixth workstream — teaching plan persistence and history
 
 See [TEACHING-PLAN-REVISIONS-20261031.md](TEACHING-PLAN-REVISIONS-20261031.md) for the Firestore procedure-table persistence defect, authoritative revision saves, stale-editor protection, recovery of existing queued drafts and scoped rules regression coverage. Firebase Hosting/rules and the staging API must be released together in the documented order. CI and deployment evidence are maintained in PR #16; implementation alone does not prove live acceptance.
+
+## Seventh workstream — reviewed MCQ files and current authority
+
+See [MCQ-REVIEWED-IMPORT-20261031.md](MCQ-REVIEWED-IMPORT-20261031.md) for the example/file preview workflow, explicit publication review, private answer-key checks, in-transaction permission/linkage revalidation, real defects, synthetic tests and deployment limits. The manual question form is retained. The user's own file and authenticated live acceptance remain separate from emulator/browser coverage.

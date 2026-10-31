@@ -5,6 +5,23 @@ if(!V)return;
 const role=()=>V.currentRole?.()||window.SESSION?.role||'';
 const el=(tag,value,parent)=>{const n=document.createElement(tag);if(value!=null)n.textContent=String(value);if(parent)parent.append(n);return n;};
 const error=(host,e)=>{host.textContent=e.message||String(e);};
+const EXAM_FILE_BYTES=150000;
+V.parseSecureExamJSON=function(raw,now=Date.now()){
+ if(typeof raw!=='string'||new Blob([raw]).size>EXAM_FILE_BYTES)throw Error('Use a JSON question set up to 150 KB.');
+ let e;try{e=JSON.parse(raw.replace(/^\uFEFF/,''));}catch{throw Error('Invalid JSON. Correct the text and preview it again.');}
+ const exact=(x,keys)=>x&&typeof x==='object'&&!Array.isArray(x)&&Object.keys(x).length===keys.length&&keys.every(k=>Object.hasOwn(x,k));
+ if(!exact(e,['id','title','durationMinutes','opensAt','closesAt','questions']))throw Error('Use exactly the six fields in the example template. Student records, extra fields and weighted marks are not supported.');
+ if(typeof e.id!=='string'||! /^[A-Za-z0-9_-]{1,160}$/.test(e.id))throw Error('Use an ID of 1–160 letters, numbers, underscores or hyphens. Reusing a published ID cannot overwrite its test.');
+ if(typeof e.title!=='string'||!e.title.trim()||e.title.trim().length>140)throw Error('Enter a test title up to 140 characters.');
+ if(!Number.isInteger(e.durationMinutes)||e.durationMinutes<1||e.durationMinutes>180)throw Error('Duration must be 1–180 whole minutes.');
+ if(!Number.isFinite(e.opensAt)||!Number.isFinite(e.closesAt)||!Number.isFinite(new Date(e.opensAt).getTime())||!Number.isFinite(new Date(e.closesAt).getTime())||e.closesAt<=e.opensAt||e.closesAt<=now)throw Error('Use valid opening/closing timestamps; closing must be later than opening and still in the future.');
+ if(!Array.isArray(e.questions)||e.questions.length<1||e.questions.length>100)throw Error('Use 1–100 questions.');
+ const questions=e.questions.map((q,i)=>{
+  if(!exact(q,['text','options','correctIndex'])||typeof q.text!=='string'||!q.text.trim()||q.text.length>2000||!Array.isArray(q.options)||q.options.length<2||q.options.length>6||!q.options.every(x=>typeof x==='string'&&x.trim()&&x.length<=500)||!Number.isInteger(q.correctIndex)||q.correctIndex<0||q.correctIndex>=q.options.length)throw Error('Question '+(i+1)+': use text up to 2000 characters, 2–6 nonempty options up to 500 characters each, and a valid zero-based correctIndex. Each question carries one mark.');
+  return {text:q.text.trim(),options:q.options.map(x=>x.trim()),correctIndex:q.correctIndex};
+ });
+ return {id:e.id,title:e.title.trim(),durationMinutes:e.durationMinutes,opensAt:e.opensAt,closesAt:e.closesAt,questions};
+};
 function examPublisher(host,status,current){
  const form=el('form',null,host);
  const active=()=>current()&&form.isConnected;
@@ -48,11 +65,48 @@ function examPublisher(host,status,current){
   catch(e){if(active()){status.textContent=(e.message||String(e))+' Your form is retained. If the connection failed, refresh the test list before creating another test.';controls.forEach((n,i)=>{n.disabled=disabled[i];});}else stale(true);}
   finally{publishing=false;}
  };
- const advanced=el('details',null,host);el('summary','Advanced: publish a reviewed JSON question set',advanced);
- el('p','Use a unique ID and a reviewed schedule. JSON supports 2–6 options per question.',advanced);
- const input=el('textarea',null,advanced);input.rows=10;input.setAttribute('aria-label','Exam JSON');
- const raw=el('button','Publish JSON question set',advanced);raw.type='button';raw.className='btn secondary';
- raw.onclick=async()=>{if(!active()){stale(false);return;}raw.disabled=true;input.disabled=true;try{await V.backendRequest({action:'publishExam',exam:JSON.parse(input.value)});if(!active()){stale(true);return;}status.textContent='Exam published with private answer key.';}catch(e){if(active())error(status,e);else stale(true);}finally{if(active()){raw.disabled=false;input.disabled=false;}}};
+ const advanced=el('details',null,host);advanced.id='exam-import';el('summary','Advanced: publish a reviewed JSON question set',advanced);
+ el('p','Download the example, replace its questions, then upload a .json file or paste JSON. Preview and review before publishing. Correct answers go to the protected backend on publication; Students receive questions without the answer key.',advanced);
+ const help=el('details',null,advanced);el('summary','How to prepare this question file',help);el('p','The six fields are id, title, durationMinutes, opensAt, closesAt and questions. Times are Unix milliseconds; the preview displays your local date/time. Each question has text, 2–6 options and correctIndex: 0 means the first option, 1 the second, and so on. Each question carries one mark. Use a new ID for a new test. Published tests cannot be edited. Word/PDF/Excel files and weighted marks are not imported.',help);
+ const template=el('button','Download example question file',advanced);template.type='button';template.className='btn secondary';
+ template.style.cssText='display:block;margin:12px 0';
+ template.onclick=()=>{if(!active()||publishing)return;const t=Date.now(),example={id:'exam-'+crypto.randomUUID(),title:'Example — replace with your test title',durationMinutes:30,opensAt:t-60000,closesAt:t+3600000,questions:[{text:'Which format preserves page layout for printing?',options:['TXT','PDF','CSV','LOG'],correctIndex:1}]};const url=URL.createObjectURL(new Blob([JSON.stringify(example,null,2)],{type:'application/json'})),a=el('a');a.href=url;a.download='ITI-MCQ-example.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+ const uploadLabel=el('label','Question JSON file (up to 150 KB)',advanced),file=el('input',null,uploadLabel);file.type='file';file.accept='.json,application/json';file.style.cssText=controlStyle;
+ uploadLabel.style.cssText='display:block;margin:12px 0';
+ const input=el('textarea',null,advanced);input.rows=10;input.maxLength=EXAM_FILE_BYTES;input.setAttribute('aria-label','Exam JSON');input.style.cssText=controlStyle;
+ const preview=el('button','Preview JSON question set',advanced);preview.type='button';preview.className='btn secondary';
+ preview.style.cssText='display:block;margin:12px 0';
+ const previewHost=el('section',null,advanced);previewHost.id='exam-import-preview';previewHost.style.cssText='overflow-wrap:anywhere';
+ const consentLabel=el('label',null,advanced),consent=el('input',null,consentLabel);consent.type='checkbox';consent.style.width='auto';consent.disabled=true;consentLabel.append(' I reviewed this imported question set and its schedule.');
+ consentLabel.style.cssText='display:flex;align-items:flex-start;gap:10px;margin:16px 0';consent.style.cssText='width:auto;flex-shrink:0;margin-top:4px';
+ const raw=el('button','Publish JSON question set',advanced);raw.type='button';raw.className='btn secondary';raw.disabled=true;
+ raw.style.cssText='display:block;margin:12px 0';
+ let reviewed=null,readGeneration=0,rawPublished=false;
+ const invalidate=()=>{reviewed=null;consent.checked=false;consent.disabled=true;raw.disabled=true;previewHost.replaceChildren();};
+ input.addEventListener('input',()=>{readGeneration++;invalidate();});
+ consent.onchange=()=>{raw.disabled=!reviewed||!consent.checked||publishing||rawPublished;};
+ file.onchange=async()=>{
+  if(!active()||publishing||rawPublished)return;const selected=file.files?.[0],generation=++readGeneration;invalidate();if(!selected)return;
+  if(!/\.json$/i.test(selected.name)||selected.size>EXAM_FILE_BYTES){status.textContent='Select a .json question set up to 150 KB. Your pasted text was retained.';return;}
+  try{const text=await selected.text();if(!active()||generation!==readGeneration||publishing||rawPublished)return;input.value=text;status.textContent='File loaded locally. Preview and review it before publishing; no records changed.';}
+  catch{if(active()&&generation===readGeneration)status.textContent='File could not be read. Your pasted text was retained.';}
+ };
+ preview.onclick=()=>{
+  if(!active()){stale(false);return;}if(publishing||rawPublished)return;readGeneration++;invalidate();
+  try{const exam=V.parseSecureExamJSON(input.value);el('h3',exam.title,previewHost);el('p','Test ID: '+exam.id+' · '+exam.questions.length+' questions · '+exam.durationMinutes+' minutes · '+exam.questions.length+' total marks',previewHost);el('p','Opens: '+new Date(exam.opensAt).toLocaleString()+' · Closes: '+new Date(exam.closesAt).toLocaleString()+' (device local time)',previewHost);
+   const list=el('ol',null,previewHost);for(const q of exam.questions){const row=el('li',null,list);el('p',q.text,row);const options=el('ol',null,row);for(const option of q.options)el('li',option,options);el('p','Correct answer: '+(q.correctIndex+1)+'. '+q.options[q.correctIndex],row);}
+   reviewed={text:input.value};consent.disabled=false;status.textContent='Preview only. Check every correct answer and both dates, then tick the review box to publish.';
+  }catch(e){error(status,e);}
+ };
+ raw.onclick=async()=>{
+  if(!active()){stale(false);return;}if(publishing||rawPublished)return;
+  if(!reviewed||reviewed.text!==input.value||!consent.checked){invalidate();status.textContent='Preview and review the current JSON before publishing. Your text was retained.';return;}
+  let exam;try{exam=V.parseSecureExamJSON(input.value);}catch(e){invalidate();error(status,e);return;}
+  publishing=true;const controls=[...advanced.querySelectorAll('input,textarea,button')],disabled=controls.map(n=>n.disabled);controls.forEach(n=>n.disabled=true);status.textContent='Publishing reviewed question set…';
+  try{await V.backendRequest({action:'publishExam',exam});if(!active()){stale(true);return;}rawPublished=true;status.textContent='Exam published with private answer key. Students can now open it during its scheduled time.';}
+  catch(e){if(active())status.textContent=(e.message||String(e))+' Your JSON is retained. If a request was sent, reopen this test list to check its ID before retrying.';else stale(true);}
+  finally{publishing=false;if(active()&&!rawPublished)controls.forEach((n,i)=>n.disabled=disabled[i]);}
+ };
 }
 V.backendRequest=async function(payload){
  if(!V.ready||!V.fb?.user)throw Error('Verified sign-in required.');
@@ -123,8 +177,8 @@ if(oldExamLoad)V.load=function(...args){this._examRenderGeneration=(this._examRe
 V.renderSecureExams=async function(){
  const host=document.getElementById('tab-exams');if(!host)return;
  const currentRole=role(),student=currentRole==='student';
- const generation=V._examRenderGeneration=(V._examRenderGeneration||0)+1,workspace=V.workspaceId,uid=V.fb?.user?.uid;
- const current=()=>V.ready===true&&V._examRenderGeneration===generation&&role()===currentRole&&V.workspaceId===workspace&&V.fb?.user?.uid===uid;
+ const generation=V._examRenderGeneration=(V._examRenderGeneration||0)+1,workspace=V.workspaceId,uid=V.fb?.user?.uid,institute=V.INSTITUTE_ID,db=V.fb?.db,api=window.ITI_RUNTIME?.apiUrl;
+ const current=()=>V.ready===true&&V._examRenderGeneration===generation&&role()===currentRole&&V.workspaceId===workspace&&V.fb?.user?.uid===uid&&V.INSTITUTE_ID===institute&&V.fb?.db===db&&window.ITI_RUNTIME?.apiUrl===api;
  host.replaceChildren();
  if(!V.ready||(!student&&currentRole!=='instructor')){el('p',V.ready?'Tests are not available for this role.':'Wait for your workspace to finish loading.',host);return;}
  el('h2',student?'Secure Class Tests':'Secure MCQ Examinations',host);

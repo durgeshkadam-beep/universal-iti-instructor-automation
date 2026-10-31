@@ -25,6 +25,18 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
   const message=task==='ai'?`Daily AI request limit reached (${max} attempts, including failed requests). Resets at ${reset}. Use manual mode or keyless guidance.`:'Daily request limit reached';
   await db.runTransaction(async tx=>{const ref=db.doc('apiLimits/'+key),z=await tx.get(ref),n=z.exists?z.data().count:0;requireValue(n<max,message,429);tx.set(ref,{count:n+1,expiresAt:new Date(time+172800000)});});
  }
+ async function currentExamAccess(tx,u,ws,student){
+  const root=ws.parent.parent;
+  const [institute,profile,workspace]=await Promise.all([tx.get(root),tx.get(root.collection('members').doc(u.uid)),tx.get(ws)]);
+  const member=profile.exists?profile.data():null;
+  let owner=institute.exists&&institute.data().ownerUid===u.uid;
+  if(!owner&&institute.exists&&member?.owner===true){const grant=await tx.get(root.collection('systemAdmins').doc(u.uid));owner=adminAuthority.allowed(grant.exists?grant.data():null,member,u);}
+  requireValue(institute.exists&&(owner||(member?.active===true&&(member.role==='principal'||member.workspaceIds?.includes(ws.id)))),'Workspace access denied',403);
+  requireValue(workspace.exists,'Workspace missing',404);requireValue(workspace.data().status!=='archived','This workspace is archived; examinations are unavailable.',409);
+  if(student)requireValue(member?.active===true&&member.role==='student'&&typeof member.traineeId==='string'&&member.traineeId.length>0,'Activated student required',403);
+  else requireValue(owner||['principal','instructor'].includes(member?.role),'Instructor access required',403);
+  return member;
+ }
  return {async execute(token,body){
   const {action,instituteId,workspaceId}=body||{};
   const {u,member,owner,ws}=await authorize(token,instituteId,workspaceId);
@@ -59,7 +71,7 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
    requireValue(Number.isFinite(e.opensAt)&&Number.isFinite(e.closesAt)&&e.closesAt>e.opensAt&&e.closesAt>now(),'Invalid exam schedule');
    const questions=e.questions.map((q,j)=>{requireValue(q&&typeof q.text==='string'&&q.text.trim().length>0&&q.text.length<=2000&&Array.isArray(q.options)&&q.options.length>=2&&q.options.length<=6&&q.options.every(x=>typeof x==='string'&&x.trim()&&x.length<=500)&&Number.isInteger(q.correctIndex)&&q.correctIndex>=0&&q.correctIndex<q.options.length,'Invalid question '+(j+1));return {id:String(j),text:q.text.trim(),options:q.options.map(x=>x.trim())};});
    const pub=ws.collection('secureExams').doc(e.id),keys=ws.collection('examKeys').doc(e.id);
-   await db.runTransaction(async tx=>{requireValue(!(await tx.get(pub)).exists,'Published exams are immutable; use a new ID',409);tx.set(pub,{title:e.title.trim(),questions,durationMinutes:e.durationMinutes,opensAt:e.opensAt,closesAt:e.closesAt,published:true,createdBy:u.uid,createdAt:now()});tx.set(keys,{answers:e.questions.map(q=>q.correctIndex)});});
+   await db.runTransaction(async tx=>{await currentExamAccess(tx,u,ws,false);requireValue(e.closesAt>now(),'The exam schedule closed before publication; review its dates.',409);requireValue(!(await tx.get(pub)).exists,'Published exams are immutable; use a new ID',409);tx.set(pub,{title:e.title.trim(),questions,durationMinutes:e.durationMinutes,opensAt:e.opensAt,closesAt:e.closesAt,published:true,createdBy:u.uid,createdAt:now()});tx.set(keys,{answers:e.questions.map(q=>q.correctIndex)});});
    return {id:e.id};
   }
   if(action==='startExam'||action==='submitExam'){
@@ -67,14 +79,16 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
    requireValue(id(body.examId),'Invalid exam ID');
    const resultId=body.examId+'--'+u.uid,examRef=ws.collection('secureExams').doc(body.examId),sessionRef=ws.collection('examSessions').doc(resultId),resultRef=ws.collection('secureResults').doc(resultId);
    return db.runTransaction(async tx=>{
+    const currentMember=await currentExamAccess(tx,u,ws,true);
     const [e,s,r]=await Promise.all([tx.get(examRef),tx.get(sessionRef),tx.get(resultRef)]);
+    for(const saved of [s,r])if(saved.exists)requireValue(saved.data().studentUid===u.uid&&saved.data().traineeId===currentMember.traineeId,'Student linkage changed; ask your instructor to review this attempt.',409);
     if(r.exists)return {result:r.data()};
     requireValue(e.exists&&e.data().published,'Exam unavailable',404);const exam=e.data(),t=now();
     if(action==='startExam'){
      requireValue(t>=exam.opensAt&&t<exam.closesAt,'Exam is outside its schedule',409);
-     if(s.exists)return {deadline:s.data().deadline};
+     if(s.exists){requireValue(t<=s.data().deadline,'Exam time expired; ask your instructor',409);return {deadline:s.data().deadline};}
      const deadline=Math.min(t+exam.durationMinutes*60000,exam.closesAt);
-     tx.set(sessionRef,{studentUid:u.uid,traineeId:member.traineeId,startedAt:t,deadline});return {deadline};
+     tx.set(sessionRef,{studentUid:u.uid,traineeId:currentMember.traineeId,startedAt:t,deadline});return {deadline};
     }
     requireValue(s.exists,'Start the exam first',409);
     requireValue(t<=s.data().deadline,'Exam time expired; ask your instructor',409);
@@ -82,7 +96,7 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
     requireValue(Array.isArray(answers)&&answers.length===exam.questions.length&&answers.every((a,j)=>a===null||(Number.isInteger(a)&&a>=0&&a<exam.questions[j].options.length)),'Invalid answer submission');
     const key=await tx.get(ws.collection('examKeys').doc(body.examId));requireValue(key.exists,'Answer key missing',503);
     const score=answers.reduce((n,a,j)=>n+(a===key.data().answers[j]?1:0),0);
-    const result={examId:body.examId,studentUid:u.uid,traineeId:member.traineeId,score,total:exam.questions.length,submittedAt:t};
+    const result={examId:body.examId,studentUid:u.uid,traineeId:currentMember.traineeId,score,total:exam.questions.length,submittedAt:t};
     tx.set(resultRef,result);return {result};
    });
   }
