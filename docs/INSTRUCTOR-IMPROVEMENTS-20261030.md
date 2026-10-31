@@ -60,3 +60,5 @@ See [TEACHING-PLAN-REVISIONS-20261031.md](TEACHING-PLAN-REVISIONS-20261031.md) f
 ## Seventh workstream — reviewed MCQ files and current authority
 
 See [MCQ-REVIEWED-IMPORT-20261031.md](MCQ-REVIEWED-IMPORT-20261031.md) for the example/file preview workflow, explicit publication review, private answer-key checks, in-transaction permission/linkage revalidation, real defects, synthetic tests and deployment limits. The manual question form is retained. The user's own file and authenticated live acceptance remain separate from emulator/browser coverage.
+
+The same session discovered new failing dependency gates on the existing dependency tree. [DEPENDENCY-SECURITY-20261031.md](DEPENDENCY-SECURITY-20261031.md) records the primary advisories, patched engines, preserved CLI compatibility, failed candidate installation and required final validation. This is a separate logical security commit, not an AI-provider or production configuration change.

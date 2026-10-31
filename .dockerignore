@@ -11,3 +11,7 @@
 
 !shared/syllabus-planning.js
 !shared/teaching-plan.js
+!vendor/
+!vendor/minimatch-compat/
+!vendor/minimatch-compat/package.json
+!vendor/minimatch-compat/index.cjs
