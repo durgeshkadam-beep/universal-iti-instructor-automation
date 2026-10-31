@@ -2413,7 +2413,13 @@ const Trainees = {
     const guardianName = document.getElementById("mGuardian").value.trim();
     const guardianPhone = document.getElementById("mGuardianPhone").value.trim();
     if(!roll || !name){ alert("Roll No. and Name are required."); return; }
-    if(DATA.trainees.some(t=>t.roll===roll)){ alert("A trainee with this Roll No. already exists."); return; }
+    const existingRoll=String(roll).toLowerCase();
+    if(DATA.trainees.some(t=>String(t.roll||"").trim().toLowerCase()===existingRoll)){
+      alert("A trainee with this Roll No. already exists.");return;
+    }
+    if(prn&&DATA.trainees.some(t=>String(t.prn||t.applicationId||"").trim().toLowerCase()===prn.toLowerCase())){
+      alert("A trainee with this PRN / Application ID already exists.");return;
+    }
     const modern=!!window.__ITI_V15;
     const trainee={id:uid(), roll, name, prn, prnStatus: prn? "Allotted":"Pending", category, phone, guardianName, guardianPhone};
     if(modern)trainee.accountStatus="not-linked";
@@ -2450,6 +2456,9 @@ const Trainees = {
     saveData(); Trainees.render(); Evaluation.populateSelects(); Reports.populateSelects();
   },
   remove(id){
+    // V15 attendance, marks, leave and Firebase memberships reference the stable
+    // trainee ID. Do not cascade-delete or orphan them through the legacy client.
+    if(window.__ITI_V15){alert("Permanent trainee deletion is disabled in the secure workspace. Preserve the record and use a reviewed Institute Admin archive process.");return;}
     if(!confirm("Remove this trainee?")) return;
     DATA.trainees = DATA.trainees.filter(t=>t.id!==id);
     saveData(); Trainees.render(); Evaluation.populateSelects(); Reports.populateSelects();
@@ -2518,7 +2527,7 @@ const Trainees = {
         }
       }
       const actions=addCell(tr,"");
-      if(instructor)actions.appendChild(makeButton("Remove",()=>Trainees.remove(t.id)));
+      if(instructor&&!window.__ITI_V15)actions.appendChild(makeButton("Remove",()=>Trainees.remove(t.id)));
       body.appendChild(tr);
     });
   }};
