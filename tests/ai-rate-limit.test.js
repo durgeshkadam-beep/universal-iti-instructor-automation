@@ -51,7 +51,7 @@ test('shared app-level provider cap protects a small Free Tier across students a
  const f=fixture({dailyLimit:5,globalAiDailyLimit:2});
  await f.api.execute('student-one',request);
  await f.api.execute('student-two',{...request,task:'interview'});
- await assert.rejects(f.api.execute('instructor-three',{...request,task:'teaching'}),e=>e.status===429&&/Shared Free Tier/.test(e.message));
+ await assert.rejects(f.api.execute('student-three',{...request,task:'career'}),e=>e.status===429&&/Shared Free Tier/.test(e.message));
  assert.equal(f.calls(),2);
  f.nextDay();
  await f.api.execute('student-one',request);
