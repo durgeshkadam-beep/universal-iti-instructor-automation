@@ -28,7 +28,7 @@ test('AI allowance is per authenticated user and resets on the next UTC day',asy
 });
 test('missing consent, invalid authentication and keyless guidance never consume provider calls',async()=>{
  const f=fixture({dailyLimit:1});await assert.rejects(f.api.execute('invalid',request),e=>e.status===401);await assert.rejects(f.api.execute('u',{...request,consent:false}),e=>e.status===400);await f.api.execute('u',request);assert.equal(f.calls(),1);
- const guided=fixture({provider:'none'});for(let i=0;i<12;i++)assert.equal((await guided.api.execute('u',request)).mode,'guided');assert.equal(guided.calls(),0);
+ const guided=fixture({provider:'none'});for(let i=0;i<12;i++)assert.equal((await guided.api.execute('u',request)).mode,'guided');assert.equal((await guided.api.execute('u',{...request,input:'My email is private@example.org'})).mode,'guided');assert.equal(guided.calls(),0);
 });
 
 test('Free Tier external AI blocks obvious student personal identifiers before consuming provider quota',async()=>{
