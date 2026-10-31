@@ -75,6 +75,7 @@ function examPublisher(host,status,current){
  advancedHeading.style.cssText='font-weight:700;cursor:pointer;padding:6px 0;min-height:40px';
  host.insertBefore(advanced,form);
  const manualHeading=el('h3','Or create questions manually below',form);
+ form.prepend(manualHeading);
  manualHeading.style.cssText='margin:12px 0 0';
  el('p','Download the example, replace its questions, then upload a .json file or paste JSON. Preview and review before publishing. Correct answers go to the protected backend on publication; Students receive questions without the answer key.',advanced);
  const help=el('details',null,advanced);el('summary','How to prepare this question file',help);el('p','The six fields are id, title, durationMinutes, opensAt, closesAt and questions. Times are Unix milliseconds; the preview displays your local date/time. Each question has text, 2–6 options and correctIndex: 0 means the first option, 1 the second, and so on. Each question carries one mark. Use a new ID for a new test. Published tests cannot be edited. Word/PDF/Excel files and weighted marks are not imported.',help);
