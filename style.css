@@ -645,3 +645,16 @@ body.role-principal .tabs{justify-content:flex-start}
 
 /* Reviewed syllabus import and year-plan controls. */
 #uPreviewBody input,#uPreviewBody select,#uPreviewBody textarea{box-sizing:border-box;max-width:100%;min-width:90px;width:100%;padding:8px;border:1px solid #c6d0da;border-radius:6px;font:inherit}#uPreviewBody textarea{min-width:220px}#uCapacitySummary{padding:10px 0}#uCapacitySummary p{margin:7px 0}#yearPlanViews{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#yearPlanViews p{flex-basis:100%;margin:0 0 4px}#yearPlanViews select,#yearPlanViews input{max-width:100%;box-sizing:border-box;padding:9px;border:1px solid #c6d0da;border-radius:7px}.planning-saving-dialog{max-width:calc(100vw - 60px);border:1px solid #dbe2e8;border-radius:12px;padding:24px;color:#173b5a}.planning-saving-dialog::backdrop{background:#102a4366}
+
+/* Instructor Teaching Assistant: responsive, free-first and clearly labelled. */
+#tab-ai-assistant .instructor-ai-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+#tab-ai-assistant .instructor-ai-workflow{min-width:0;overflow-wrap:anywhere}
+#tab-ai-assistant .instructor-ai-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
+#tab-ai-assistant .instructor-ai-actions button{min-height:44px;white-space:normal}
+#tab-ai-assistant .instructor-ai-steps{padding-left:22px;line-height:1.65;display:grid;gap:8px}
+#tab-ai-assistant #aiTopicSelect{min-width:0;box-sizing:border-box}
+@media(max-width:600px){
+ #tab-ai-assistant .instructor-ai-grid{grid-template-columns:minmax(0,1fr)}
+ #tab-ai-assistant .instructor-ai-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+ #tab-ai-assistant .instructor-ai-actions button{width:100%}
+}
