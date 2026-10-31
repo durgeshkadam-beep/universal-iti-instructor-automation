@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cryp
 const {execFileSync}=require('node:child_process');
 const ORIGIN='https://universal-iti-dk-staging.web.app';
 const API='https://universal-iti-staging-api.onrender.com';
-const RELEASE='22ce2670def02e703ba75800849a39e2543c6343';
+const RELEASE='00dee566bd5c3a3afc703c327f34f5410703d306';
 const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 function entries(manifest){
  if(!manifest||!Array.isArray(manifest.files)||manifest.files.length<1||manifest.files.length>150)throw Error('Invalid public manifest');
@@ -58,7 +58,7 @@ async function browserCheck(){
    try{
     const response=await page.goto(ORIGIN+'/v15/',{waitUntil:'domcontentloaded',timeout:60000});
     if(response?.status()!==200)throw Error('Hosted login shell unavailable');
-    await page.waitForFunction(()=>!!window.V15Sync&&!!window.ITISyllabusPlanning&&!!window.CloudCenter&&typeof Chart==='function'&&typeof V15Sync.workplaceDraftPrompt==='function'&&typeof V15Sync.parseWorkplaceDraft==='function'&&typeof window.ITITeachingPlan?.validatePlan==='function'&&typeof V15Sync.saveReviewedTeachingPlan==='function'&&typeof V15Sync.openTeachingHistory==='function'&&typeof V15Sync.reviewPendingTeachingDraft==='function',{},{timeout:30000});
+    await page.waitForFunction(()=>!!window.V15Sync&&!!window.ITISyllabusPlanning&&!!window.CloudCenter&&typeof Chart==='function'&&typeof V15Sync.workplaceDraftPrompt==='function'&&typeof V15Sync.parseWorkplaceDraft==='function'&&typeof window.ITITeachingPlan?.validatePlan==='function'&&typeof V15Sync.saveReviewedTeachingPlan==='function'&&typeof V15Sync.openTeachingHistory==='function'&&typeof V15Sync.reviewPendingTeachingDraft==='function'&&typeof V15Sync.parseSecureExamJSON==='function',{},{timeout:30000});
     await page.locator('#loginScreen').waitFor({state:'visible',timeout:15000});
     const result=await page.evaluate(()=>{
      const canvas=document.createElement('canvas');canvas.width=240;canvas.height=160;
@@ -74,10 +74,15 @@ async function browserCheck(){
      const plan=ITITeachingPlan.validatePlan('practicals',{objective:['Synthetic inspection'],steps:[['Inspect the synthetic diagram.','Check its label.','Point to the diagram.']]});
      let invalidDraftRejected=false;try{ITITeachingPlan.validatePlan('practicals',{objective:'Invalid list shape'});}catch{invalidDraftRejected=true;}
      const teaching={objectRows:!Array.isArray(plan.steps[0])&&plan.steps[0].procedure==='Inspect the synthetic diagram.',invalidDraftRejected};
-     const result={version:Chart.version,paintedPixels:painted,localChart:[...document.scripts].some(s=>s.src===location.origin+'/assets/vendor/chart.umd.js'),oldChartCDN:[...document.scripts].some(s=>/cdnjs.*Chart\.js/.test(s.src)),contained:document.documentElement.scrollWidth<=innerWidth+1,workplace,teaching};
+     const t=Date.now(),sampleExam={id:'synthetic-hosted-validation',title:' Synthetic reviewed question set ',durationMinutes:10,opensAt:t-60000,closesAt:t+3600000,questions:[{text:' Synthetic question ',options:[' First ',' Second '],correctIndex:1}]};
+     const exam=V15Sync.parseSecureExamJSON(JSON.stringify(sampleExam));let weightedMarksRejected=false,closedScheduleRejected=false;
+     try{V15Sync.parseSecureExamJSON(JSON.stringify({...sampleExam,questions:[{...sampleExam.questions[0],marks:5}]}));}catch{weightedMarksRejected=true;}
+     try{V15Sync.parseSecureExamJSON(JSON.stringify({...sampleExam,closesAt:t-1}));}catch{closedScheduleRejected=true;}
+     const examinations={normalized:exam.title==='Synthetic reviewed question set'&&exam.questions[0].options[1]==='Second'&&exam.questions[0].correctIndex===1,weightedMarksRejected,closedScheduleRejected};
+     const result={version:Chart.version,paintedPixels:painted,localChart:[...document.scripts].some(s=>s.src===location.origin+'/assets/vendor/chart.umd.js'),oldChartCDN:[...document.scripts].some(s=>/cdnjs.*Chart\.js/.test(s.src)),contained:document.documentElement.scrollWidth<=innerWidth+1,workplace,teaching,examinations};
      chart.destroy();return result;
     });
-    if(result.version!=='4.4.4'||result.paintedPixels<200||!result.localChart||result.oldChartCDN||!result.contained||!Object.values(result.workplace).every(x=>x===true)||!Object.values(result.teaching).every(x=>x===true)||errors.length||firstPartyFailures.length)throw Error('Hosted browser checks failed: '+JSON.stringify({viewport,result,pageErrors:errors.length,firstPartyFailures}));
+    if(result.version!=='4.4.4'||result.paintedPixels<200||!result.localChart||result.oldChartCDN||!result.contained||!Object.values(result.workplace).every(x=>x===true)||!Object.values(result.teaching).every(x=>x===true)||!Object.values(result.examinations).every(x=>x===true)||errors.length||firstPartyFailures.length)throw Error('Hosted browser checks failed: '+JSON.stringify({viewport,result,pageErrors:errors.length,firstPartyFailures}));
     results.push({viewport,...result,pageErrors:errors.length});
    }finally{await context.close();}
   }
@@ -95,7 +100,7 @@ async function main(){
  try{expected=require(path.join(source,'scripts/build-web.js')).buildWeb({sourceDir:source,outputDir:path.join(temporary,'web'),runtime});}finally{fs.rmSync(temporary,{recursive:true,force:true});}
  const assets=await verifyFiles(expected);
  const health=JSON.parse((await bytes(API+'/healthz')).toString('utf8')),version=JSON.parse((await bytes(API+'/security-version')).toString('utf8'));
- if(health.ok!==true||version.yearPlanning!=='v1'||version.adminDelegation!=='v1'||version.teachingPlans!=='v1')throw Error('Staging backend version or health does not match');
+ if(health.ok!==true||version.yearPlanning!=='v1'||version.adminDelegation!=='v1'||version.teachingPlans!=='v1'||version.secureExams!=='v2')throw Error('Staging backend version or health does not match');
  const browsers=args.includes('--browser')?await browserCheck():[];
  console.log(JSON.stringify({ok:true,project:'universal-iti-dk-staging',release,readOnly:true,credentialsUsed:false,dataChanged:false,assets,backend:{healthy:true,...version},browsers,loginTested:false,firestoreRulesReadBack:false,driveUploadTested:false},null,2));
 }
