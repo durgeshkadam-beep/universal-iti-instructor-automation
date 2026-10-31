@@ -25,7 +25,7 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
   const reset=new Date(Date.parse(day+'T00:00:00Z')+86400000).toISOString().replace('T',' ').replace(':00.000Z',' UTC');
   const message=task==='ai'?`Daily AI request limit reached (${max} attempts, including failed requests). Resets at ${reset}. Use manual mode or keyless guidance.`:'Daily request limit reached';
   await db.runTransaction(async tx=>{
-   const personal=db.doc('apiLimits/'+key(uid)),shared=sharedMax>0?db.doc('apiLimits/'+key('shared-institute-ai')):null;
+   const personal=db.doc('apiLimits/'+key(uid)),shared=sharedMax>0?db.doc('apiLimits/sharedAI_'+key('provider-budget')):null;
    // Firestore transactions must perform all reads before the first write.
    const [p,g]=await Promise.all([tx.get(personal),shared?tx.get(shared):Promise.resolve(null)]);
    const used=p.exists?p.data().count:0,globalUsed=g?.exists?g.data().count:0;
