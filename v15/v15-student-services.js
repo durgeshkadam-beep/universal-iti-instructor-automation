@@ -241,6 +241,8 @@ V.renderCareerCoach=function(){
  enableChat();
  const consentLabel=el('label',null,host);consentLabel.style.display='block';const consent=el('input',null,consentLabel);consent.type='checkbox';consent.style.width='auto';consentLabel.append(' I consent to sending only the text above to the configured AI provider.');
  const ai=el('button','Request optional AI draft',host);ai.className='btn';ai.disabled=!window.ITI_RUNTIME?.apiUrl;
+ // Keep original one-shot AI consent/actions before the distinct Chat consent.
+ host.appendChild(chatCard);
  ai.onclick=async()=>{
   if(!consent.checked){output.textContent='Consent is required for external AI.';return;}
   const selected={task:task.value,language:language.value,input:input.value};
