@@ -107,6 +107,10 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
    if(body.task==='teaching')requireValue(teacher,'Instructor required',403);
    const teachingType=body.teachingType||(body.input.includes('\"nextDemo\"')?'practical':body.input.includes('\"items\"')&&body.input.includes('\"trade\"')?'syllabus':'theory');
    if(body.task==='teaching')requireValue(Object.hasOwn(teachingSchemas,teachingType),'Invalid teaching format');
+   // Free-tier prompts may be retained by a third-party provider. Reject obvious
+   // student identifiers before spending app quota or contacting external AI.
+   const privacyWarning=require('./ai-privacy').personalDataWarning(body.input);
+   requireValue(!privacyWarning,privacyWarning);
    if(!config.provider||config.provider==='none')return {mode:'guided',text:offlineGuide(body.task,body.language,body.input)};
    requireValue(body.consent===true,'Consent required before sending text to AI');
    await limit(u.uid,'ai',Number(config.dailyLimit)||20);
