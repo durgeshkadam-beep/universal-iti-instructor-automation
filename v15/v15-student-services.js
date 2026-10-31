@@ -65,7 +65,17 @@ function examPublisher(host,status,current){
   catch(e){if(active()){status.textContent=(e.message||String(e))+' Your form is retained. If the connection failed, refresh the test list before creating another test.';controls.forEach((n,i)=>{n.disabled=disabled[i];});}else stale(true);}
   finally{publishing=false;}
  };
- const advanced=el('details',null,host);advanced.id='exam-import';el('summary','Advanced: publish a reviewed JSON question set',advanced);
+ // Keep reviewed imports discoverable. Previously this closed accordion followed
+ // the long manual question form, so upload/preview/publish controls looked absent.
+ const advanced=el('details',null,host);advanced.id='exam-import';
+ advanced.open=true;advanced.className='card accent-teal';
+ advanced.style.cssText='margin:12px 0 20px;padding:16px;overflow-wrap:anywhere;min-width:0';
+ advanced.setAttribute('aria-label','MCQ file upload and reviewed publication');
+ const advancedHeading=el('summary','Advanced — MCQ template, file upload, preview & reviewed publish',advanced);
+ advancedHeading.style.cssText='font-weight:700;cursor:pointer;padding:6px 0;min-height:40px';
+ host.insertBefore(advanced,form);
+ const manualHeading=el('h3','Or create questions manually below',form);
+ manualHeading.style.cssText='margin:12px 0 0';
  el('p','Download the example, replace its questions, then upload a .json file or paste JSON. Preview and review before publishing. Correct answers go to the protected backend on publication; Students receive questions without the answer key.',advanced);
  const help=el('details',null,advanced);el('summary','How to prepare this question file',help);el('p','The six fields are id, title, durationMinutes, opensAt, closesAt and questions. Times are Unix milliseconds; the preview displays your local date/time. Each question has text, 2–6 options and correctIndex: 0 means the first option, 1 the second, and so on. Each question carries one mark. Use a new ID for a new test. Published tests cannot be edited. Word/PDF/Excel files and weighted marks are not imported.',help);
  const template=el('button','Download example question file',advanced);template.type='button';template.className='btn secondary';
