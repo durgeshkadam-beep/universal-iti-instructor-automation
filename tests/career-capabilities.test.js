@@ -71,7 +71,7 @@ test('student Career Mentor chats across turns without local storage, automatic 
   send.click();assert.equal(requests.length,0);assert.match(w.document.querySelector('#coach-chat-status').textContent,/Consent/);
   const consent=w.document.querySelector('#coach-chat-card input[type=checkbox]');assert(consent);consent.click();
   send.click();await settle();
-  assert.equal(requests.length,1);assert.deepEqual(requests[0].history,[]);
+  assert.equal(requests.length,1);assert.equal(requests[0].history.length,0);
   assert.equal(requests[0].action,'careerChat');
   assert.equal(w.document.querySelectorAll('#coach-chat-messages .career-chat-line').length,2);
   assert.equal(w.document.querySelectorAll('#coach-chat-messages script,[onerror]').length,0);
