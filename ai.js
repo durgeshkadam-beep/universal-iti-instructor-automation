@@ -64,10 +64,40 @@ const InstructorAI = {
   },
   syllabusItems(result){return (Array.isArray(result.items)?result.items:[]).map((x,i)=>({id:'ai_'+Date.now()+'_'+i,seq:i+1,type:x.type,no:String(x.no??x.sourceNo??''),module:x.module||'General',title:String(x.title||'').trim(),hours:x.hours==null||x.hours===''?'':Number(x.hours),confidence:Number(x.confidence)||0})).filter(x=>x.title);},
   localSyllabusAnalysis(text,trade,fileName){UniversalSyllabus.state.trade=trade;UniversalSyllabus.state.sourceName=fileName;UniversalSyllabus.state.analyzedAt=new Date().toISOString();UniversalSyllabus.state.items=UniversalSyllabus.classifyLines(text);UniversalSyllabus.renderPreview();UniversalSyllabus.status(`Basic local analysis complete: ${UniversalSyllabus.state.items.length} items. Review carefully.`,'ok');},
-  openPlanDraft(type,no){
+  openPlanDraft(type,no,keyless=false){
     if(SESSION?.role!=='instructor'){alert('Only the instructor can create/approve AI plans.');return;}
     const list=type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>String(x.no)===String(no));if(!item)return;
-    const prompt=this.buildPlanPrompt(type,item);this.state.pending={kind:'plan',type,no:item.no,item,context:syllabusContext(),institute:window.V15Sync?.INSTITUTE_ID,version:syllabusRecordVersion(item)};this.state.lastPrompt=prompt;this.state.lastResult=null;this.openModal(type==='practical'?`AI Demonstration Plan — ${no}`:`AI Lesson Plan — ${no}`,prompt,'');if(this.getKey())this.generatePending();
+    const prompt=this.buildPlanPrompt(type,item);this.state.pending={kind:'plan',type,no:item.no,item,context:syllabusContext(),institute:window.V15Sync?.INSTITUTE_ID,version:syllabusRecordVersion(item)};this.state.lastPrompt=prompt;this.state.lastResult=null;this.openModal(type==='practical'?`AI Demonstration Plan — ${no}`:`AI Lesson Plan — ${no}`,prompt,'');
+    if(keyless){
+      this.state.pending.source='keyless-starter';
+      document.getElementById('aiResultText').value=JSON.stringify(this.keylessPlan(type,item),null,2);
+      this.previewResult();
+      this.setAIStatus('Free starter created locally. Replace every [FILL BEFORE SAVE] field with actual teaching content before saving. No AI request or record change occurred.');
+    }else if(this.getKey())this.generatePending();
+  },
+  keylessPlan(type,item){
+    // Local form scaffold only. Never claim factual syllabus steps/tools or AI generation.
+    const topic=String(item?.title||'Selected topic').trim().slice(0,160);
+    const fill=label=>'[FILL BEFORE SAVE] '+label;
+    if(type==='practical')return {
+      objective:[fill('Write measurable outcomes for '+topic)],
+      tools:[fill('List actual tools, equipment, materials and training aids')],
+      steps:[{procedure:fill('Write the demonstration procedure for '+topic),keyPoint:fill('Specify precautions and quality checks'),spotHint:fill('Add what the instructor will show or observe')}],
+      questions:[fill('Write a practical competency-check question')],
+      nextDemo:fill('Identify the next authorised practical')
+    };
+    if(type==='theory')return {
+      objective:[fill('Write measurable learning outcomes for '+topic)],
+      materials:[fill('List real teaching aids and references')],
+      review:fill('Identify prior knowledge to revisit'),
+      motivation:fill('Explain the practical relevance of '+topic),
+      steps:[{topic,information:fill('Write verified teaching points'),spotHint:fill('Describe board work or checks for understanding')}],
+      questions:[fill('Write a comprehension question')],
+      summary:fill('Summarise verified lesson content'),
+      assignment:fill('Set an achievable assignment'),
+      nextLesson:fill('Identify the next authorised lesson')
+    };
+    throw Error('Choose an authorised practical or theory topic.');
   },
   requireCurrentPlan(p){
     if(p?.kind==='syllabus'){if(!p.context||SESSION?.role!=='instructor'||!syllabusContextCurrent(p.context)||p.institute!==window.V15Sync?.INSTITUTE_ID)throw new Error('The account or workspace changed. Reopen syllabus analysis.');return;}
@@ -75,7 +105,7 @@ const InstructorAI = {
     const list=p.type==='practical'?DATA.practicals:DATA.theory,item=list?.find(x=>String(x.no)===String(p.no));
     if(SESSION?.role!=='instructor'||!syllabusContextCurrent(p.context)||p.institute!==window.V15Sync?.INSTITUTE_ID||!item||syllabusRecordVersion(item)!==p.version)throw new Error('The account, workspace or topic changed. Reopen the plan before continuing.');
   },
-  openQuickPlan(){const sel=document.getElementById('aiTopicSelect');if(!sel?.value){alert('Select a theory/practical topic.');return;}let pair;try{pair=JSON.parse(sel.value);}catch{const cut=sel.value.indexOf(':');pair=[sel.value.slice(0,cut),sel.value.slice(cut+1)];}if(Array.isArray(pair)&&['theory','practical'].includes(pair[0]))this.openPlanDraft(pair[0],pair[1]);},
+  openQuickPlan(keyless=false){const sel=document.getElementById('aiTopicSelect');if(!sel?.value){alert('Select a theory/practical topic.');return;}let pair;try{pair=JSON.parse(sel.value);}catch{const cut=sel.value.indexOf(':');pair=[sel.value.slice(0,cut),sel.value.slice(cut+1)];}if(Array.isArray(pair)&&['theory','practical'].includes(pair[0]))this.openPlanDraft(pair[0],pair[1],keyless);},
   refreshTopicPicker(){
     const el=document.getElementById('aiTopicSelect');if(!el||typeof DATA==='undefined')return;const selected=el.value;el.replaceChildren();const blank=document.createElement('option');blank.value='';blank.textContent='Select a topic…';el.append(blank);
     for(const type of ['theory','practical']){const group=document.createElement('optgroup');group.label=type==='theory'?'Theory':'Practical';for(const item of (type==='theory'?DATA.theory:DATA.practicals)||[]){const option=document.createElement('option');option.value=JSON.stringify([type,String(item.no)]);option.textContent=`${type==='theory'?'Theory':'Practical'} ${item.sourceNo||item.no}: ${item.title}`;group.append(option);}el.append(group);}if([...el.options].some(x=>x.value===selected))el.value=selected;
@@ -108,7 +138,7 @@ const InstructorAI = {
       const style=document.createElement('style');style.textContent=RecordFormats.css(false);preview.append(style);
       const documentBody=document.createElement('div');documentBody.innerHTML=RecordFormats.render(p.type,p.no??p.item.no,norm);preview.append(documentBody);
       box.append(heading,notice,preview);}else box.innerHTML=`<h4>Syllabus preview</h4><p>${(r.items||[]).length} items returned for ${this.esc(r.trade||p.trade||'trade')}.</p>`;}catch(e){document.getElementById('aiPreviewBox').style.display='none';this.setAIStatus('JSON error: '+e.message,'error');}},
-  saveResult(approve=false){let r;try{if(typeof SESSION==='undefined'||SESSION?.role!=='instructor')throw new Error('Only the instructor can save or approve AI plans.');this.requireCurrentPlan(this.state.pending);r=this.parseResult();}catch(e){this.setAIStatus('JSON error: '+e.message,'error');return;}const p=this.state.pending;if(!p)return;if(p.kind==='syllabus'){if(!Array.isArray(r.items)||!r.items.length||r.items.length>500||r.items.some(x=>!x||typeof x!=='object'||Array.isArray(x))){this.setAIStatus('JSON error: provide 1–500 reviewed syllabus topics.','error');return;}const items=this.syllabusItems(r);UniversalSyllabus.state={...UniversalSyllabus.state,trade:r.trade||p.trade||'',sourceName:p.fileName||'AI import',analyzedAt:new Date().toISOString(),items};document.getElementById('uTrade').value=UniversalSyllabus.state.trade;UniversalSyllabus.renderPreview();UniversalSyllabus.status(`AI result loaded: ${items.length} items. Review/edit before applying.`,'ok');this.closeModal();return;}const list=p.type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>String(x.no)===String(p.no));if(!item)return;if(window.__ITI_V15){if(!window.V15Sync?.saveReviewedTeachingPlan){this.setAIStatus('Secure plan saving is unavailable. Reload; JSON is retained.','error');return;}return V15Sync.saveReviewedTeachingPlan({type:p.type,no:p.no,plan:this.normalizePlan(p.type,r),mode:'replace',status:approve?'approved':'ai-draft',pending:p});}item.plan=this.normalizePlan(p.type,r);delete item.planReviewRequired;item.planMeta={status:approve?'approved':'ai-draft',generatedAt:new Date().toISOString(),approvedAt:approve?new Date().toISOString():null,approvedBy:approve?(SESSION?.name||'Instructor'):null,provider:this.getKey()?'Gemini API':'Manual AI',model:this.getKey()?this.currentModel():'external/manual',version:Number(item.planMeta?.version||0)+1};saveData();this.closeModal();if(typeof PlanViewer!=='undefined')PlanViewer.open(p.type,p.no);alert(approve?'AI plan approved and kept as the instructor record.':'AI draft saved. Review it before approval.');}
+  saveResult(approve=false){let r;try{if(typeof SESSION==='undefined'||SESSION?.role!=='instructor')throw new Error('Only the instructor can save or approve AI plans.');this.requireCurrentPlan(this.state.pending);r=this.parseResult();if(this.state.pending?.kind==='plan'&&JSON.stringify(r).includes('[FILL BEFORE SAVE]'))throw Error('Complete every [FILL BEFORE SAVE] placeholder before saving or approving.');}catch(e){this.setAIStatus('JSON error: '+e.message,'error');return;}const p=this.state.pending;if(!p)return;if(p.kind==='syllabus'){if(!Array.isArray(r.items)||!r.items.length||r.items.length>500||r.items.some(x=>!x||typeof x!=='object'||Array.isArray(x))){this.setAIStatus('JSON error: provide 1–500 reviewed syllabus topics.','error');return;}const items=this.syllabusItems(r);UniversalSyllabus.state={...UniversalSyllabus.state,trade:r.trade||p.trade||'',sourceName:p.fileName||'AI import',analyzedAt:new Date().toISOString(),items};document.getElementById('uTrade').value=UniversalSyllabus.state.trade;UniversalSyllabus.renderPreview();UniversalSyllabus.status(`AI result loaded: ${items.length} items. Review/edit before applying.`,'ok');this.closeModal();return;}const list=p.type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>String(x.no)===String(p.no));if(!item)return;if(window.__ITI_V15){if(!window.V15Sync?.saveReviewedTeachingPlan){this.setAIStatus('Secure plan saving is unavailable. Reload; JSON is retained.','error');return;}return V15Sync.saveReviewedTeachingPlan({type:p.type,no:p.no,plan:this.normalizePlan(p.type,r),mode:'replace',status:approve?'approved':'ai-draft',pending:p});}item.plan=this.normalizePlan(p.type,r);delete item.planReviewRequired;item.planMeta={status:approve?'approved':'ai-draft',generatedAt:new Date().toISOString(),approvedAt:approve?new Date().toISOString():null,approvedBy:approve?(SESSION?.name||'Instructor'):null,provider:p.source==='keyless-starter'?'Local instructor template':this.getKey()?'Backend AI':'Manual AI',model:p.source==='keyless-starter'?'no-key starter':this.getKey()?this.currentModel():'external/manual',version:Number(item.planMeta?.version||0)+1};saveData();this.closeModal();if(typeof PlanViewer!=='undefined')PlanViewer.open(p.type,p.no);alert(approve?'AI plan approved and kept as the instructor record.':'AI draft saved. Review it before approval.');}
 };
 if(typeof document!=='undefined')document.addEventListener('DOMContentLoaded',()=>InstructorAI.init());
 if(typeof module!=='undefined'&&module.exports)module.exports={InstructorAI};
