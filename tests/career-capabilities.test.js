@@ -121,3 +121,26 @@ test('quota failures preserve chat composer and never claim that static guidance
   assert.equal(w.document.querySelector('#coach-chat-messages').textContent,'');
  }finally{dom.window.close();}
 });
+
+test('clearing a pending chat ignores its late reply and enables a new private conversation',async()=>{
+ let complete;
+ const {dom,w,V}=setup(async body=>{
+  if(body.action==='capabilities')return {aiConfigured:true};
+  if(!complete)return new Promise(resolve=>{complete=resolve;});
+  return {mode:'ai-chat',text:'A fresh career recommendation based only on the new question.'};
+ });
+ try{
+  V.renderCareerCoach();await settle();
+  const send=w.document.querySelector('#coach-chat-send'),chat=w.document.querySelector('#coach-chat-input');
+  w.document.querySelector('#coach-chat-card input[type=checkbox]').click();
+  chat.value='Original private question';send.click();assert.equal(send.disabled,true);
+  w.document.querySelector('#coach-chat-clear').click();
+  assert.equal(send.disabled,false);
+  w.document.querySelector('#coach-chat-card input[type=checkbox]').click();
+  chat.value='New separate question';send.click();await settle();
+  assert.match(w.document.querySelector('#coach-chat-messages').textContent,/fresh career recommendation/);
+  complete({mode:'ai-chat',text:'Old response must not reappear'});
+  await settle();
+  assert(!w.document.querySelector('#coach-chat-messages').textContent.includes('Old response'));
+ }finally{dom.window.close();}
+});
