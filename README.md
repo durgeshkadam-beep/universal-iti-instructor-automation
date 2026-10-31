@@ -1,3 +1,5 @@
+> **Staging changes — Draft PR #16.** See [production readiness, setup and limitations](docs/PRODUCTION-READINESS.md) and [validation report](docs/WORK-VALIDATION-20261022.md). This branch is not production-approved. New trusted Node API protects MCQ grading and optional AI. Core career guidance works without a key. Run `npm test`, `npm run test:rules`, and `npm run test:e2e` with Node 22 / Java 21. Historical version notes below may describe replaced behavior; the readiness guide is authoritative for this branch.
+
 # V14 — Modern UI + Free AI + Cloud & Drive Safety
 
 **Concept & Developed by Durgesh Kadam, Craft Instructor — DTP / DTPO**

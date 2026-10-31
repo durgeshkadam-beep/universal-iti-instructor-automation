@@ -1,0 +1,49 @@
+{
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "^1.56.1",
+    "esbuild": "^0.25.11",
+    "firebase": "^12.16.0",
+    "firebase-tools": "^15.34.1",
+    "jsdom": "^25.0.1",
+    "@eduskill/minimatch-compat": "file:vendor/minimatch-compat"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  },
+  "name": "universal-iti-instructor-automation",
+  "version": "15.1.0",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "test": "node scripts/test.js",
+    "test:rules": "firebase emulators:exec --only firestore,auth --project demo-universal-iti \"node tests/phase1-skill-firestore-emulator-test.js && node tests/security-emulator-test.js && node tests/backend-emulator-test.js && node --test tests/dtp-transfer-emulator-test.js && node --test tests/firestore-recovery-emulator-test.js && node --test tests/admin-delegation-emulator-test.js && node --test tests/year-planning-emulator-test.js && node --test tests/teaching-plan-emulator-test.js\"",
+    "test:e2e": "firebase emulators:exec --only firestore,auth --project demo-universal-iti \"node scripts/browser-tests.js\"",
+    "start:api": "node server/index.js",
+    "audit:production": "node scripts/production-audit.js",
+    "build:web": "node scripts/build-web.js",
+    "release:check": "node scripts/build-web.js --require-runtime",
+    "audit:all": "node scripts/production-audit.js --include-dev"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.14.6",
+    "@google-cloud/pubsub": {
+      "@opentelemetry/core": "2.8.0"
+    },
+    "gaxios@6": {
+      "uuid": "11.1.1"
+    },
+    "glob": "14.0.3",
+    "firebase-tools": {
+      "minimatch": "file:../../vendor/minimatch-compat"
+    },
+    "superstatic": {
+      "minimatch": "file:../../vendor/minimatch-compat"
+    },
+    "readdir-glob": {
+      "minimatch": "11.0.3"
+    }
+  }
+}

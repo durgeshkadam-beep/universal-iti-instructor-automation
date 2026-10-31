@@ -1,5 +1,5 @@
-const CACHE = "iti-v15-production-20260824-11";
-const ASSETS = ["./", "./start.html", "./index.html", "./style.css", "./app.js", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./other-printable-records.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
+const CACHE = "iti-v15-planning-20261030-1";
+const ASSETS = ["./assets/vendor/chart.umd.js", "./", "./start.html", "./index.html", "./style.css", "./app.js", "./shared/syllabus-planning.js", './trainee-bulk-import.js','./instructor-templates.js','./instructor-plan-safety.js', "./assets/templates/syllabus-template.xlsx", "./ai.js", "./cloud.js", "./security-patch.js", "./admission-import.js", "./other-printable-records.js", "./official-plans.js", "./manifest.json", "./icon.svg", "./logo.png"];
 
 self.addEventListener("install", e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));

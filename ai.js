@@ -1,6 +1,6 @@
 /* Universal ITI Instructor Automation — V12 Free AI + Calendar Agent
  * Free-first design:
- * 1) Optional Gemini Developer API key, entered at runtime and stored in sessionStorage only.
+ * 1) Optional generative AI uses the authenticated backend; provider keys stay on the server.
  * 2) Manual AI fallback: copy structured prompt to any free chatbot, paste returned JSON here.
  * Instructor approval is required before an AI plan becomes the kept record.
  */
@@ -13,91 +13,132 @@ const InstructorAI = {
     this.refreshStatus(); this.refreshTopicPicker(); this.renderToday();
   },
   esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));},
-  getKey(){try{return sessionStorage.getItem(this.keyName)||'';}catch(e){return'';}},
-  setKey(){
-    const input=document.getElementById('aiApiKey'); if(!input)return;
-    const key=input.value.trim(); if(!key){alert('Paste your Gemini API key first.');return;}
-    try{sessionStorage.setItem(this.keyName,key);}catch(e){}
-    input.value=''; this.refreshStatus(); alert('Gemini connected for this browser session only. The key is not saved in the app database.');
-  },
-  disconnect(){try{sessionStorage.removeItem(this.keyName);}catch(e){} this.refreshStatus();},
+  connectionScope(){const V=window.V15Sync;return V?.ready&&V.fb?.user?.uid&&V.workspaceId?JSON.stringify([V.fb.user.uid,V.INSTITUTE_ID,V.workspaceId,window.ITI_RUNTIME?.apiUrl||'']):null;},
+  getKey(){const c=this.state.connection;return !!(c&&c.scope===this.connectionScope()&&c.scope&&c.configured&&Date.now()-c.checkedAt<300000);},
+  setKey(){const input=document.getElementById('aiApiKey');if(input)input.value='';alert('Provider keys must be stored on the secure server. Personal-key setup is not available in this release.');},
+  disconnect(){this.state.connection=null;try{sessionStorage.removeItem(this.keyName);}catch(e){}this.refreshStatus();},
   refreshStatus(){
-    const connected=!!this.getKey();
-    const badge=document.getElementById('aiConnectionBadge');
-    if(badge){badge.textContent=connected?'● Gemini connected':'○ Manual / no-key mode';badge.className='badge '+(connected?'success':'');}
-    const help=document.getElementById('aiConnectionHelp');
-    if(help)help.textContent=connected?'One-click AI generation is enabled for this session.':'No key is required: generate a prompt, use any free AI, then paste its JSON result back into this app.';
+    try{sessionStorage.removeItem(this.keyName);}catch(e){}
+    const field=document.getElementById('aiApiKey')?.closest('.field');if(field)field.style.display='none';
+    const checked=this.state.connection?.scope===this.connectionScope()&&!!this.connectionScope()&&Date.now()-this.state.connection.checkedAt<300000;
+    const badge=document.getElementById('aiConnectionBadge');if(badge)badge.textContent=this.getKey()?'Backend AI configured':checked?'Manual / keyless mode':'AI availability not checked';
+    const help=document.getElementById('aiConnectionHelp');if(help)help.textContent=this.getKey()?'The authenticated backend reports a configured AI provider. Provider availability and remaining quota are only tested by an actual generation request.':checked?'The backend is reachable but generative AI is disabled. Use manual plans, guided assistance or copy/paste JSON.':'Check availability after signing in. Manual plans and copy/paste JSON work without an AI API key.';
   },
-  currentModel(){return (document.getElementById('aiModel')?.value||this.modelName).trim()||this.modelName;},
+  async testConnection(){
+    const scope=this.connectionScope(),button=document.getElementById('aiCheckConnection');if(!scope){this.refreshStatus();return;}
+    if(button)button.disabled=true;
+    try{const out=await window.V15Sync.backendRequest({action:'capabilities'});if(scope!==this.connectionScope())return;if(typeof out?.aiConfigured!=='boolean')throw Error('The backend returned an invalid availability response.');this.state.connection={scope,configured:out.aiConfigured,checkedAt:Date.now()};this.refreshStatus();}
+    catch(e){if(scope!==this.connectionScope())return;this.state.connection=null;this.refreshStatus();const help=document.getElementById('aiConnectionHelp');if(help)help.textContent='AI availability check failed. '+(e.message||'Reconnect and retry.')+' Manual plans and JSON remain available.';}
+    finally{if(button)button.disabled=false;}
+  },
+  currentModel(){return 'backend-configured';},
   async geminiJSON(prompt,schema){
-    const key=this.getKey(); if(!key) throw new Error('NO_API_KEY');
-    const endpoint='https://generativelanguage.googleapis.com/v1beta/interactions';
-    const body={model:this.currentModel(),input:prompt,response_format:{type:'text',mime_type:'application/json',schema}};
-    const resp=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify(body)});
-    if(!resp.ok){let detail='';try{detail=await resp.text();}catch(e){}throw new Error(`Gemini request failed (${resp.status}). ${detail.slice(0,500)}`);}
-    const data=await resp.json();
-    const text=(data.steps||[]).flatMap(s=>s.content||[]).filter(c=>c.type==='text').map(c=>c.text||'').join('')||data.output_text||'';
-    if(!text)throw new Error('Gemini returned no text output.');
-    try{return JSON.parse(text);}catch(e){throw new Error('Gemini returned invalid JSON.');}
+    if(!window.V15Sync?.backendRequest)throw new Error('Secure backend is not configured. Use manual mode.');
+    if(!confirm('Send this teaching text to the configured AI provider? Exclude personal student data.'))throw new Error('AI request cancelled.');
+    const out=await V15Sync.backendRequest({action:'ai',task:'teaching',teachingType:schema.properties?.items?'syllabus':schema.properties?.nextDemo?'practical':'theory',language:'en',consent:true,input:(prompt+'\nSchema: '+JSON.stringify(schema)).slice(0,12000)});
+    if(out.mode!=='ai-draft')throw new Error('Generative AI is disabled on the backend. Use manual mode.');
+    return JSON.parse(out.text);
   },
-  syllabusSchema(){return {type:'object',properties:{trade:{type:'string'},items:{type:'array',items:{type:'object',properties:{type:{type:'string',enum:['theory','practical']},module:{type:'string'},title:{type:'string'},hours:{type:'number',minimum:0.5},confidence:{type:'number',minimum:0,maximum:1}},required:['type','module','title','hours','confidence']}}},required:['trade','items']};},
+  syllabusSchema(){return {type:'object',properties:{trade:{type:'string'},items:{type:'array',items:{type:'object',properties:{type:{type:'string',enum:['theory','practical']},module:{type:'string'},no:{type:'string'},title:{type:'string'},hours:{type:['number','null'],minimum:0.01},confidence:{type:'number',minimum:0,maximum:1}},required:['type','module','title','hours','confidence']}}},required:['trade','items']};},
   planSchema(type){
     if(type==='practical')return {type:'object',properties:{objective:{type:'array',items:{type:'string'}},tools:{type:'array',items:{type:'string'}},steps:{type:'array',items:{type:'object',properties:{procedure:{type:'string'},keyPoint:{type:'string'},spotHint:{type:'string'}},required:['procedure','keyPoint','spotHint']}},questions:{type:'array',items:{type:'string'}},nextDemo:{type:'string'}},required:['objective','tools','steps','questions','nextDemo']};
     return {type:'object',properties:{objective:{type:'array',items:{type:'string'}},materials:{type:'array',items:{type:'string'}},review:{type:'string'},motivation:{type:'string'},steps:{type:'array',items:{type:'object',properties:{topic:{type:'string'},information:{type:'string'},spotHint:{type:'string'}},required:['topic','information','spotHint']}},questions:{type:'array',items:{type:'string'}},summary:{type:'string'},assignment:{type:'string'},nextLesson:{type:'string'}},required:['objective','materials','review','motivation','steps','questions','summary','assignment','nextLesson']};
   },
-  buildSyllabusPrompt(text,trade){return `You are an expert ITI Craft Instructor syllabus analyst for Maharashtra/India vocational training.\n\nTASK: Convert the supplied syllabus into a clean structured list of THEORY and PRACTICAL teaching items. Preserve syllabus meaning and sequence. Do not invent topics. Detect module/unit and hours when present. If hours are not explicit, use 1 hour for theory and 7 hours for practical only as a reviewable estimate and lower confidence.\n\nRULES:\n- type must be exactly theory or practical.\n- Practical = job/operation/exercise/demonstration/creation/installation/repair/configuration/testing/hands-on activity.\n- Theory = concept/definition/explanation/knowledge/principle/identification/discussion.\n- Remove headers, page numbers and table noise.\n- module is nearest real module/unit/section heading; otherwise General.\n- confidence is 0 to 1.\n- Output only JSON matching the supplied schema.\n\nTRADE HINT: ${trade||'Detect from syllabus'}\n\nSYLLABUS TEXT:\n${String(text||'').slice(0,90000)}`;},
+  buildSyllabusPrompt(text,trade){return `You are an expert ITI Craft Instructor syllabus analyst for Maharashtra/India vocational training.\n\nTASK: Convert the supplied syllabus into a clean structured list of THEORY and PRACTICAL teaching items. Preserve syllabus meaning and sequence. Do not invent topics. Detect module/unit and hours when present. Preserve the original exercise number in no as text, including leading zeros. If hours are not explicit, return null; never estimate hours or invent numbers. The Instructor will fill and review missing values.\n\nRULES:\n- type must be exactly theory or practical.\n- Practical = job/operation/exercise/demonstration/creation/installation/repair/configuration/testing/hands-on activity.\n- Theory = concept/definition/explanation/knowledge/principle/identification/discussion.\n- Remove headers, page numbers and table noise.\n- module is nearest real module/unit/section heading; otherwise General.\n- confidence is 0 to 1.\n- Output only JSON matching the supplied schema.\n\nTRADE HINT: ${trade||'Detect from syllabus'}\n\nSYLLABUS TEXT:\n${String(text||'').slice(0,90000)}`;},
   buildPlanPrompt(type,item){
-    const list=type==='practical'?(DATA.practicals||[]):(DATA.theory||[]),idx=list.findIndex(x=>Number(x.no)===Number(item.no));
+    const list=type==='practical'?(DATA.practicals||[]):(DATA.theory||[]),idx=list.findIndex(x=>String(x.no)===String(item.no));
     const prev=idx>0?list[idx-1]:null,next=idx>=0&&idx<list.length-1?list[idx+1]:null;
     const profile=typeof RecordFormats!=='undefined'?RecordFormats.profile():{};
     const format=type==='practical'?'Create a DEMONSTRATION PLAN with purpose/objectives; tools/equipment/supplies/training aids; detailed procedure sequence with key points/safety precautions and spot hints; questions; next demonstration.':'Create a LESSON PLAN with purpose/objectives; materials/equipment/training aids; review; motivation; detailed teaching steps/topics with information points and chalkboard summary/spot hints; questions; summary; assignment; next lesson.';
-    return `You are the personal AI assistant of an ITI Craft Instructor. Prepare an accurate, teachable plan for instructor review.\n\nRULES:\n- Use only supplied topic/context; do not invent syllabus requirements.\n- Keep language professional, concise and usable in an ITI classroom/workshop.\n- Practical plans must include realistic safety precautions.\n- Do not invent software/tool versions.\n- Do not include trainee personal data.\n- This is an AI DRAFT; instructor approval is required.\n- Output only JSON matching the supplied schema.\n\nINSTITUTE: ${profile.institute||DATA.meta?.institute||''}\nTRADE: ${DATA.meta?.trade||profile.trade||''}\nBATCH/SESSION: ${DATA.meta?.batch||''} / ${DATA.meta?.session||''}\nTYPE: ${type==='practical'?'Practical / Demonstration':'Theory / Lesson'}\nPLAN NO: ${item.no}\nMODULE/UNIT: ${item.unit||item.module||'General'}\nTOPIC: ${item.title}\nPLANNED START: ${item.plannedDate||'Not assigned'}\nDURATION: ${type==='practical'?(item.hours||7)+' practical hours':(item.hours||1)+' theory hours'}\nPREVIOUS TOPIC: ${prev?.title||'None / first topic'}\nNEXT TOPIC: ${next?.title||'None / last topic'}\n\n${format}`;
+    return `You are the personal AI assistant of an ITI Craft Instructor. Prepare an accurate, teachable plan for instructor review.\n\nRULES:\n- Use only supplied topic/context; do not invent syllabus requirements.\n- Keep language professional and usable in an ITI classroom/workshop. Give enough procedural detail to teach and check each operation, not only short headings.\n- Practical plans must include realistic safety precautions.\n- Do not invent software/tool versions.\n- Do not include trainee personal data.\n- This is an AI DRAFT; instructor approval is required.\n- Output only JSON matching the supplied schema.\n\nINSTITUTE: ${profile.institute||DATA.meta?.institute||''}\nTRADE: ${DATA.meta?.trade||profile.trade||''}\nBATCH/SESSION: ${DATA.meta?.batch||''} / ${DATA.meta?.session||''}\nTYPE: ${type==='practical'?'Practical / Demonstration':'Theory / Lesson'}\nPLAN NO: ${item.no}\nMODULE/UNIT: ${item.unit||item.module||'General'}\nTOPIC: ${item.title}\nPLANNED START: ${item.plannedDate||'Not assigned'}\nDURATION: ${type==='practical'?(item.hours||7)+' practical hours':(item.hours||1)+' theory hours'}\nPREVIOUS TOPIC: ${prev?.title||'None / first topic'}\nNEXT TOPIC: ${next?.title||'None / last topic'}\n\n${format}`;
   },
   async analyzeSyllabusFile(){
-    const file=document.getElementById('uFile')?.files?.[0]; if(!file){UniversalSyllabus.status('Please select a syllabus file first.','error');return;}
-    UniversalSyllabus.status('Reading syllabus…'); let text;
-    try{text=await UniversalSyllabus.extractText(file);}catch(e){UniversalSyllabus.status('Could not read this file: '+(e.message||e),'error');return;}
-    const trade=(document.getElementById('uTrade').value||UniversalSyllabus.detectTrade(text)||file.name.replace(/\.[^.]+$/,'')).trim();document.getElementById('uTrade').value=trade;
-    if(this.getKey()){
-      UniversalSyllabus.status('Gemini is analyzing modules, theory, practical and hours…');
-      try{
-        const result=await this.geminiJSON(this.buildSyllabusPrompt(text,trade),this.syllabusSchema());
-        const items=(result.items||[]).map((x,i)=>({id:'ai_'+Date.now()+'_'+i,seq:i+1,type:x.type,module:x.module||'General',title:String(x.title||'').trim(),hours:Number(x.hours)||1,confidence:Number(x.confidence)||0.7})).filter(x=>x.title);
-        UniversalSyllabus.state={...UniversalSyllabus.state,trade:result.trade||trade,sourceName:file.name,analyzedAt:new Date().toISOString(),items};document.getElementById('uTrade').value=UniversalSyllabus.state.trade;UniversalSyllabus.renderPreview();UniversalSyllabus.status(`AI analysis complete: ${items.length} items. Edit/review before creating the training plan.`,'ok');
-      }catch(e){console.error(e);UniversalSyllabus.status('AI analysis failed; using the built-in basic analyzer. '+(e.message||e),'error');this.localSyllabusAnalysis(text,trade,file.name);}
-    }else{
-      this.openManual('syllabus',this.buildSyllabusPrompt(text,trade),this.syllabusSchema(),{trade,fileName:file.name});UniversalSyllabus.status('Manual AI prompt prepared. Or use Basic Analyze for offline keyword analysis.');
-    }
+    if(SESSION?.role!=='instructor')return;
+    const file=document.getElementById('uFile')?.files?.[0];if(!file){UniversalSyllabus.status('Select a syllabus file first.','error');return;}
+    const context=syllabusContext(),institute=window.V15Sync?.INSTITUTE_ID;
+    try{if(file.size>10*1024*1024)throw Error('Use a syllabus file up to 10 MB.');UniversalSyllabus.status('Reading syllabus text…');const text=await UniversalSyllabus.extractText(file);
+      if(SESSION?.role!=='instructor'||!syllabusContextCurrent(context)||institute!==window.V15Sync?.INSTITUTE_ID)return;
+      if(!text.trim())throw Error('This file has no readable text. Scanned PDF OCR is not available; use the reviewed Excel template.');
+      const trade=DATA.meta.trade||'';this.openManual('syllabus',this.buildSyllabusPrompt(text,trade),this.syllabusSchema(),{trade,fileName:file.name});UniversalSyllabus.status('Review the extracted text and prompt. Request an optional backend draft or paste external AI JSON, then review every topic and duration. Calendar calculation itself needs no AI.');
+    }catch(e){if(syllabusContextCurrent(context)&&institute===window.V15Sync?.INSTITUTE_ID)UniversalSyllabus.status(e.message||'Could not read this file.','error');}
   },
+  syllabusItems(result){return (Array.isArray(result.items)?result.items:[]).map((x,i)=>({id:'ai_'+Date.now()+'_'+i,seq:i+1,type:x.type,no:String(x.no??x.sourceNo??''),module:x.module||'General',title:String(x.title||'').trim(),hours:x.hours==null||x.hours===''?'':Number(x.hours),confidence:Number(x.confidence)||0})).filter(x=>x.title);},
   localSyllabusAnalysis(text,trade,fileName){UniversalSyllabus.state.trade=trade;UniversalSyllabus.state.sourceName=fileName;UniversalSyllabus.state.analyzedAt=new Date().toISOString();UniversalSyllabus.state.items=UniversalSyllabus.classifyLines(text);UniversalSyllabus.renderPreview();UniversalSyllabus.status(`Basic local analysis complete: ${UniversalSyllabus.state.items.length} items. Review carefully.`,'ok');},
-  openPlanDraft(type,no){
+  openPlanDraft(type,no,keyless=false){
     if(SESSION?.role!=='instructor'){alert('Only the instructor can create/approve AI plans.');return;}
-    const list=type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>Number(x.no)===Number(no));if(!item)return;
-    const prompt=this.buildPlanPrompt(type,item);this.state.pending={kind:'plan',type,no:Number(no),item};this.state.lastPrompt=prompt;this.state.lastResult=null;this.openModal(type==='practical'?`AI Demonstration Plan — ${no}`:`AI Lesson Plan — ${no}`,prompt,'');if(this.getKey())this.generatePending();
+    const list=type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>String(x.no)===String(no));if(!item)return;
+    const prompt=this.buildPlanPrompt(type,item);this.state.pending={kind:'plan',type,no:item.no,item,context:syllabusContext(),institute:window.V15Sync?.INSTITUTE_ID,version:syllabusRecordVersion(item)};this.state.lastPrompt=prompt;this.state.lastResult=null;this.openModal(type==='practical'?`AI Demonstration Plan — ${no}`:`AI Lesson Plan — ${no}`,prompt,'');
+    if(keyless){
+      this.state.pending.source='keyless-starter';
+      document.getElementById('aiResultText').value=JSON.stringify(this.keylessPlan(type,item),null,2);
+      this.previewResult();
+      this.setAIStatus('Free starter created locally. Replace every [FILL BEFORE SAVE] field with actual teaching content before saving. No AI request or record change occurred.');
+    }else if(this.getKey())this.generatePending();
   },
-  openQuickPlan(){const sel=document.getElementById('aiTopicSelect');if(!sel||!sel.value){alert('Select a theory/practical topic.');return;}const [type,no]=sel.value.split(':');this.openPlanDraft(type,Number(no));},
-  refreshTopicPicker(){const el=document.getElementById('aiTopicSelect');if(!el||typeof DATA==='undefined')return;const t=(DATA.theory||[]).map(x=>`<option value="theory:${x.no}">Theory ${x.no}: ${this.esc(x.title)}</option>`),p=(DATA.practicals||[]).map(x=>`<option value="practical:${x.no}">Practical ${x.no}: ${this.esc(x.title)}</option>`);el.innerHTML='<option value="">Select a topic…</option><optgroup label="Theory">'+t.join('')+'</optgroup><optgroup label="Practical">'+p.join('')+'</optgroup>';},
+  keylessPlan(type,item){
+    // Local form scaffold only. Never claim factual syllabus steps/tools or AI generation.
+    const topic=String(item?.title||'Selected topic').trim().slice(0,160);
+    const fill=label=>'[FILL BEFORE SAVE] '+label;
+    if(type==='practical')return {
+      objective:[fill('Write measurable outcomes for '+topic)],
+      tools:[fill('List actual tools, equipment, materials and training aids')],
+      steps:[{procedure:fill('Write the demonstration procedure for '+topic),keyPoint:fill('Specify precautions and quality checks'),spotHint:fill('Add what the instructor will show or observe')}],
+      questions:[fill('Write a practical competency-check question')],
+      nextDemo:fill('Identify the next authorised practical')
+    };
+    if(type==='theory')return {
+      objective:[fill('Write measurable learning outcomes for '+topic)],
+      materials:[fill('List real teaching aids and references')],
+      review:fill('Identify prior knowledge to revisit'),
+      motivation:fill('Explain the practical relevance of '+topic),
+      steps:[{topic,information:fill('Write verified teaching points'),spotHint:fill('Describe board work or checks for understanding')}],
+      questions:[fill('Write a comprehension question')],
+      summary:fill('Summarise verified lesson content'),
+      assignment:fill('Set an achievable assignment'),
+      nextLesson:fill('Identify the next authorised lesson')
+    };
+    throw Error('Choose an authorised practical or theory topic.');
+  },
+  requireCurrentPlan(p){
+    if(p?.kind==='syllabus'){if(!p.context||SESSION?.role!=='instructor'||!syllabusContextCurrent(p.context)||p.institute!==window.V15Sync?.INSTITUTE_ID)throw new Error('The account or workspace changed. Reopen syllabus analysis.');return;}
+    if(!p?.context)return;
+    const list=p.type==='practical'?DATA.practicals:DATA.theory,item=list?.find(x=>String(x.no)===String(p.no));
+    if(SESSION?.role!=='instructor'||!syllabusContextCurrent(p.context)||p.institute!==window.V15Sync?.INSTITUTE_ID||!item||syllabusRecordVersion(item)!==p.version)throw new Error('The account, workspace or topic changed. Reopen the plan before continuing.');
+  },
+  openQuickPlan(keyless=false){const sel=document.getElementById('aiTopicSelect');if(!sel?.value){alert('Select a theory/practical topic.');return;}let pair;try{pair=JSON.parse(sel.value);}catch{const cut=sel.value.indexOf(':');pair=[sel.value.slice(0,cut),sel.value.slice(cut+1)];}if(Array.isArray(pair)&&['theory','practical'].includes(pair[0])){if(keyless)this.openPlanDraft(pair[0],pair[1],true);else this.openPlanDraft(pair[0],pair[1]);}},
+  refreshTopicPicker(){
+    const el=document.getElementById('aiTopicSelect');if(!el||typeof DATA==='undefined')return;const selected=el.value;el.replaceChildren();const blank=document.createElement('option');blank.value='';blank.textContent='Select a topic…';el.append(blank);
+    for(const type of ['theory','practical']){const group=document.createElement('optgroup');group.label=type==='theory'?'Theory':'Practical';for(const item of (type==='theory'?DATA.theory:DATA.practicals)||[]){const option=document.createElement('option');option.value=JSON.stringify([type,String(item.no)]);option.textContent=`${type==='theory'?'Theory':'Practical'} ${item.sourceNo||item.no}: ${item.title}`;group.append(option);}el.append(group);}if([...el.options].some(x=>x.value===selected))el.value=selected;
+  },
   renderToday(){
-    const el=document.getElementById('aiToday');if(!el||typeof DATA==='undefined')return;const today=typeof todayISO==='function'?todayISO():new Date().toISOString().slice(0,10);
-    const day=(DATA.meta?.trainingPlan?.dayPlan||[]).find(r=>r.date===today&&!r.holiday); let cards=[];
-    if(day){
-      (day.theoryItems||[]).forEach(seg=>{const x=(DATA.theory||[]).find(t=>Number(t.sequence||t.no)===Number(seg.seq));if(x)cards.push({type:'theory',x,segmentHours:seg.hours});});
-      (day.practicalItems||[]).forEach(seg=>{const x=(DATA.practicals||[]).find(p=>Number(p.sequence||p.no)===Number(seg.seq));if(x)cards.push({type:'practical',x,segmentHours:seg.hours});});
+    const el=document.getElementById('aiToday');if(!el||typeof DATA==='undefined')return;el.replaceChildren();const today=typeof todayISO==='function'?todayISO():new Date().toISOString().slice(0,10),plan=DATA.meta?.trainingPlan,day=(plan?.dayPlan||[]).find(r=>r.date===today&&!r.holiday),cards=[];
+    for(const type of ['theory','practical']){const list=(type==='theory'?DATA.theory:DATA.practicals)||[];for(const part of day?.[type+'Items']||[]){let item=list.find(x=>String(x.no)===String(part.seq));if(!item&&!plan?.revision)item=list.find(x=>String(x.sequence)===String(part.seq));if(item)cards.push({type,item,hours:part.hours});}}
+    if(!day)for(const type of ['theory','practical'])for(const item of (type==='theory'?DATA.theory:DATA.practicals)||[])if(item.plannedDate===today)cards.push({type,item,hours:item.hours});
+    const seen=new Set(),context=syllabusContext(),institute=window.V15Sync?.INSTITUTE_ID;
+    for(const {type,item,hours} of cards){const key=type+':'+item.no;if(seen.has(key))continue;seen.add(key);const card=document.createElement('div');card.className='callout';const title=document.createElement('b');title.textContent=`${type==='theory'?'Theory':'Practical'} ${item.sourceNo||item.no}: ${item.title}`;const caption=document.createElement('div');caption.className='muted';caption.textContent=`${hours?hours+' hrs · ':''}Planned today${item.status==='completed'?' · Completed':''}`;const actions=document.createElement('div');actions.className='field-row';
+      const version=syllabusRecordVersion(item),act=fn=>()=>{const list=type==='theory'?DATA.theory:DATA.practicals,current=list.find(x=>String(x.no)===String(item.no));if(SESSION?.role!=='instructor'||!syllabusContextCurrent(context)||institute!==window.V15Sync?.INSTITUTE_ID||!current||syllabusRecordVersion(current)!==version){alert('Workspace or topic changed. Reopen the teaching list.');return;}fn();};
+      const prepare=document.createElement('button');prepare.type='button';prepare.className='btn primary small';prepare.textContent='Prepare '+(type==='practical'?'Demonstration':'Lesson')+' Plan';prepare.addEventListener('click',act(()=>this.openPlanDraft(type,item.no)));actions.append(prepare);
+      if(item.status!=='completed'){const conducted=document.createElement('button');conducted.type='button';conducted.className='btn ghost small';conducted.textContent='Mark Conducted';conducted.addEventListener('click',act(()=>MarkComplete.open(type,item.no,(type==='practical'?'Demo ':'Lesson ')+(item.sourceNo||item.no))));actions.append(conducted);}card.append(title,caption,actions);el.append(card);
     }
-    if(!cards.length)cards=[...(DATA.theory||[]).filter(x=>x.plannedDate===today).map(x=>({type:'theory',x,segmentHours:x.hours||1})),...(DATA.practicals||[]).filter(x=>x.plannedDate===today).map(x=>({type:'practical',x,segmentHours:x.hours||7}))];
-    const seen=new Set();cards=cards.filter(c=>{const k=c.type+':'+c.x.no;if(seen.has(k))return false;seen.add(k);return true;});
-    el.innerHTML=cards.length?cards.map(({type,x,segmentHours})=>`<div class="callout"><b>${type==='theory'?'📘 Theory':'🖥️ Practical'} ${x.no}: ${this.esc(x.title)}</b><div class="muted">${segmentHours||''}${segmentHours?' hrs · ':''}Planned today${x.status==='completed'?' · Completed':''}</div><div class="field-row" style="margin-top:8px"><button class="btn primary small" onclick="InstructorAI.openPlanDraft('${type}',${x.no})">✨ Prepare ${type==='practical'?'Demonstration':'Lesson'} Plan</button>${x.status!=='completed'?`<button class="btn ghost small" onclick="MarkComplete.open('${type}',${x.no},'${type==='practical'?'Demo':'Lesson'} ${x.no}')">✓ Mark Conducted</button>`:''}</div></div>`).join(''):`<p class="muted">No topic is specifically planned for ${today}. Use the topic picker below.</p>`;
+    if(!seen.size){const p=document.createElement('p');p.className='muted';p.textContent=`No topic is specifically planned for ${today}. Use the topic picker below.`;el.append(p);}
   },
-  openManual(kind,prompt,schema,extra={}){this.state.pending={kind,schema,...extra};this.state.lastPrompt=prompt;this.state.lastResult=null;this.openModal(kind==='syllabus'?'Manual AI — Syllabus Analysis':'AI Assistant',prompt,'');},
-  openModal(title,prompt,result){document.getElementById('aiModalTitle').textContent=title;document.getElementById('aiPromptText').value=prompt||'';document.getElementById('aiResultText').value=result||'';document.getElementById('aiPreviewBox').style.display='none';document.getElementById('aiModal').style.display='flex';const gen=document.getElementById('aiGenerateBtn');if(gen)gen.style.display=this.getKey()?'':'none';this.setAIStatus(this.getKey()?'Connected: generate with Gemini or edit the prompt first.':'Manual mode: copy prompt → use any free AI → paste returned JSON → Preview/Save.');},
+  openManual(kind,prompt,schema,extra={}){this.state.pending={kind,schema,...extra,context:syllabusContext(),institute:window.V15Sync?.INSTITUTE_ID};this.state.lastPrompt=prompt;this.state.lastResult=null;this.openModal(kind==='syllabus'?'Manual AI — Syllabus Analysis':'AI Assistant',prompt,'');},
+  openModal(title,prompt,result){document.getElementById('aiModalTitle').textContent=title;document.getElementById('aiPromptText').value=prompt||'';document.getElementById('aiResultText').value=result||'';document.getElementById('aiPreviewBox').style.display='none';document.getElementById('aiModal').style.display='flex';const gen=document.getElementById('aiGenerateBtn');if(gen)gen.style.display=this.getKey()?'':'none';this.setAIStatus(this.getKey()?'Backend AI is configured. Review the prompt and consent before requesting a draft.':'Manual mode: copy prompt → use an external AI → paste returned JSON → Preview → explicitly Save or Approve.');},
   closeModal(){document.getElementById('aiModal').style.display='none';},
   copyPrompt(){const el=document.getElementById('aiPromptText');el.select();if(navigator.clipboard)navigator.clipboard.writeText(el.value).then(()=>this.setAIStatus('Prompt copied.')).catch(()=>document.execCommand('copy'));else document.execCommand('copy');},
   setAIStatus(msg,type='info'){const el=document.getElementById('aiModalStatus');if(!el)return;el.textContent=msg;el.style.borderLeft=`4px solid ${type==='error'?'#b42318':'#1769aa'}`;},
-  async generatePending(){const p=this.state.pending;if(!p)return;const prompt=document.getElementById('aiPromptText').value,schema=p.kind==='plan'?this.planSchema(p.type):p.schema||this.syllabusSchema();const btn=document.getElementById('aiGenerateBtn');if(btn)btn.disabled=true;this.setAIStatus('Generating with Gemini…');try{const result=await this.geminiJSON(prompt,schema);this.state.lastResult=result;document.getElementById('aiResultText').value=JSON.stringify(result,null,2);this.setAIStatus('AI draft ready. Review it before saving.');this.previewResult();}catch(e){this.setAIStatus(e.message||String(e),'error');}finally{if(btn)btn.disabled=false;}},
-  parseResult(){const raw=document.getElementById('aiResultText').value.trim();if(!raw)throw new Error('Paste or generate AI JSON first.');return JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));},
+  async generatePending(){const p=this.state.pending;if(!p)return;const prompt=document.getElementById('aiPromptText').value,schema=p.kind==='plan'?this.planSchema(p.type):p.schema||this.syllabusSchema();const btn=document.getElementById('aiGenerateBtn');if(btn)btn.disabled=true;this.state.lastResult=null;document.getElementById('aiPreviewBox').style.display='none';this.setAIStatus('Requesting a draft from the configured provider…');try{this.requireCurrentPlan(p);const result=await this.geminiJSON(prompt,schema);if(this.state.pending!==p)throw new Error('A different plan is open. Reopen the intended plan.');this.requireCurrentPlan(p);this.state.lastResult=result;document.getElementById('aiResultText').value=JSON.stringify(result,null,2);this.setAIStatus('AI draft ready. Review it before saving.');this.previewResult();}catch(e){document.getElementById('aiPreviewBox').style.display='none';this.setAIStatus((e.message||String(e))+' No new draft was generated. Any previous text is retained for manual review.','error');}finally{if(btn)btn.disabled=false;}},
+  parseResult(){const raw=document.getElementById('aiResultText').value.trim();if(!raw)throw new Error('Paste or generate AI JSON first.');const parsed=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('JSON must be one object with the required fields.');return parsed;},
   normalizePlan(type,r){if(type==='practical')return {objective:(r.objective||[]).map(String),tools:(r.tools||[]).map(String),steps:(r.steps||[]).map(s=>[String(s.procedure||s[0]||''),String(s.keyPoint||s.key_point||s[1]||''),String(s.spotHint||s.spot_hint||s[2]||'')]),questions:(r.questions||[]).map(String),nextDemo:String(r.nextDemo||r.next_demo||'')};return {objective:(r.objective||[]).map(String),materials:(r.materials||[]).map(String),review:String(r.review||''),motivation:String(r.motivation||''),steps:(r.steps||[]).map(s=>[String(s.topic||s[0]||''),String(s.information||s.informationPoint||s[1]||''),String(s.spotHint||s.spot_hint||s[2]||'')]),questions:(r.questions||[]).map(String),summary:String(r.summary||''),assignment:String(r.assignment||''),nextLesson:String(r.nextLesson||r.next_lesson||'')};},
-  previewResult(){try{const r=this.parseResult(),p=this.state.pending;if(!p)return;const box=document.getElementById('aiPreviewBox');box.style.display='block';if(p.kind==='plan'){const norm=this.normalizePlan(p.type,r);this.state.lastResult=norm;box.innerHTML=`<h4>Draft preview</h4><p><b>${this.esc(p.item.title)}</b></p><p>${norm.objective?.length||0} objectives · ${norm.steps?.length||0} teaching/procedure rows · ${norm.questions?.length||0} questions</p><p class="muted">Nothing is saved until you choose Save Draft or Approve & Keep.</p>`;}else box.innerHTML=`<h4>Syllabus preview</h4><p>${(r.items||[]).length} items returned for ${this.esc(r.trade||p.trade||'trade')}.</p>`;}catch(e){this.setAIStatus('JSON error: '+e.message,'error');}},
-  saveResult(approve=false){let r;try{r=this.parseResult();}catch(e){this.setAIStatus('JSON error: '+e.message,'error');return;}const p=this.state.pending;if(!p)return;if(p.kind==='syllabus'){const items=(r.items||[]).map((x,i)=>({id:'ai_'+Date.now()+'_'+i,seq:i+1,type:x.type==='practical'?'practical':'theory',module:x.module||'General',title:String(x.title||'').trim(),hours:Number(x.hours)||1,confidence:Number(x.confidence)||0.7})).filter(x=>x.title);UniversalSyllabus.state={...UniversalSyllabus.state,trade:r.trade||p.trade||'',sourceName:p.fileName||'AI import',analyzedAt:new Date().toISOString(),items};document.getElementById('uTrade').value=UniversalSyllabus.state.trade;UniversalSyllabus.renderPreview();UniversalSyllabus.status(`AI result loaded: ${items.length} items. Review/edit before applying.`,'ok');this.closeModal();return;}const list=p.type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>Number(x.no)===Number(p.no));if(!item)return;item.plan=this.normalizePlan(p.type,r);item.planMeta={status:approve?'approved':'ai-draft',generatedAt:new Date().toISOString(),approvedAt:approve?new Date().toISOString():null,approvedBy:approve?(SESSION?.name||'Instructor'):null,provider:this.getKey()?'Gemini API':'Manual AI',model:this.getKey()?this.currentModel():'external/manual',version:Number(item.planMeta?.version||0)+1};saveData();this.closeModal();if(typeof PlanViewer!=='undefined')PlanViewer.open(p.type,p.no);alert(approve?'AI plan approved and kept as the instructor record.':'AI draft saved. Review it before approval.');}
+  previewResult(){document.getElementById('aiPreviewBox').style.display='none';try{const r=this.parseResult(),p=this.state.pending;if(!p)return;this.requireCurrentPlan(p);const box=document.getElementById('aiPreviewBox');box.style.display='block';if(p.kind==='plan'){const norm=this.normalizePlan(p.type,r);this.state.lastResult=norm;if(typeof RecordFormats==='undefined')throw new Error('Full plan template is not loaded. Reload the application.');
+      box.replaceChildren();
+      const heading=document.createElement('h4');heading.textContent='Full draft preview';
+      const notice=document.createElement('p');notice.className='muted';notice.textContent='Review the complete plan below. Nothing is saved until you choose Save as Draft or Approve & Keep. Institute, instructor and schedule details come from this workspace, not from AI.';
+      const preview=document.createElement('div');preview.className='plan-document-wrap ai-plan-preview';
+      const style=document.createElement('style');style.textContent=RecordFormats.css(false);preview.append(style);
+      const documentBody=document.createElement('div');documentBody.innerHTML=RecordFormats.render(p.type,p.no??p.item.no,norm);preview.append(documentBody);
+      box.append(heading,notice,preview);}else box.innerHTML=`<h4>Syllabus preview</h4><p>${(r.items||[]).length} items returned for ${this.esc(r.trade||p.trade||'trade')}.</p>`;}catch(e){document.getElementById('aiPreviewBox').style.display='none';this.setAIStatus('JSON error: '+e.message,'error');}},
+  saveResult(approve=false){let r;try{if(typeof SESSION==='undefined'||SESSION?.role!=='instructor')throw new Error('Only the instructor can save or approve AI plans.');this.requireCurrentPlan(this.state.pending);r=this.parseResult();if(this.state.pending?.kind==='plan'&&JSON.stringify(r).includes('[FILL BEFORE SAVE]'))throw Error('Complete every [FILL BEFORE SAVE] placeholder before saving or approving.');}catch(e){this.setAIStatus('JSON error: '+e.message,'error');return;}const p=this.state.pending;if(!p)return;if(p.kind==='syllabus'){if(!Array.isArray(r.items)||!r.items.length||r.items.length>500||r.items.some(x=>!x||typeof x!=='object'||Array.isArray(x))){this.setAIStatus('JSON error: provide 1–500 reviewed syllabus topics.','error');return;}const items=this.syllabusItems(r);UniversalSyllabus.state={...UniversalSyllabus.state,trade:r.trade||p.trade||'',sourceName:p.fileName||'AI import',analyzedAt:new Date().toISOString(),items};document.getElementById('uTrade').value=UniversalSyllabus.state.trade;UniversalSyllabus.renderPreview();UniversalSyllabus.status(`AI result loaded: ${items.length} items. Review/edit before applying.`,'ok');this.closeModal();return;}const list=p.type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>String(x.no)===String(p.no));if(!item)return;if(window.__ITI_V15){if(!window.V15Sync?.saveReviewedTeachingPlan){this.setAIStatus('Secure plan saving is unavailable. Reload; JSON is retained.','error');return;}return V15Sync.saveReviewedTeachingPlan({type:p.type,no:p.no,plan:this.normalizePlan(p.type,r),mode:'replace',status:approve?'approved':'ai-draft',pending:p});}item.plan=this.normalizePlan(p.type,r);delete item.planReviewRequired;item.planMeta={status:approve?'approved':'ai-draft',generatedAt:new Date().toISOString(),approvedAt:approve?new Date().toISOString():null,approvedBy:approve?(SESSION?.name||'Instructor'):null,provider:p.source==='keyless-starter'?'Local instructor template':this.getKey()?'Backend AI':'Manual AI',model:p.source==='keyless-starter'?'no-key starter':this.getKey()?this.currentModel():'external/manual',version:Number(item.planMeta?.version||0)+1};saveData();this.closeModal();if(typeof PlanViewer!=='undefined')PlanViewer.open(p.type,p.no);alert(approve?'AI plan approved and kept as the instructor record.':'AI draft saved. Review it before approval.');}
 };
 if(typeof document!=='undefined')document.addEventListener('DOMContentLoaded',()=>InstructorAI.init());
 if(typeof module!=='undefined'&&module.exports)module.exports={InstructorAI};

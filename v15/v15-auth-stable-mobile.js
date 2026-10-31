@@ -9,6 +9,7 @@ if(!V)return;
 
 const K={role:'iti-v15-role-v2',email:'iti-v15-email-v2',redirect:'iti-v15-redirect-v2'};
 let authorityPromise=null;
+function passwordSession(){try{return localStorage.getItem('iti-v15-password-session')==='1';}catch(e){return false;}}
 
 function expectedEmail(){return V.email(localStorage.getItem(K.email)||document.getElementById('v15ExpectedEmail')?.value||'');}
 function clearRedirect(){try{localStorage.removeItem(K.redirect);}catch(e){}}
@@ -40,8 +41,8 @@ V.googleAuthority=async function(interactive=false){
     let app=M.getApps().find(x=>x.name==='iti-v15');
     if(!app)app=M.initializeApp(cfg,'iti-v15');
     const auth=M.getAuth(app);
-    await M.setPersistence(auth,M.browserLocalPersistence);
-    const db=M.getFirestore(app);
+    await M.setPersistence(auth,passwordSession()?M.browserSessionPersistence:M.browserLocalPersistence);
+    const db=this.firestore(app,M);
 
     // Fast path: normal popup/saved sessions do not need the redirect-result round trip.
     // Consume redirect only when an older/fallback redirect marker exists.
@@ -93,7 +94,7 @@ setTimeout(async()=>{
     if(localStorage.getItem(K.redirect)!=='1')return;
     const M=await V.modules(),cfg=V.config();let app=M.getApps().find(x=>x.name==='iti-v15');
     if(!app)app=M.initializeApp(cfg,'iti-v15');const auth=M.getAuth(app);
-    await M.setPersistence(auth,M.browserLocalPersistence);await ready(M,auth);
+    await M.setPersistence(auth,passwordSession()?M.browserSessionPersistence:M.browserLocalPersistence);await ready(M,auth);
     // Keep the marker only when a restored user is present; autoResume will finish it.
     if(!auth.currentUser){
       // Do not immediately clear here: getRedirectResult may still need to be consumed

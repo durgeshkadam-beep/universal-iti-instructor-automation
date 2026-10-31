@@ -1,0 +1,17 @@
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!server/
+!server/*.js
+!shared/
+!shared/guidance.js
+!shared/leave.js
+!shared/admin-authority.js
+
+!shared/syllabus-planning.js
+!shared/teaching-plan.js
+!vendor/
+!vendor/minimatch-compat/
+!vendor/minimatch-compat/package.json
+!vendor/minimatch-compat/index.cjs

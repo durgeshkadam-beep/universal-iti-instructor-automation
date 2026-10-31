@@ -1,0 +1,13 @@
+(function(root){
+'use strict';
+const LANG={en:'English',mr:'Marathi',hi:'Hindi'};
+const QUESTIONS={en:['Introduce yourself and your trade skills.','Describe a practical task you completed and how you checked its quality.','How do you follow workshop safety rules?','What would you do if you did not know how to complete a task?'],mr:['तुमचा परिचय आणि तुमची व्यावसायिक कौशल्ये सांगा.','तुम्ही केलेले प्रात्यक्षिक आणि त्याची गुणवत्ता कशी तपासली ते सांगा.','कार्यशाळेतील सुरक्षा नियमांचे पालन कसे करता?','एखादे काम येत नसेल तर तुम्ही काय कराल?'],hi:['अपना परिचय और अपने ट्रेड के कौशल बताइए।','अपने किए हुए प्रायोगिक कार्य और उसकी गुणवत्ता जाँच के बारे में बताइए।','कार्यशाला में सुरक्षा नियमों का पालन कैसे करते हैं?','कोई काम करना न आता हो तो आप क्या करेंगे?']};
+function offlineGuide(task,language,input=''){
+ const l=LANG[language]?language:'en';
+ if(task==='interview')return QUESTIONS[l].join('\n\n');
+ if(task==='resume')return ({en:'Resume outline (fill with your real achievements):\nCareer objective\nITI trade and training dates\nInstructor-verified skills\nPractical projects and your contribution\nApprenticeship / experience (if any)\nLanguages\nDo not add invented experience. Review before sharing.',mr:'बायोडाटा आराखडा (खरी माहिती भरा):\nकरिअर उद्दिष्ट\nITI व्यवसाय आणि प्रशिक्षण कालावधी\nप्रशिक्षकाने पडताळलेली कौशल्ये\nप्रात्यक्षिक प्रकल्प आणि तुमचे योगदान\nशिकाऊ उमेदवारी / अनुभव (असल्यास)\nभाषा\nखोटा अनुभव लिहू नका. पाठवण्यापूर्वी तपासा.',hi:'बायोडाटा रूपरेखा (सच्ची जानकारी भरें):\nकरियर उद्देश्य\nITI ट्रेड और प्रशिक्षण अवधि\nप्रशिक्षक द्वारा सत्यापित कौशल\nप्रायोगिक परियोजनाएँ और आपका योगदान\nअप्रेंटिसशिप / अनुभव (यदि हो)\nभाषाएँ\nकाल्पनिक अनुभव न जोड़ें। भेजने से पहले जाँचें।'})[l];
+ return ({en:'Choose a target role, compare real job requirements with your verified skills, practise missing skills, request instructor assessment, and check original NCS / Apprenticeship India listings. No vacancy or salary is inferred from your text.',mr:'करिअर उद्दिष्ट निवडा. खऱ्या जाहिरातीतील गरजा आणि पडताळलेली कौशल्ये यांची तुलना करा. उणीव असलेल्या कौशल्यांचा सराव करून प्रशिक्षकाकडून मूल्यमापन करून घ्या. NCS / Apprenticeship India वरील मूळ जाहिराती तपासा. येथे नोकरी किंवा पगाराचा अंदाज दिलेला नाही.',hi:'लक्ष्य भूमिका चुनें। असली विज्ञापन की आवश्यकताओं से सत्यापित कौशल की तुलना करें। अधूरे कौशल का अभ्यास करके प्रशिक्षक से मूल्यांकन कराएँ। NCS / Apprenticeship India पर मूल विज्ञापन जाँचें। यहाँ नौकरी या वेतन का अनुमान नहीं दिया गया है।'})[l];
+}
+
+const api={offlineGuide,QUESTIONS,LANG};if(typeof module!=='undefined')module.exports=api;else root.ITIGuidance=api;
+})(typeof window!=='undefined'?window:globalThis);

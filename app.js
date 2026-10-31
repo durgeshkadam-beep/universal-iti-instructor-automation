@@ -904,18 +904,15 @@ function defaultData(){
       instructor:"Durgesh Kadam",
       designation:"Craft Instructor (DTP Trade)",
       authority:"Directorate of Vocational Education and Training (DVET), Maharashtra",
-      instructorPin:"1234",
-      principalPin:"5678",
+      instructorPin:null,
+      principalPin:null,
       attendanceThreshold:75,
       scheduleStartDate:null,
       scheduleMode:"real",
       hoursPerWorkingDay:7,
       theoryDaysPerTopic:1
     },
-    users:[
-      {id:"admin-principal", username:"principal", name:"Principal", role:"principal", pin:"5678", active:true},
-      {id:"inst-durgesh", username:"durgesh", name:"Durgesh Kadam", role:"instructor", pin:"1234", active:true}
-    ],
+    users:[],
     trainees:[],
     practicals: SEED_PRACTICALS.map(p=>({no:p[0],unit:p[1],title:p[2],status:"pending",doneDate:null,plannedDate:cal.pDates[p[0]]||null,
       sequence:p[0], hours: DEMO_HOURS[p[0]]||7,
@@ -949,7 +946,7 @@ let DATA = null;
 let SESSION = null;
 
 function loadData(){
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = window.__ITI_V15 ? null : localStorage.getItem(STORAGE_KEY);
   DATA = raw ? JSON.parse(raw) : defaultData();
   // migrate: ensure new top-level AND nested meta fields exist if an older backup loaded
   const d = defaultData();
@@ -961,12 +958,7 @@ function loadData(){
   }
   if(!Array.isArray(DATA.modules)) DATA.modules=[];
   DATA.modules.forEach((m,i)=>{ if(!m.id)m.id=uid(); if(!m.code)m.code=`M${String(i+1).padStart(2,"0")}`; if(!Array.isArray(m.topics))m.topics=[]; });
-  if(!Array.isArray(DATA.users) || !DATA.users.length){
-    DATA.users=[
-      {id:"admin-principal", username:"principal", name:"Principal", role:"principal", pin:DATA.meta.principalPin||"5678", active:true},
-      {id:"inst-durgesh", username:"durgesh", name:DATA.meta.instructor||"Durgesh Kadam", role:"instructor", pin:DATA.meta.instructorPin||"1234", active:true}
-    ];
-  }
+  if(!Array.isArray(DATA.users))DATA.users=[];
   DATA.users.forEach(u=>{ if(!u.id)u.id=uid(); if(u.active===undefined)u.active=true; });
   // V14 safe migration: preserve a pre-upgrade snapshot before changing schema.
   const oldSchema=Number(DATA.meta.schemaVersion||1);
@@ -1011,7 +1003,7 @@ function loadData(){
 }
 function saveData(){
   if(DATA && DATA.meta){ DATA.meta.schemaVersion=14; DATA.meta.appVersion="V14"; }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+  if(!window.__ITI_V15) localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
   if(window.CloudCenter) window.CloudCenter.scheduleSync();
 }
 
@@ -1085,32 +1077,38 @@ const Users = {
 /* ===================== PRINT-READY RECORD FORMATS ===================== */
 const RecordFormats = {
   profile() {
-    const p = (typeof Inspection !== "undefined" && Inspection.load) ? Inspection.load() : {};
+    // V15 records use workspace metadata, never a different account's legacy
+    // browser-wide inspection profile or the bundled DTPO sample identity.
+    const p = !(typeof window!=="undefined" && window.__ITI_V15) && (typeof Inspection !== "undefined" && Inspection.load) ? Inspection.load() : {};
     const m = DATA.meta || {};
+    const v=typeof window!=="undefined"&&window.__ITI_V15?window.V15Sync:null,identity=v?.instituteIdentity;
+    const institute=typeof m.institute==='string'?m.institute.trim():'';
+    const rootInstitute=identity&&identity.uid===v.fb?.user?.uid&&identity.instituteId===v.INSTITUTE_ID&&identity.projectId===v.fb?.app?.options?.projectId?identity.name:'';
     return {
-      name: p.name || m.instructor || "Durgesh Dnyandev Kadam",
-      designation: p.designation || "Craft Instructor, DTP Trade",
-      trade: m.trade || "Desktop Publishing Operator (DTPO)",
-      batch: m.batch || "1st Year DTPO",
-      session: m.session || "2026-27",
-      institute: m.institute || "Bharat Ratna Dr. Babasaheb Ambedkar Government ITI, Mumbai-01"
+      name: m.instructor || p.name || (typeof SESSION!=="undefined" && SESSION?.role==='instructor' ? SESSION.name : '') || "Instructor not configured",
+      designation: m.designation || p.designation || "Craft Instructor",
+      trade: m.trade || "Trade not configured",
+      batch: m.batch || "Batch not configured",
+      session: m.session || "Session not configured",
+      institute: institute || rootInstitute || p.institute || "Institute not configured"
     };
   },
   esc(v) {
     return String(v ?? "").replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
   },
-  record(type, no) {
+  record(type, no, planOverride) {
     const isDemo = type==="demo" || type==="practical";
     const list = isDemo ? (DATA.practicals||[]) : (DATA.theory||[]);
-    const item = list.find(x=>Number(x.no)===Number(no)) || list[0] || {};
-    const n = Number(no || item.no || 1);
+    const item = list.find(x=>x.no===no) || list.find(x=>String(x.no)===String(no)) || {};
+    const n = item.no??no??1, officialNumber=Number(n);
     // Bundled 58/119 records are DTPO references only. Never reuse them for another trade.
     const isDtpTrade=/desktop publishing|dtpo|\bdtp\b/i.test(String(DATA.meta?.trade||""));
-    const official = !isDtpTrade ? null : (isDemo
+    const official = !isDtpTrade||!Number.isSafeInteger(officialNumber)||officialNumber<1||String(officialNumber)!==String(n) ? null : (isDemo
       ? ((typeof OFFICIAL_DEMO_RECORDS!=="undefined" && OFFICIAL_DEMO_RECORDS[n]) || null)
       : ((typeof OFFICIAL_LESSON_RECORDS!=="undefined" && OFFICIAL_LESSON_RECORDS[n]) || null));
     const p=this.profile();
-    const custom=item.plan || {};
+    // Unsaved AI previews use the same document without changing the stored plan.
+    const custom=planOverride ?? item.plan ?? {};
     const d = official ? JSON.parse(JSON.stringify(official)) : {
       no:n, topic:item.title||"", unit:item.unit||item.module||"", time:isDemo?`${item.hours||7} Hours (Practical Period)`:`${item.hours||1} Hours (Theory Period)`,
       proposed:item.plannedDate||"", conducted:item.doneDate||"", objectives:[], questions:[], steps:[], next:""
@@ -1120,26 +1118,11 @@ const RecordFormats = {
     d.unit=d.unit || item.unit || item.module || "";
     d.proposed=d.proposed || item.plannedDate || "";
     d.conducted=item.doneDate || d.conducted || "";
-    if(isDemo){
-      if(custom.objective?.length) d.objectives=custom.objective;
-      if(custom.tools?.length) d.tools=custom.tools;
-      if(custom.questions?.length) d.questions=custom.questions;
-      if(custom.nextDemo) d.next=custom.nextDemo;
-      if(custom.steps?.length) d.steps=custom.steps;
-      d.tools=d.tools||[]; if(item.hours)d.time=`${item.hours} Hours (Practical Period)`;
-    }else{
-      if(custom.objective?.length) d.objectives=custom.objective;
-      if(custom.materials?.length) d.materials=custom.materials;
-      if(custom.review) d.review=custom.review;
-      if(custom.motivation) d.motivation=custom.motivation;
-      if(custom.questions?.length) d.questions=custom.questions;
-      if(custom.summary) d.summary=custom.summary;
-      if(custom.assignment) d.assignment=custom.assignment;
-      if(custom.nextLesson) d.next=custom.nextLesson;
-      if(custom.steps?.length) d.steps=custom.steps;
-      d.materials=d.materials||[]; if(item.hours)d.time=`${item.hours} Hours (Theory Period)`;
-    }
-    d.objectives=d.objectives||[]; d.questions=d.questions||[]; d.steps=d.steps||[];
+    const mappings=isDemo?{objective:'objectives',tools:'tools',questions:'questions',nextDemo:'next',steps:'steps'}:{objective:'objectives',materials:'materials',review:'review',motivation:'motivation',questions:'questions',summary:'summary',assignment:'assignment',nextLesson:'next',steps:'steps'};
+    for(const [key,target] of Object.entries(mappings))if(Object.prototype.hasOwnProperty.call(custom,key))d[target]=custom[key];
+    if(item.hours)d.time=`${item.hours} Hours (${isDemo?'Practical':'Theory'} Period)`;
+    for(const key of ['objectives','tools','materials','questions'])d[key]=Array.isArray(d[key])?d[key]:typeof d[key]==='string'&&d[key]?[d[key]]:[];
+    d.steps=Array.isArray(d.steps)?d.steps.filter(r=>r&&typeof r==='object').map(r=>Array.isArray(r)?r:[r.procedure??r.topic??r['0']??'',r.keyPoint??r.information??r.informationPoint??r['1']??'',r.spotHint??r['2']??'']):[];
     d.instructor=p.name; d.designation=p.designation; d.trade=p.trade; d.batch=p.batch; d.session=p.session; d.institute=p.institute;
     return d;
   },
@@ -1169,8 +1152,8 @@ const RecordFormats = {
   textSection(title, value){
     return `<div class="doc-section"><h4>${title}</h4><p>${this.esc(value||"—")}</p></div>`;
   },
-  renderDemo(no) {
-    const d=this.record("demo",no);
+  renderDemo(no, planOverride) {
+    const d=this.record("demo",no,planOverride);
     const rows=d.steps.map(r=>`<tr><td>${this.esc(r[0])}</td><td>${this.esc(r[1])}</td><td>${this.esc(r[2])}</td></tr>`).join("") || `<tr><td colspan="3">No procedure rows are stored for this demonstration.</td></tr>`;
     return `<article class="print-doc">${this.head("DEMONSTRATION PLAN",d)}${this.metaRows("demo",d)}
       ${this.bullets("PURPOSE / OBJECTIVE:",d.objectives)}
@@ -1180,8 +1163,8 @@ const RecordFormats = {
       ${this.textSection("NEXT DEMONSTRATION:",d.next)}
       ${this.signatures()}</article>`;
   },
-  renderLesson(no) {
-    const d=this.record("lesson",no);
+  renderLesson(no, planOverride) {
+    const d=this.record("lesson",no,planOverride);
     const rows=d.steps.map(r=>`<tr><td>${this.esc(r[0])}</td><td>${this.esc(r[1])}</td><td>${this.esc(r[2])}</td></tr>`).join("") || `<tr><td colspan="3">No teaching-step rows are stored for this lesson.</td></tr>`;
     return `<article class="print-doc">${this.head("LESSON PLAN",d)}${this.metaRows("lesson",d)}
       ${this.bullets("PURPOSE / OBJECTIVE:",d.objectives)}
@@ -1192,18 +1175,18 @@ const RecordFormats = {
       ${this.textSection("SUMMARY:",d.summary)}${this.textSection("ASSIGNMENT:",d.assignment)}${this.textSection("NEXT LESSON:",d.next)}
       ${this.signatures()}</article>`;
   },
-  render(type,no){ return (type==="demo"||type==="practical") ? this.renderDemo(no) : this.renderLesson(no); },
+  render(type,no,planOverride){const practical=type==="demo"||type==="practical",item=(practical?DATA.practicals:DATA.theory).find(x=>String(x.no)===String(no));const warning=item?.planReviewRequired&&!planOverride?'<p class="callout">Instructor review required: syllabus hours changed after this plan was saved. Review its duration and teaching activities before use.</p>':'';return warning+(practical?this.renderDemo(no,planOverride):this.renderLesson(no,planOverride)); },
   signatures() {
     return `<div class="doc-signatures"><div>INSTRUCTOR<br><span>(Signature & Date)</span></div><div>GROUP INSTRUCTOR<br><span>(Signature & Date)</span></div><div>VICE-PRINCIPAL / PRINCIPAL<br><span>(Signature & Date)</span></div></div>
       <div class="doc-footer-credit">Universal ITI Instructor Automation • Designed & Developed by Durgesh Kadam</div>`;
   },
-  firstNo(type){ const list=(type==="demo"?DATA.practicals:DATA.theory)||[]; return list[0]?.no || 1; },
+  firstNo(type){ const list=(type==="demo"?DATA.practicals:DATA.theory)||[]; return list[0]?.no ?? 1; },
   preview(type,no) {
-    const n=no||this.firstNo(type);
-    PlanViewer.open(type==="demo"?"practical":"theory",Number(n));
+    const n=no??this.firstNo(type);
+    PlanViewer.open(type==="demo"?"practical":"theory",n);
   },
   print(type,no) {
-    const n=no||this.firstNo(type);
+    const n=no??this.firstNo(type);
     const body=this.render(type,n);
     const w=window.open("","_blank");
     if(!w){alert("Please allow pop-ups for printing. The full plan can still be viewed inside the app.");return;}
@@ -1417,7 +1400,7 @@ const Inspection = {
 const App = {
   init(){
     loadData();
-    const rawSession = localStorage.getItem(SESSION_KEY);
+    const rawSession = window.__ITI_V15 ? null : localStorage.getItem(SESSION_KEY);
     document.getElementById("loginRole").addEventListener("change", e=>{
       const isStudent = e.target.value === "student";
       document.getElementById("staffNameField").style.display = isStudent? "none":"block";
@@ -1435,29 +1418,8 @@ const App = {
     }
   },
   login(){
-    const role = document.getElementById("loginRole").value;
-    if(role==="instructor" || role==="principal"){
-      const username = document.getElementById("loginName").value.trim().toLowerCase();
-      const pin = document.getElementById("loginPin").value.trim();
-      const users = Array.isArray(DATA.users) ? DATA.users : [];
-      const user = users.find(u=>u.username.toLowerCase()===username && u.role===role && u.active!==false);
-      // V12 security fix: a matched staff account must also match its own PIN.
-      const legacyUserOk = role==="instructor" ? ["durgesh","instructor"].includes(username) : ["principal","admin"].includes(username);
-      const legacyMatch = !user && legacyUserOk && (role==="instructor" ? pin===DATA.meta.instructorPin : pin===DATA.meta.principalPin);
-      if((user && pin!==String(user.pin??"")) || (!user && !legacyMatch)){ alert("Invalid User ID or PIN."); return; }
-      const name = user ? user.name : (role==="principal"?"Principal":"Instructor");
-      SESSION = {role, name, userId:user?.id||("legacy-"+role), username:user?.username||username};
-    } else {
-      const roll = document.getElementById("loginRoll").value.trim();
-      const pin = document.getElementById("loginStudentPin").value.trim();
-      if(!roll){ alert("Enter your Roll No."); return; }
-      const t = DATA.trainees.find(x=>x.roll===roll);
-      if(!t){ alert("Roll No. not found. Ask your instructor to add you in Trainee Master first."); return; }
-      if(pin !== t.pin){ alert("Incorrect PIN. Ask your instructor if you don't know your PIN."); return; }
-      SESSION = {role:"student", name:t.name, traineeId:t.id, roll:t.roll};
-    }
-    localStorage.setItem(SESSION_KEY, JSON.stringify(SESSION));
-    App.enter();
+    alert('Local PIN login has been retired. Open the secure V15 Google login.');
+    location.replace(new URL('final/',location.href));
   },
   logout(){
     localStorage.removeItem(SESSION_KEY);
@@ -1469,11 +1431,10 @@ const App = {
     document.getElementById("loginScreen").style.display="none";
     document.getElementById("appShell").style.display="block";
     document.getElementById("whoName").textContent = `${SESSION.name} (${SESSION.role})`;
-    document.getElementById("brandSub").textContent = DATA.meta.institute;
     const hourNow = new Date().getHours();
     const greetWord = hourNow<12?"Good morning":hourNow<17?"Good afternoon":"Good evening";
     document.getElementById("heroGreeting").textContent = `${greetWord}, ${SESSION.name.split(" ")[0]}`;
-    document.getElementById("heroSub").textContent = `${DATA.meta.trade} — ${DATA.meta.batch} · ${DATA.meta.institute} · ${SESSION.name}`;
+    Dashboard.renderIdentity();
 
     const role = SESSION.role;
     const isInstructor = role==="instructor";
@@ -1875,71 +1836,73 @@ const PLAN_FIELDS = {
 };
 
 const PlanViewer = {
-  current:{type:null, no:null},
-  open(type, no){
-    this.current={type,no:Number(no)};
-    const list=type==="practical" ? DATA.practicals : DATA.theory;
-    const item=list.find(x=>Number(x.no)===Number(no));
-    if(!item) return;
-    const isStudent=SESSION.role==="student";
-    document.getElementById("planModalTitle").textContent = isStudent ? `${type==="practical"?"Practical":"Theory"} ${no}: ${item.title}` : `${type==="practical"?"Demonstration":"Lesson"} Plan No. ${no}`;
-
-    const m=item.materials || {pdfLink:"",youtubeLink:"",updatedDate:null};
-    let materialsHtml="";
-    if(isStudent){
-      materialsHtml=`<div class="plan-materials"><h4>📎 Teaching Materials</h4>
-        ${m.pdfLink?`<p>📄 <a href="${m.pdfLink}" target="_blank" rel="noopener">Open Notes PDF</a></p>`:""}
-        ${m.youtubeLink?`<p>▶️ <a href="${m.youtubeLink}" target="_blank" rel="noopener">Watch on YouTube</a></p>`:""}
-        ${(!m.pdfLink&&!m.youtubeLink)?`<p class="muted">Not uploaded by your instructor yet.</p>`:""}</div>`;
-    }else{
-      const fullDoc=RecordFormats.render(type==="practical"?"demo":"lesson",Number(no));
+  current:null,
+  find(type,no){const list=type==='practical'?DATA.practicals:type==='theory'?DATA.theory:[];return list.find(x=>x.no===no)||list.find(x=>String(x.no)===String(no));},
+  safeMaterialUrl(value,youtube=false){
+    const text=String(value??'').trim();if(!text)return '';
+    try{const url=new URL(text);if(url.protocol!=='https:'||url.username||url.password)return '';if(youtube&&(url.port||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be','youtube-nocookie.com','www.youtube-nocookie.com'].includes(url.hostname)))return '';return url.href;}catch{return '';}
+  },
+  readCurrent(edit=false){
+    const c=this.current;if(!c||(edit&&SESSION?.role!=='instructor'))return null;
+    const item=this.find(c.type,c.no);
+    if(SESSION?.role!==c.role||c.context.uid!==(window.V15Sync?.fb?.user?.uid??null)||c.context.workspace!==(window.V15Sync?.workspaceId??null)||c.context.institute!==window.V15Sync?.INSTITUTE_ID||c.context.db!==window.V15Sync?.fb?.db){this.close();alert('The account or workspace changed. Reopen the plan before continuing.');return null;}
+    if(!syllabusContextCurrent(c.context)||!item||syllabusRecordVersion(item)!==c.version){if(!edit)this.close();alert(edit?'The topic changed. Your draft is retained; copy it before reopening the latest plan.':'The syllabus changed. Reopen the plan before continuing.');return null;}
+    return item;
+  },
+  node(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;},
+  button(label,action,className='btn ghost small'){const b=this.node('button',label,className);b.type='button';b.addEventListener('click',action);return b;},
+  open(type,no){
+    const item=this.find(type,no);if(!item||!['admin','principal','instructor','staff','student'].includes(SESSION?.role)){this.close();return;}
+    this.current={type,no:item.no,role:SESSION.role,context:syllabusContext(),version:syllabusRecordVersion(item)};
+    const isStudent=SESSION.role==='student',m=item.materials||{},body=document.getElementById('planModalBody');body.replaceChildren();
+    document.getElementById('planModalTitle').textContent=isStudent?`${type==='practical'?'Practical':'Theory'} ${item.no}: ${item.title}`:`${type==='practical'?'Demonstration':'Lesson'} Plan No. ${item.no}`;
+    if(!isStudent){
       const pm=item.planMeta||{};
-      const statusHtml=pm.status?`<div class="callout" style="margin-bottom:10px"><b>Plan status:</b> ${RecordFormats.esc(String(pm.status).replace(/-/g,' ').toUpperCase())}${pm.approvedBy?` · Approved by ${RecordFormats.esc(pm.approvedBy)}`:''}${pm.version?` · Version ${pm.version}`:''}</div>`:'';
-      materialsHtml=`${statusHtml}
-        <div class="plan-preview-toolbar">
-          <button class="btn secondary small" onclick="RecordFormats.print('${type==="practical"?"demo":"lesson"}',${Number(no)})">🖨️ Print / Save PDF</button>
-          ${SESSION.role==="instructor"?`<button class="btn primary small" onclick="InstructorAI.openPlanDraft('${type}',${Number(no)})">✨ AI Draft Plan</button><button class="btn ghost small" onclick="PlanViewer.editPlan()">✏️ Edit Text Sections</button>`:""}
-        </div>
-        <div class="plan-document-wrap"><style>${RecordFormats.css(false)}</style>${fullDoc}</div>
-        ${SESSION.role==="instructor"?`<div class="plan-materials"><h4>📎 Teaching Materials (for students)</h4>
-          <div class="field"><label>Notes PDF link</label><input type="text" id="planPdfLink" value="${m.pdfLink||''}" placeholder="Paste Drive/other link to your notes PDF"></div>
-          <div class="field"><label>YouTube video link</label><input type="text" id="planYoutubeLink" value="${m.youtubeLink||''}" placeholder="https://youtube.com/watch?v=..."></div>
-          <button class="btn primary small" onclick="PlanViewer.saveMaterials()">Save Materials</button>${m.updatedDate?`<p class="muted">Last updated ${m.updatedDate}</p>`:""}</div>`:""}`;
+      if(pm.status){const status=this.node('div',`Plan status: ${String(item.planReviewRequired?'review-required':pm.status).replace(/-/g,' ').toUpperCase()}${pm.approvedBy?' · Approved by '+pm.approvedBy:''}${pm.version?' · Version '+pm.version:''}`,'callout');status.style.marginBottom='10px';body.append(status);}
+      const toolbar=this.node('div',undefined,'plan-preview-toolbar');
+      toolbar.append(this.button('Print / Save PDF',()=>{if(this.readCurrent())RecordFormats.print(type==='practical'?'demo':'lesson',item.no);},'btn secondary small'));
+      if(SESSION.role==='instructor')toolbar.append(this.button('AI Draft Plan',()=>{if(this.readCurrent(true))InstructorAI.openPlanDraft(type,item.no);},'btn primary small'),this.button('Edit Text Sections',()=>this.editPlan()));
+      body.append(toolbar);
+      const preview=this.node('div',undefined,'plan-document-wrap'),style=this.node('style',RecordFormats.css(false));preview.append(style);
+      const documentBody=this.node('div');try{documentBody.innerHTML=RecordFormats.render(type==='practical'?'demo':'lesson',item.no);}catch{documentBody.textContent='This plan could not be displayed. Review its imported fields before use.';}preview.append(documentBody);body.append(preview);
     }
-    document.getElementById("planModalBody").innerHTML=materialsHtml;
-    document.getElementById("planModal").style.display="flex";
-    const card=document.querySelector("#planModal .modal-card"); if(card){card.scrollTop=0;}
+    if(isStudent||SESSION.role==='instructor'){
+      const materials=this.node('div',undefined,'plan-materials');materials.append(this.node('h4',isStudent?'Teaching Materials':'Teaching Materials (for students)'));
+      if(isStudent){
+        let count=0;
+        for(const [key,label,youtube] of [['pdfLink','Open Notes PDF',false],['youtubeLink','Watch on YouTube',true]]){const href=this.safeMaterialUrl(m[key],youtube);if(href){const p=this.node('p'),a=this.node('a',label);a.href=href;a.target='_blank';a.rel='noopener noreferrer';p.append(a);materials.append(p);count++;}}
+        if(!count)materials.append(this.node('p','No valid teaching-material links are available yet.','muted'));
+      }else{
+        for(const [id,label,value,placeholder] of [['planPdfLink','Notes PDF link',m.pdfLink,'https://… notes PDF'],['planYoutubeLink','YouTube video link',m.youtubeLink,'https://youtube.com/watch?v=…']]){const field=this.node('div',undefined,'field'),l=this.node('label',label),input=this.node('input');l.htmlFor=id;input.id=id;input.type='url';input.value=String(value??'');input.placeholder=placeholder;field.append(l,input);materials.append(field);}
+        materials.append(this.node('p','Use absolute HTTPS links without embedded login credentials. Video links must use YouTube or youtu.be.','muted'));
+        const status=this.node('p');status.id='planMaterialsStatus';status.setAttribute('role','status');materials.append(status,this.button('Save Materials',()=>this.saveMaterials(),'btn primary small'));
+        if(m.updatedDate)materials.append(this.node('p','Last updated '+m.updatedDate,'muted'));
+      }
+      body.append(materials);
+    }
+    document.getElementById('planModal').style.display='flex';const card=document.querySelector('#planModal .modal-card');if(card)card.scrollTop=0;
   },
   editPlan(){
-    const {type,no}=this.current;
-    const list=type==="practical"?DATA.practicals:DATA.theory;
-    const item=list.find(x=>Number(x.no)===Number(no)); if(!item)return;
-    const official=RecordFormats.record(type==="practical"?"demo":"lesson",no);
-    const existing=item.plan||{};
-    const seed=type==="practical"?{
-      objective:official.objectives||[], tools:official.tools||[], questions:official.questions||[], nextDemo:official.next||""
-    }:{
-      objective:official.objectives||[], materials:official.materials||[], review:official.review||"", motivation:official.motivation||"", questions:official.questions||[], summary:official.summary||"", assignment:official.assignment||"", nextLesson:official.next||""
-    };
-    const fields=PLAN_FIELDS[type];
-    const formHtml=fields.map(([key,label,isArray])=>{
-      const val=(key in existing)?existing[key]:seed[key];
-      const textVal=isArray?(val||[]).join("\n"):(val||"");
-      return `<div class="field"><label>${label}${isArray?' <span class="muted">(one per line)</span>':''}</label><textarea id="planField_${key}" rows="${isArray?4:3}">${RecordFormats.esc(textVal)}</textarea></div>`;
-    }).join("");
-    document.getElementById("planModalBody").innerHTML=`<p class="muted">Edit the text sections below. The official procedure/teaching table, plan header, dates and signature area remain part of the full document.</p>${formHtml}<div class="field-row" style="justify-content:flex-end"><button class="btn ghost" onclick="PlanViewer.open('${type}',${no})">Cancel</button><button class="btn primary" onclick="PlanViewer.savePlan()">Save & View Full Plan</button></div>`;
+    const item=this.readCurrent(true);if(!item)return;
+    const {type,no}=this.current,official=RecordFormats.record(type==='practical'?'demo':'lesson',no),existing=item.plan||{};
+    const seed=type==='practical'?{objective:official.objectives,tools:official.tools,questions:official.questions,nextDemo:official.next}:{objective:official.objectives,materials:official.materials,review:official.review,motivation:official.motivation,questions:official.questions,summary:official.summary,assignment:official.assignment,nextLesson:official.next};
+    const body=document.getElementById('planModalBody');body.replaceChildren(this.node('p','Edit the text sections below. The official procedure/teaching table, plan header, dates and signature area remain part of the full document.','muted'));
+    for(const [key,label,isArray] of PLAN_FIELDS[type]){const val=Object.prototype.hasOwnProperty.call(existing,key)?existing[key]:seed[key],field=this.node('div',undefined,'field'),l=this.node('label',label+(isArray?' (one per line)':'')),input=this.node('textarea');input.id='planField_'+key;l.htmlFor=input.id;input.rows=isArray?4:3;input.value=Array.isArray(val)?val.map(x=>String(x??'')).join('\n'):typeof val==='string'||typeof val==='number'?String(val):'';field.append(l,input);body.append(field);}
+    const actions=this.node('div',undefined,'field-row');actions.style.justifyContent='flex-end';actions.append(this.button('Cancel',()=>{if(this.readCurrent(true))this.open(type,no);},'btn ghost'),this.button('Save & View Full Plan',()=>this.savePlan(),'btn primary'));body.append(actions);
   },
   savePlan(){
-    const {type,no}=this.current; const list=type==="practical"?DATA.practicals:DATA.theory; const item=list.find(x=>Number(x.no)===Number(no)); if(!item)return;
-    const newPlan={}; PLAN_FIELDS[type].forEach(([key,label,isArray])=>{const raw=document.getElementById("planField_"+key).value; newPlan[key]=isArray?raw.split("\n").map(s=>s.trim()).filter(Boolean):raw.trim();});
-    item.plan={...(item.plan||{}),...newPlan};
-    item.planMeta={...(item.planMeta||{}),status:"instructor-edited",editedAt:new Date().toISOString(),editedBy:SESSION?.name||"Instructor",version:Number(item.planMeta?.version||0)+1};
-    saveData(); alert("Plan saved. Review it before final use."); this.open(type,no);
+    const item=this.readCurrent(true);if(!item)return;const {type,no}=this.current,newPlan={};
+    for(const [key,label,isArray] of PLAN_FIELDS[type]){const input=document.getElementById('planField_'+key);if(!input)return;const raw=input.value;newPlan[key]=isArray?raw.split('\n').map(s=>s.trim()).filter(Boolean):raw.trim();}
+    if(window.__ITI_V15){if(!window.V15Sync?.saveReviewedTeachingPlan){alert('Secure plan saving is unavailable. Reload; your editor text is retained.');return;}return V15Sync.saveReviewedTeachingPlan({type,no,plan:newPlan,mode:'patch',status:'instructor-edited',editor:this.current});}
+    item.plan={...(item.plan||{}),...newPlan};delete item.planReviewRequired;const version=Number(item.planMeta?.version);item.planMeta={...(item.planMeta||{}),status:'instructor-edited',editedAt:new Date().toISOString(),editedBy:SESSION?.name||'Instructor',version:Number.isSafeInteger(version)&&version>=0&&version<Number.MAX_SAFE_INTEGER?version+1:1};
+    saveData();alert('Plan saved. Review it before final use.');this.open(type,no);
   },
-  close(){document.getElementById("planModal").style.display="none";},
+  close(){this.current=null;document.getElementById('planModal').style.display='none';document.getElementById('planModalBody').replaceChildren();},
   saveMaterials(){
-    const {type,no}=this.current; const list=type==="practical"?DATA.practicals:DATA.theory; const item=list.find(x=>Number(x.no)===Number(no)); if(!item)return;
-    item.materials={pdfLink:document.getElementById("planPdfLink").value.trim(),youtubeLink:document.getElementById("planYoutubeLink").value.trim(),updatedDate:todayISO()}; saveData(); alert("Materials saved."); this.open(type,no);
+    const item=this.readCurrent(true);if(!item)return;const pdf=document.getElementById('planPdfLink'),video=document.getElementById('planYoutubeLink');if(!pdf||!video)return;
+    const pdfText=pdf.value.trim(),videoText=video.value.trim(),pdfLink=this.safeMaterialUrl(pdfText),youtubeLink=this.safeMaterialUrl(videoText,true);
+    if((pdfText&&!pdfLink)||(videoText&&!youtubeLink)){document.getElementById('planMaterialsStatus').textContent='Enter valid absolute HTTPS links. Video links must use YouTube; embedded login credentials are not allowed.';return;}
+    const {type,no}=this.current;item.materials={pdfLink,youtubeLink,updatedDate:todayISO()};saveData();alert('Materials saved.');this.open(type,no);
   }
 };
 
@@ -2217,7 +2180,77 @@ let _chartSyllabus=null, _chartAttendance=null;
 
 /* ===================== DASHBOARD ===================== */
 const Dashboard = {
+  escape(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));},
+  validTrainingDate(value){return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value+'T00:00:00Z'))&&new Date(value+'T00:00:00Z').toISOString().slice(0,10)===value;},
+  trainingToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());},
+  topicTiming(type,item){
+    const valid=Dashboard.validTrainingDate,meta=DATA.meta||{},plan=meta.trainingPlan;
+    const start=valid(item.plannedDate)?item.plannedDate:null;
+    // An allocated finish is authoritative only if the complete topic fits in the saved plan.
+    if(meta.scheduleMode!=='official'&&meta.scheduleMode!=='generated'&&Array.isArray(plan?.dayPlan)){
+      const key=type==='practical'?'practicalItems':'theoryItems',parts=plan.dayPlan.filter(r=>valid(r.date)&&!r.holiday).flatMap(r=>(r[key]||[]).filter(x=>String(x.seq)===String(item.no)).map(x=>({date:r.date,hours:Number(x.hours)}))).sort((a,b)=>a.date.localeCompare(b.date));
+      if(parts.length&&(!start||start===parts[0].date)){
+        const allocated=parts.reduce((sum,x)=>sum+(Number.isFinite(x.hours)?x.hours:0),0),hours=Number(item.hours);
+        return {start:parts[0].date,finish:Number.isFinite(hours)&&hours>0&&allocated+0.001>=hours?parts.at(-1).date:null};
+      }
+      return {start,finish:null};
+    }
+    if(meta.scheduleMode==='generated'&&typeof Schedule!=='undefined'&&start){
+      const capacity=Number(meta.hoursPerWorkingDay),days=type==='practical'&&capacity>0?Math.ceil(Number(item.hours)/capacity):Number(meta.theoryDaysPerTopic);
+      const dates=Schedule.workingDaysFrom(start,days);return {start,finish:dates.length===days?dates.at(-1):null};
+    }
+    if(typeof Schedule!=='undefined'&&typeof SEED_SPLITUP!=='undefined'&&Schedule.hasOfficialCalendar()){
+      let active=null;const dates=[];for(const row of SEED_SPLITUP){const no=row[type==='practical'?1:2];if(no!=null)active=no;if(!row[3]&&String(active)===String(item.no)&&valid(row[0]))dates.push(row[0]);}
+      if(dates.length&&(!start||start===dates[0]))return {start:dates[0],finish:dates.at(-1)};
+    }
+    // A start date alone does not prove when a multi-day topic should finish.
+    return {start,finish:valid(item.plannedEndDate)&&(!start||item.plannedEndDate>=start)?item.plannedEndDate:null};
+  },
+  topicState(type,item,day=Dashboard.trainingToday()){
+    const timing=Dashboard.topicTiming(type,item);
+    if(item.status==='completed')return {...timing,code:'complete',label:'Done '+(item.doneDate||'')};
+    if(!timing.finish)return {...timing,code:'unplanned',label:timing.start?'Finish not scheduled':'Not scheduled'};
+    if(timing.finish<day)return {...timing,code:'overdue',label:'Overdue'};
+    return {...timing,code:'pending',label:timing.finish===day?'Due today':'Upcoming'};
+  },
+  progressSummary(type,day=Dashboard.trainingToday()){
+    const records=Dashboard.pendingTopics(type==='practical'?DATA.practicals:DATA.theory),all=type==='practical'?DATA.practicals:DATA.theory;
+    const expected=all.filter(x=>{const d=Dashboard.topicTiming(type,x).finish;return d&&d<=day;});
+    const overdue=records.filter(x=>Dashboard.topicState(type,x,day).code==='overdue');
+    const unknown=all.filter(x=>!Dashboard.topicTiming(type,x).finish).length,done=all.filter(x=>x.status==='completed').length;
+    return {expected:expected.length,completed:done,total:all.length,overdue,unknown,lastExpected:Dashboard.pendingTopics(expected.map(x=>({...x,status:'pending'}))).at(-1),notStarted:done===0&&overdue.length>0};
+  },
+  renderTrainingProgress(){
+    let host=document.getElementById('trainingProgress');const roadmap=document.getElementById('dashRoadmap');
+    if(!host&&roadmap){host=document.createElement('div');host.id='trainingProgress';roadmap.before(host);}
+    if(!host)return;host.hidden=SESSION?.role!=='instructor';if(host.hidden){host.replaceChildren();return;}
+    const e=Dashboard.escape,day=Dashboard.trainingToday();
+    host.innerHTML=`<p class="muted">Plan compared with teaching marked complete · ${e(day)} (India). Saving an AI plan does not mark teaching complete.</p><div class="training-progress-grid">${['practical','theory'].map(type=>{
+      const p=Dashboard.progressSummary(type,day),behind=p.overdue.length>0,state=behind?'overdue':p.unknown===p.total?'unplanned':'complete';
+      const label=behind?(p.notStarted?'Not started — behind plan':'Behind plan'):p.unknown===p.total?'Schedule needs review':p.unknown?'No known overdue topics':'On track';
+      return `<article class="training-progress-card training-${state}"><h4>${type==='practical'?'Practicals':'Theory'} <span class="training-status training-${state}">${label}</span></h4><p><b>${p.expected}</b> topics planned to finish by today · <b>${p.completed} / ${p.total}</b> marked complete</p><p>Expected position: ${p.lastExpected?e(p.lastExpected.no)+'. '+e(p.lastExpected.title):'No scheduled finish yet'}</p><p><b>${p.overdue.length}</b> overdue incomplete${p.overdue[0]?' · Next action: '+e(p.overdue[0].no)+'. '+e(p.overdue[0].title):''}</p>${p.unknown?`<p class="muted">${p.unknown} topic(s) have no confirmed finish date. Review year planning.</p>`:''}</article>`;
+    }).join('')}</div>`;
+  },
+  renderIdentity(){
+    const profile=RecordFormats.profile();
+    const brand=document.getElementById('brandSub'),hero=document.getElementById('heroSub');
+    if(brand)brand.textContent=profile.institute;
+    if(hero)hero.textContent=`${profile.trade} — ${profile.batch} · ${profile.institute} · ${SESSION?.name||'Signed-in account'}`;
+    const card=document.querySelector('.instructor-profile-dashboard');
+    if(card&&typeof window!=='undefined'&&window.__ITI_V15){
+      card.hidden=SESSION?.role!=='instructor';
+      const name=card.querySelector('h3'),detail=card.querySelector('p'),avatar=card.querySelector('.profile-avatar');
+      if(name)name.textContent=profile.name;
+      if(detail)detail.textContent=`${profile.designation} — ${profile.trade} • ${profile.institute}`;
+      if(avatar)avatar.textContent=profile.name.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+    }
+  },
+  pendingTopics(records){
+    const rank=item=>{const seq=Number(item.sequence),no=Number(item.no);return Number.isFinite(seq)&&seq>0?seq:Number.isFinite(no)&&no>0?no:Number.MAX_SAFE_INTEGER;};
+    return records.filter(item=>item.status!=="completed").sort((a,b)=>rank(a)-rank(b)||String(a.no??'').localeCompare(String(b.no??''),undefined,{numeric:true}));
+  },
   render(){
+    Dashboard.renderIdentity();
     const isPrincipal = SESSION?.role === "principal";
     const principalPanel = document.getElementById("principalDashboard");
     if(principalPanel) principalPanel.style.display = isPrincipal ? "block" : "none";
@@ -2236,7 +2269,7 @@ const Dashboard = {
       // Principal should not see the instructor's operational dashboard widgets.
       ["dashCards","chartSyllabus","chartAttendance","dashLatestNotice","dashRoadmap","pendingSigList","syllabusBarWrap"].forEach(id=>{ const el=document.getElementById(id); if(el) { const holder=el.closest('.card')||el; holder.style.display='none'; }});
       document.getElementById("heroGreeting").textContent = "Principal Dashboard";
-      document.getElementById("heroSub").textContent = `${DATA.meta.institute} · ${instructors.length} instructor account${instructors.length===1?'':'s'}`;
+      document.getElementById("heroSub").textContent = `${RecordFormats.profile().institute} · ${instructors.length} instructor account${instructors.length===1?'':'s'}`;
       return;
     }
     ["dashCards","chartSyllabus","chartAttendance","dashLatestNotice","dashRoadmap","pendingSigList","syllabusBarWrap"].forEach(id=>{ const el=document.getElementById(id); if(el) { const holder=el.closest('.card')||el; holder.style.display=''; }});
@@ -2283,20 +2316,22 @@ const Dashboard = {
 
     const latest = DATA.notices[0];
     document.getElementById("dashLatestNotice").innerHTML = latest
-      ? `<div class="notice"><span class="date">${latest.date}</span><h4>${latest.title}</h4><p>${latest.body||""}</p></div>`
+      ? `<div class="notice"><span class="date">${Dashboard.escape(latest.date||"Date not recorded")}</span><h4>${Dashboard.escape(latest.title||"Untitled notice")}</h4><p>${Dashboard.escape(latest.body||"")}</p></div>`
       : `<p class="muted">No notices posted yet.</p>`;
 
-    const nextPracs = DATA.practicals.filter(p=>p.status!=="completed").slice(0,3);
-    const nextTheory = DATA.theory.filter(t=>t.status!=="completed").slice(0,3);
-    const dateTag = d => d? ` <span class="muted">(planned ${d})</span>` : ` <span class="muted">(no planned date set)</span>`;
+    Dashboard.renderTrainingProgress();
+    const nextPracs = Dashboard.pendingTopics(DATA.practicals).slice(0,3);
+    const nextTheory = Dashboard.pendingTopics(DATA.theory).slice(0,3);
+    const roadmapText=Dashboard.escape;
+    const dateTag = d => d? ` <span class="muted">(planned ${roadmapText(d)})</span>` : ` <span class="muted">(no planned date set)</span>`;
     document.getElementById("dashRoadmap").innerHTML = `
       <p class="stat-label" style="margin-bottom:4px">Next Practicals</p>
       <ul style="margin:0 0 12px;padding-left:18px;font-size:.9em">
-        ${nextPracs.map(p=>`<li>Demo ${p.no}: ${p.title}${dateTag(p.plannedDate)}</li>`).join("") || '<li class="muted">All practicals complete!</li>'}
+        ${nextPracs.map(p=>`<li>Demo ${roadmapText(p.no)}: ${roadmapText(p.title)}${dateTag(p.plannedDate)}</li>`).join("") || '<li class="muted">All practicals complete!</li>'}
       </ul>
       <p class="stat-label" style="margin-bottom:4px">Next Theory Topics</p>
       <ul style="margin:0;padding-left:18px;font-size:.9em">
-        ${nextTheory.map(t=>`<li>Lesson ${t.no}: ${t.title}${dateTag(t.plannedDate)}</li>`).join("") || '<li class="muted">All theory complete!</li>'}
+        ${nextTheory.map(t=>`<li>Lesson ${roadmapText(t.no)}: ${roadmapText(t.title)}${dateTag(t.plannedDate)}</li>`).join("") || '<li class="muted">All theory complete!</li>'}
       </ul>
     `;
 
@@ -2306,11 +2341,11 @@ const Dashboard = {
       : `<p class="muted">Nothing pending. Registers you generate from Reports will appear here until marked signed.</p>`;
 
     const bar = document.createElement("div");
-    const nextPrac = DATA.practicals.find(p=>p.status!=="completed");
+    const nextPrac = nextPracs[0];
     bar.innerHTML = `<div style="background:#e2e6ea;border-radius:8px;height:22px;overflow:hidden">
       <div style="background:var(--brass);height:100%;width:${pct}%"></div></div>
       <p class="muted" style="margin-top:6px">${combinedDone} of ${combinedTotal||'0'} items (practical + theory) marked complete.
-      ${nextPrac? 'Next practical: Demo '+nextPrac.no : ''}</p>`;
+      ${nextPrac? 'Next practical: Demo '+roadmapText(nextPrac.no) : ''}</p>`;
     document.getElementById("syllabusBarWrap").innerHTML="";
     document.getElementById("syllabusBarWrap").appendChild(bar);
   },
@@ -2378,15 +2413,26 @@ const Trainees = {
     const guardianName = document.getElementById("mGuardian").value.trim();
     const guardianPhone = document.getElementById("mGuardianPhone").value.trim();
     if(!roll || !name){ alert("Roll No. and Name are required."); return; }
-    if(DATA.trainees.some(t=>t.roll===roll)){ alert("A trainee with this Roll No. already exists."); return; }
-    const pin = generatePin();
-    DATA.trainees.push({id:uid(), roll, name, prn, prnStatus: prn? "Allotted":"Pending", category, phone, guardianName, guardianPhone, pin});
+    const existingRoll=String(roll).toLowerCase();
+    if(DATA.trainees.some(t=>String(t.roll||"").trim().toLowerCase()===existingRoll)){
+      alert("A trainee with this Roll No. already exists.");return;
+    }
+    if(prn&&DATA.trainees.some(t=>String(t.prn||t.applicationId||"").trim().toLowerCase()===prn.toLowerCase())){
+      alert("A trainee with this PRN / Application ID already exists.");return;
+    }
+    const modern=!!window.__ITI_V15;
+    const trainee={id:uid(), roll, name, prn, prnStatus: prn? "Allotted":"Pending", category, phone, guardianName, guardianPhone};
+    if(modern)trainee.accountStatus="not-linked";
+    else trainee.pin=generatePin();
+    DATA.trainees.push(trainee);
     saveData();
     Trainees.closeForm();
     Trainees.render(); Evaluation.populateSelects(); Reports.populateSelects(); Leave.populateSelects();
-    alert(`Trainee added. Their login PIN is ${pin} — share this with them along with their Roll No.`);
+    if(modern)alert("Trainee record added. Student login is not created automatically; use the institute account activation process.");
+    else alert(`Trainee added. Their login PIN is ${trainee.pin} — share this with them along with their Roll No.`);
   },
   loadSample(){
+    if(window.__ITI_V15){alert("Sample trainees are disabled in the live institute workspace.");return;}
     if(DATA.trainees.length && !confirm("This adds 5 sample trainees to your current list (for testing). Continue?")) return;
     const sample = [
       ["01","Rahul Jadhav","","OPEN"],
@@ -2404,16 +2450,21 @@ const Trainees = {
     alert("5 sample trainees added, each with a random PIN (check the Trainees table). Remove them later with 'Clear all trainees' once your real list is ready.");
   },
   clearAll(){
+    if(window.__ITI_V15){alert("Clear all is disabled in the institute workspace to protect attendance, marks and trainee identity links.");return;}
     if(!confirm("Remove ALL trainees? This does not affect attendance/marks already saved against them, but they'll disappear from lists. Use this to clear sample data before entering your real roster.")) return;
     DATA.trainees = [];
     saveData(); Trainees.render(); Evaluation.populateSelects(); Reports.populateSelects();
   },
   remove(id){
+    // V15 attendance, marks, leave and Firebase memberships reference the stable
+    // trainee ID. Do not cascade-delete or orphan them through the legacy client.
+    if(window.__ITI_V15){alert("Permanent trainee deletion is disabled in the secure workspace. Preserve the record and use a reviewed Institute Admin archive process.");return;}
     if(!confirm("Remove this trainee?")) return;
     DATA.trainees = DATA.trainees.filter(t=>t.id!==id);
     saveData(); Trainees.render(); Evaluation.populateSelects(); Reports.populateSelects();
   },
   resetPin(id){
+    if(window.__ITI_V15){alert("Legacy trainee PIN reset is disabled. Use the institute account recovery process.");return;}
     const t = DATA.trainees.find(x=>x.id===id);
     if(!t) return;
     if(!confirm(`Generate a new PIN for ${t.name}? Their old PIN will stop working.`)) return;
@@ -2438,18 +2489,48 @@ const Trainees = {
     return (sum/count).toFixed(1)+"/35";
   },
   render(){
-    document.getElementById("traineeTableBody").innerHTML = DATA.trainees.map(t=>`
-      <tr>
-        <td>${t.roll}</td><td><div class="name-cell">${avatarChip(t.name)}<span>${t.name}</span></div></td>
-        <td>${t.prn || `<span class="badge pending">Pending</span>`}</td>
-        <td>${t.category}</td>
-        <td>${Trainees.attendancePct(t.id)}</td>
-        <td>${Trainees.practicalAvg(t.id)}</td>
-        <td>${SESSION.role==="instructor"? `<code>${t.pin}</code> <button class="btn ghost small" onclick="Trainees.resetPin('${t.id}')">Reset</button>`:""}</td>
-        <td>${SESSION.role==="instructor"? `<button class="btn ghost small" onclick="Trainees.remove('${t.id}')">Remove</button>`:""}</td>
-      </tr>`).join("") || `<tr><td colspan="8" class="muted">No trainees added yet.</td></tr>`;
-  }
-};
+    if(window.TraineeBulkImport)window.TraineeBulkImport.refreshScope();
+    const body=document.getElementById("traineeTableBody");
+    if(!body)return;
+    body.replaceChildren();
+    // Hide legacy destructive/demo shortcuts in V15. Keep single-trainee management available.
+    if(window.__ITI_V15){
+      document.querySelectorAll('#instructorOnlyTrainees button[onclick*="Trainees.loadSample"],#instructorOnlyTrainees button[onclick*="Trainees.clearAll"]').forEach(b=>b.hidden=true);
+    }
+    const instructor=SESSION?.role==="instructor";
+    const addCell=(tr,value)=>{const td=document.createElement("td");td.textContent=String(value??"");tr.appendChild(td);return td;};
+    const makeButton=(label,action)=>{
+      const b=document.createElement("button");b.type="button";b.className="btn ghost small";b.textContent=label;b.addEventListener("click",action);return b;
+    };
+    if(!DATA.trainees.length){
+      const tr=document.createElement("tr"),td=addCell(tr,"No trainees added yet.");td.colSpan=8;td.className="muted";body.appendChild(tr);return;
+    }
+    DATA.trainees.forEach(t=>{
+      const tr=document.createElement("tr");
+      addCell(tr,t.roll);
+      const nameCell=document.createElement("td"),wrap=document.createElement("div");wrap.className="name-cell";
+      const badge=document.createElement("span");badge.className="avatar";
+      const name=String(t.name||"");const initials=name.split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join("").toUpperCase();
+      let hash=0;for(const ch of name)hash=ch.charCodeAt(0)+((hash<<5)-hash);
+      badge.style.background=AVATAR_COLORS[Math.abs(hash)%AVATAR_COLORS.length];
+      badge.textContent=initials;
+      const text=document.createElement("span");text.textContent=name;wrap.append(badge,text);nameCell.appendChild(wrap);tr.appendChild(nameCell);
+      const prnCell=addCell(tr,t.prn||"");
+      if(!t.prn){const span=document.createElement("span");span.className="badge pending";span.textContent="Pending";prnCell.appendChild(span);}
+      addCell(tr,t.category);addCell(tr,Trainees.attendancePct(t.id));addCell(tr,Trainees.practicalAvg(t.id));
+      const accountCell=addCell(tr,"");
+      if(instructor){
+        if(window.__ITI_V15){
+          accountCell.textContent=t.accountStatus==="not-linked"?"Not linked":"Managed by institute login";
+        }else{
+          const pin=document.createElement("code");pin.textContent=String(t.pin||"");accountCell.appendChild(pin,makeButton("Reset",()=>Trainees.resetPin(t.id)));
+        }
+      }
+      const actions=addCell(tr,"");
+      if(instructor&&!window.__ITI_V15)actions.appendChild(makeButton("Remove",()=>Trainees.remove(t.id)));
+      body.appendChild(tr);
+    });
+  }};
 
 /* ===================== ATTENDANCE ===================== */
 const Attendance = {
@@ -2557,22 +2638,31 @@ const Holidays = {
 
 
 /* ===================== MARK COMPLETE (date-editable) ===================== */
+function syllabusRecordVersion(record){
+  const canonical=value=>Array.isArray(value)?value.map(canonical):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+  return JSON.stringify(canonical(record));
+}
+function syllabusContext(){return {data:DATA,workspace:window.V15Sync?.workspaceId??null,uid:window.V15Sync?.fb?.user?.uid??null,institute:window.V15Sync?.INSTITUTE_ID,db:window.V15Sync?.fb?.db};}
+function syllabusContextCurrent(context){const current=syllabusContext();return !!context&&context.data===current.data&&context.workspace===current.workspace&&context.uid===current.uid&&context.institute===current.institute&&context.db===current.db;}
 const MarkComplete = {
   pending:null,
   open(type, no, label){
-    this.pending = {type, no};
+    if(SESSION?.role!=='instructor'||!['practical','theory'].includes(type))return;
+    const item=(type==='practical'?DATA.practicals:DATA.theory).find(x=>x.no===no);if(!item)return;
+    this.pending = {type,no,snapshot:syllabusRecordVersion(item),context:syllabusContext()};
     document.getElementById("markCompleteItemLabel").textContent = label;
-    document.getElementById("markCompleteDate").value = todayISO();
+    const heading=document.querySelector("#markCompleteModal h3");if(heading)heading.textContent=item.status==="completed"?"Edit completion date":"Mark completed";
+    document.getElementById("markCompleteDate").value = item.status==="completed"&&item.doneDate?item.doneDate:todayISO();
     document.getElementById("markCompleteModal").style.display="flex";
   },
-  close(){ document.getElementById("markCompleteModal").style.display="none"; },
+  close(){ this.pending=null;document.getElementById("markCompleteModal").style.display="none"; },
   confirm(){
+    if(SESSION?.role!=='instructor'||!this.pending)return;
+    const {type,no,snapshot,context}=this.pending;
+    const list=type==='practical'?DATA.practicals:DATA.theory,item=list.find(x=>x.no===no);
+    if(!syllabusContextCurrent(context)||!item||syllabusRecordVersion(item)!==snapshot){this.close();alert('The syllabus changed. Reopen the topic before marking it complete.');return;}
     const date = document.getElementById("markCompleteDate").value;
-    if(!date){ alert("Select a date."); return; }
-    const {type, no} = this.pending;
-    const list = type==="practical" ? DATA.practicals : DATA.theory;
-    const item = list.find(x=>x.no===no);
-    if(!item) return;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+"T00:00:00Z"))||new Date(date+"T00:00:00Z").toISOString().slice(0,10)!==date){ alert("Select a valid date."); return; }
     item.status="completed"; item.doneDate=date;
     saveData();
     MarkComplete.close();
@@ -2583,28 +2673,36 @@ const MarkComplete = {
 
 /* ===================== SPLIT-UP SYLLABUS (day-wise schedule generator) ===================== */
 const Schedule = {
+  validDate(iso){return typeof iso==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(iso)&&Number.isFinite(Date.parse(iso+'T00:00:00Z'))&&new Date(iso+'T00:00:00Z').toISOString().slice(0,10)===iso;},
+  hasOfficialCalendar(){return /desktop publishing|\bdtpo\b|\bdtp\b/i.test(DATA.meta.trade||'')&&(!DATA.meta.officialPlanPack||DATA.meta.officialPlanPack==='DTPO');},
+  holiday(iso){const saved=DATA.holidays.find(h=>h.date===iso);return saved?String(saved.label||'Institute holiday'):(new Date(iso+'T00:00:00Z').getUTCDay()===0?'Sunday':'');},
   workingDaysFrom(startISO, count){
+    if(!this.validDate(startISO)||!Number.isInteger(count)||count<0||count>5000)return [];
     const days = [];
-    let d = new Date(startISO+"T00:00:00");
+    let d = new Date(startISO+"T00:00:00Z");
     let guard = 0;
-    while(days.length < count && guard < 2000){
+    while(days.length < count && guard < 10000){
       const iso = d.toISOString().slice(0,10);
-      if(!isHoliday(iso)) days.push(iso);
-      d.setDate(d.getDate()+1);
+      if(!this.holiday(iso)) days.push(iso);
+      d.setUTCDate(d.getUTCDate()+1);
       guard++;
     }
     return days;
   },
   useRealCalendar(){
-    if(!confirm("This resets Planned Dates on every Practical and Theory topic to match your official DPO_LIVE_2026-27 calendar (Aug 2026 – Aug 2027), overwriting any custom schedule or reordering. Continue?")) return;
-    DATA.meta.scheduleMode = "real";
+    if(SESSION?.role!=='instructor'||!this.hasOfficialCalendar())return;
+    const context=syllabusContext();
+    if(!confirm("Replace planned dates with the bundled DTPO 2026–27 calendar? Review its dates against your institute calendar before use.")) return;
+    if(!syllabusContextCurrent(context)||SESSION?.role!=='instructor')return;
+    DATA.meta.scheduleMode = "official";
     Schedule.applyRealCalendarDates();
     saveData();
     Schedule.render();
     Practicals.render(); Theory.render(); Dashboard.render();
-    alert("Restored to your official 2026-27 calendar dates.");
+    alert("Bundled DTPO calendar applied. Review institute-specific holidays and session dates.");
   },
   applyRealCalendarDates(){
+    if(SESSION?.role!=='instructor'||!this.hasOfficialCalendar())return;
     const firstSeen = {p:{}, t:{}};
     SEED_SPLITUP.forEach(([date,psr,tsr,holiday])=>{
       if(holiday) return;
@@ -2615,19 +2713,23 @@ const Schedule = {
     DATA.theory.forEach(t=>{ if(firstSeen.t[t.no]) t.plannedDate = firstSeen.t[t.no]; });
   },
   generate(){
+    if(SESSION?.role!=='instructor')return;
     const start = document.getElementById("splitupStart").value;
-    const hoursPerDay = Number(document.getElementById("splitupHoursPerDay").value)||7;
-    const daysPerTheory = Number(document.getElementById("splitupDaysPerTheory").value)||1;
-    if(!start){ alert("Select a session start date."); return; }
-    if(!confirm("This generates dates algorithmically from your current teaching sequence, instead of using your official 2026-27 calendar. Use this only if you've reordered practicals/theory. Continue?")) return;
+    const hoursPerDay = Number(document.getElementById("splitupHoursPerDay").value);
+    const daysPerTheory = Number(document.getElementById("splitupDaysPerTheory").value);
+    if(!this.validDate(start)||!Number.isFinite(hoursPerDay)||hoursPerDay<1||hoursPerDay>12||!Number.isInteger(daysPerTheory)||daysPerTheory<1||daysPerTheory>10){alert('Enter a valid start date, practical hours/day (1–12) and whole theory days/topic (1–10).');return;}
+    if(DATA.practicals.some(p=>!Number.isFinite(Number(p.hours))||Number(p.hours)<=0)||(!DATA.practicals.length&&!DATA.theory.length)){alert('Add syllabus topics with valid positive practical hours before scheduling.');return;}
+    const context=syllabusContext();
+    const totalPracDays = DATA.practicals.reduce((s,p)=>s+Math.ceil(p.hours/hoursPerDay),0);
+    const totalTheoryDays = DATA.theory.length * daysPerTheory;
+    const workingDays = Schedule.workingDaysFrom(start, Math.max(totalPracDays, totalTheoryDays));
+    if(workingDays.length<Math.max(totalPracDays,totalTheoryDays)){alert('Schedule is too long. Reduce the topic hours or split the planning period.');return;}
+    if(!confirm('Replace planned dates using the current topic order? Sundays and saved holidays are excluded. Practical hours/day and theory days/topic are separate allocations; use Syllabus AI for a shared daily-hours budget.'))return;
+    if(!syllabusContextCurrent(context)||SESSION?.role!=='instructor')return;
     DATA.meta.scheduleMode = "generated";
     DATA.meta.scheduleStartDate = start;
     DATA.meta.hoursPerWorkingDay = hoursPerDay;
     DATA.meta.theoryDaysPerTopic = daysPerTheory;
-
-    const totalPracDays = DATA.practicals.reduce((s,p)=>s+Math.ceil(p.hours/hoursPerDay),0);
-    const totalTheoryDays = DATA.theory.length * daysPerTheory;
-    const workingDays = Schedule.workingDaysFrom(start, Math.max(totalPracDays, totalTheoryDays)+10);
 
     let ptr = 0;
     DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence).forEach(p=>{
@@ -2644,8 +2746,9 @@ const Schedule = {
     saveData();
     const lastNeeded = Math.max(totalPracDays, totalTheoryDays);
     const warn = document.getElementById("splitupWarning");
-    if(lastNeeded > workingDays.length - 10){
-      warn.textContent = "Heads up: this schedule runs long — check it against your session end date (31 May 2027) and consider adjusting hours/day or sequence.";
+    const sessionEnd=DATA.meta.sessionEndDate||DATA.meta.scheduleEndDate;
+    if(this.validDate(sessionEnd)&&workingDays[lastNeeded-1]>sessionEnd){
+      warn.textContent = 'This schedule extends beyond the configured session end date '+sessionEnd+'. Review the hours or topic order.';
     } else { warn.textContent = ""; }
     Schedule.render();
     Practicals.render(); Theory.render(); Dashboard.render();
@@ -2655,30 +2758,28 @@ const Schedule = {
     const tbody = document.getElementById("splitupTableBody");
     if(!tbody) return;
     if(document.getElementById("splitupStart")) document.getElementById("splitupStart").value = DATA.meta.scheduleStartDate || "";
-    if(document.getElementById("splitupHoursPerDay")) document.getElementById("splitupHoursPerDay").value = DATA.meta.hoursPerWorkingDay;
-    if(document.getElementById("splitupDaysPerTheory")) document.getElementById("splitupDaysPerTheory").value = DATA.meta.theoryDaysPerTopic;
-
+    if(document.getElementById("splitupHoursPerDay")) document.getElementById("splitupHoursPerDay").value = DATA.meta.hoursPerWorkingDay ?? 7;
+    if(document.getElementById("splitupDaysPerTheory")) document.getElementById("splitupDaysPerTheory").value = DATA.meta.theoryDaysPerTopic ?? 1;
+    const official=document.getElementById('splitupOfficial');if(official)official.hidden=!this.hasOfficialCalendar();
+    const info=document.getElementById('splitupInfo');if(info)info.textContent=DATA.meta.scheduleMode==='generated'?'Alternate schedule: separate practical hours/day and theory days/topic. Sundays and saved holidays are excluded.':Array.isArray(DATA.meta.trainingPlan?.dayPlan)&&DATA.meta.scheduleMode!=='official'?'Saved complete training plan: allocations from Syllabus AI.':this.hasOfficialCalendar()?'Bundled DTPO calendar: review against your institute calendar.':'Create a complete training plan in Syllabus AI or generate an alternate schedule below.';
     const rows = Schedule.buildRows();
     if(!rows.length){
-      tbody.innerHTML = `<tr><td colspan="5" class="muted">No schedule yet. Click "Use Official 2026-27 Calendar" (recommended) or set a start date and "Generate Schedule."</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" class="muted">No schedule yet. Create a complete training plan in Syllabus AI or generate an alternate schedule.</td></tr>`;
       return;
     }
-    tbody.innerHTML = rows.map(r=>`
-      <tr ${r.holiday?'style="background:#f4f5f2"':''}>
-        <td>${r.date}</td><td>${r.day}</td><td>${r.week}</td>
-        <td>${r.holiday? '<i>HOLIDAY — '+r.label+'</i>' : (r.practical||'—')}</td>
-        <td>${r.holiday? '<i>HOLIDAY — '+r.label+'</i>' : (r.theory||'—')}</td>
-      </tr>`).join("");
+    tbody.replaceChildren();
+    for(const r of rows){const tr=document.createElement('tr');if(r.holiday)tr.style.background='#f4f5f2';for(const text of [r.date,r.day,r.week,r.holiday?'HOLIDAY — '+r.label:r.practical||'—',r.holiday?'HOLIDAY — '+r.label:r.theory||'—']){const td=document.createElement('td');td.textContent=text??'';tr.append(td);}tbody.append(tr);}
   },
   buildRows(){
     if(DATA.meta.scheduleMode==="generated") return Schedule.buildRowsGenerated();
-    return Schedule.buildRowsReal();
+    if(DATA.meta.scheduleMode!=='official'&&Array.isArray(DATA.meta.trainingPlan?.dayPlan))return DATA.meta.trainingPlan.dayPlan.filter(r=>r&&this.validDate(r.date)).map(r=>({...r}));
+    return this.hasOfficialCalendar()?Schedule.buildRowsReal():[];
   },
   buildRowsReal(){
     let prevPsr=null, prevTsr=null;
     return SEED_SPLITUP.map(([date,psr,tsr,holidayLabel],idx)=>{
-      const d = new Date(date+"T00:00:00");
-      const day = d.toLocaleDateString('en-IN',{weekday:'short'});
+      const d = new Date(date+"T00:00:00Z");
+      const day = d.toLocaleDateString('en-IN',{weekday:'short',timeZone:'UTC'});
       const week = Math.floor(idx/7)+1;
       if(holidayLabel){
         prevPsr=null; prevTsr=null;
@@ -2694,62 +2795,46 @@ const Schedule = {
   },
   buildRowsGenerated(){
     const start = DATA.meta.scheduleStartDate;
-    const hoursPerDay = DATA.meta.hoursPerWorkingDay;
-    const daysPerTheory = DATA.meta.theoryDaysPerTopic;
+    const hoursPerDay = Number(DATA.meta.hoursPerWorkingDay);
+    const daysPerTheory = Number(DATA.meta.theoryDaysPerTopic);
+    if(!this.validDate(start)||!Number.isFinite(hoursPerDay)||hoursPerDay<1||hoursPerDay>12||!Number.isInteger(daysPerTheory)||daysPerTheory<1||daysPerTheory>10)return [];
     const pracSorted = DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence).filter(p=>p.plannedDate);
     const theorySorted = DATA.theory.slice().sort((a,b)=>a.sequence-b.sequence).filter(t=>t.plannedDate);
-    const lastPrac = pracSorted[pracSorted.length-1];
-    const lastTheory = theorySorted[theorySorted.length-1];
-    const endDates = [];
-    if(lastPrac) endDates.push(addDaysISO(lastPrac.plannedDate, Math.ceil(lastPrac.hours/hoursPerDay)-1));
-    if(lastTheory) endDates.push(addDaysISO(lastTheory.plannedDate, daysPerTheory-1));
-    if(!start || !endDates.length) return [];
-    const endDate = endDates.sort().reverse()[0];
-
-    const findPractical = (iso)=>{
-      for(const p of pracSorted){
-        const days = Math.ceil(p.hours/hoursPerDay);
-        const pEnd = addDaysISO(p.plannedDate, days-1);
-        if(iso>=p.plannedDate && iso<=pEnd){
-          return iso===p.plannedDate ? `Demo ${p.no}: ${p.title} (${p.hours} hrs)` : "Practice";
-        }
+    const pDays=new Map(),tDays=new Map(),ends=[];
+    const assign=(items,map,count,title)=>{
+      for(const item of items){const needed=count(item);if(!this.validDate(item.plannedDate)||!Number.isInteger(needed)||needed<1||needed>5000)continue;
+        const dates=this.workingDaysFrom(item.plannedDate,needed);if(dates.length!==needed)continue;
+        dates.forEach((date,i)=>map.set(date,[...(map.get(date)||[]),i?'Practice':title(item)]));ends.push(dates.at(-1));
       }
-      return null;
     };
-    const findTheory = (iso)=>{
-      for(const t of theorySorted){
-        const tEnd = addDaysISO(t.plannedDate, daysPerTheory-1);
-        if(iso>=t.plannedDate && iso<=tEnd){
-          return iso===t.plannedDate ? `Lesson ${t.no}: ${t.title}` : "Practice";
-        }
-      }
-      return null;
-    };
-
+    assign(pracSorted,pDays,p=>Math.ceil(Number(p.hours)/hoursPerDay),p=>`Demo ${p.no}: ${p.title} (${p.hours} hrs)`);
+    assign(theorySorted,tDays,()=>daysPerTheory,t=>`Lesson ${t.no}: ${t.title}`);
+    if(!ends.length)return [];
+    const endDate=ends.sort().at(-1);
     const rows = [];
-    let d = new Date(start+"T00:00:00");
-    const end = new Date(endDate+"T00:00:00");
+    let d = new Date(start+"T00:00:00Z");
+    const end = new Date(endDate+"T00:00:00Z");
     let dayCount=0, guard=0;
     while(d<=end && guard++<5000){
       const iso = d.toISOString().slice(0,10);
-      const dayName = d.toLocaleDateString('en-IN',{weekday:'short'});
+      const dayName = d.toLocaleDateString('en-IN',{weekday:'short',timeZone:'UTC'});
       const week = Math.floor(dayCount/7)+1;
-      const holiday = DATA.holidays.find(h=>h.date===iso);
+      const holiday = this.holiday(iso);
       rows.push({
         date: iso, day: dayName, week,
-        holiday: !!holiday, label: holiday? holiday.label:"",
-        practical: holiday? null : findPractical(iso),
-        theory: holiday? null : findTheory(iso)
+        holiday: !!holiday, label: holiday||'',
+        practical: holiday? null : (pDays.get(iso)||[]).join('; ')||null,
+        theory: holiday? null : (tDays.get(iso)||[]).join('; ')||null
       });
-      d.setDate(d.getDate()+1);
+      d.setUTCDate(d.getUTCDate()+1);
       dayCount++;
     }
     return rows;
   }
 };
 function addDaysISO(iso, n){
-  const d = new Date(iso+"T00:00:00");
-  d.setDate(d.getDate()+n);
+  const d = new Date(iso+"T00:00:00Z");
+  d.setUTCDate(d.getUTCDate()+n);
   return d.toISOString().slice(0,10);
 }
 
@@ -2757,19 +2842,35 @@ function addDaysISO(iso, n){
 const ModuleManager = {
   refresh(){
     if(!DATA) return;
+    const modules=Array.isArray(DATA.modules)?DATA.modules:[];
+    const make=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;};
     const select=document.getElementById('topicModule');
     if(select){
-      select.innerHTML=DATA.modules.map(m=>`<option value="${this.esc(m.id)}">${this.esc(m.code)} — ${this.esc(m.name)}</option>`).join('') || '<option value="">Create a module first</option>';
+      select.replaceChildren();
+      for(const m of modules){const option=make('option',`${m.code??''} — ${m.name??''}`);option.value=String(m.id??'');select.append(option);}
+      if(!modules.length){const option=make('option','Create a module first');option.value='';select.append(option);}
     }
-    const body=document.getElementById('moduleManagerBody'); if(!body)return;
-    if(!DATA.modules.length){body.innerHTML='<div class="empty-state">No modules created yet. Create your first module above or use Syllabus AI.</div>';return;}
-    body.innerHTML=DATA.modules.map((m,idx)=>{
-      const topics=(m.topics||[]).map(t=>`<tr><td>${t.type}</td><td style="text-align:left">${this.esc(t.title)}</td><td>${t.hours}</td><td><button class="btn ghost small" onclick="ModuleManager.deleteTopic('${m.id}','${t.id}')">Delete</button></td></tr>`).join('');
-      return `<div class="card" style="margin-top:12px;border-left:4px solid var(--primary)">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start"><div><h3>${this.esc(m.code)} — ${this.esc(m.name)}</h3><p class="muted">${m.hours||0} hours · ${m.topics.length} topics</p><p>${this.esc(m.description||'')}</p></div><button class="btn ghost small" onclick="ModuleManager.deleteModule('${m.id}')">Delete Module</button></div>
-        <div class="table-scroll"><table class="datatable"><thead><tr><th>Type</th><th>Topic</th><th>Hours</th><th></th></tr></thead><tbody>${topics||'<tr><td colspan="4" class="muted">No topics in this module yet.</td></tr>'}</tbody></table></div>
-      </div>`;
-    }).join('');
+    const body=document.getElementById('moduleManagerBody');if(!body)return;
+    body.replaceChildren();
+    if(!modules.length){body.append(make('div','No modules created yet. Create your first module above or use Syllabus AI.','empty-state'));return;}
+    const canEdit=SESSION?.role==='instructor';
+    const button=(label,handler)=>{const node=make('button',label,'btn ghost small');node.type='button';node.addEventListener('click',handler);return node;};
+    for(const m of modules){
+      const topics=Array.isArray(m.topics)?m.topics:[];
+      const card=make('div',undefined,'card');card.style.cssText='margin-top:12px;border-left:4px solid var(--primary)';
+      const header=make('div');header.style.cssText='display:flex;justify-content:space-between;gap:10px;align-items:flex-start';
+      const details=make('div');details.append(make('h3',`${m.code??''} — ${m.name??''}`),make('p',`${m.hours||0} hours · ${topics.length} topics`,'muted'),make('p',m.description||''));header.append(details);
+      if(canEdit)header.append(button('Delete Module',()=>this.deleteModule(m.id)));
+      const scroll=make('div',undefined,'table-scroll'),table=make('table',undefined,'datatable'),head=make('thead'),row=make('tr'),tbody=make('tbody');
+      for(const label of ['Type','Topic','Hours',''])row.append(make('th',label));head.append(row);
+      for(const t of topics){
+        const tr=make('tr'),title=make('td',t.title),actions=make('td');title.style.textAlign='left';
+        if(canEdit)actions.append(button('Delete',()=>this.deleteTopic(m.id,t.id)));
+        tr.append(make('td',t.type),title,make('td',t.hours),actions);tbody.append(tr);
+      }
+      if(!topics.length){const tr=make('tr'),td=make('td','No topics in this module yet.','muted');td.colSpan=4;tr.append(td);tbody.append(tr);}
+      table.append(head,tbody);scroll.append(table);card.append(header,scroll);body.append(card);
+    }
   },
   saveModule(){
     if(SESSION?.role!=='instructor'){alert('Only the instructor can create modules.');return;}
@@ -2797,11 +2898,13 @@ const ModuleManager = {
     saveData(); document.getElementById('topicTitle').value=''; this.refresh(); Practicals.render(); Theory.render(); Dashboard.render();
   },
   deleteTopic(moduleId,topicId){
+    if(SESSION?.role!=='instructor')return;
     const m=DATA.modules.find(x=>x.id===moduleId); if(!m)return; const t=m.topics.find(x=>x.id===topicId); if(!t)return;
     if(!confirm(`Delete topic "${t.title}" from this module?`))return;
     m.topics=m.topics.filter(x=>x.id!==topicId); saveData(); this.refresh();
   },
   deleteModule(id){
+    if(SESSION?.role!=='instructor')return;
     const m=DATA.modules.find(x=>x.id===id); if(!m)return;
     if(!confirm(`Delete module "${m.name}"? Existing practical/theory records will remain.`))return;
     DATA.modules=DATA.modules.filter(x=>x.id!==id); saveData(); this.refresh();
@@ -2810,34 +2913,45 @@ const ModuleManager = {
 };
 
 /* ===================== PRACTICALS ===================== */
+function renderSyllabusRows(type, records, manager){
+  const practical=type==='practical',body=document.getElementById(practical?'practicalTableBody':'theoryTableBody');if(!body)return;
+  const make=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=String(text??'');if(className)node.className=className;return node;};
+  const sorted=records.slice().sort((a,b)=>(Number(a.sequence)||0)-(Number(b.sequence)||0)||String(a.no).localeCompare(String(b.no),undefined,{numeric:true})),instructor=SESSION?.role==='instructor';body.replaceChildren();
+  body.closest('table')?.classList.toggle('instructor-syllabus',instructor);
+  const button=(label,action)=>{const node=make('button',label,'btn ghost small');node.type='button';node.addEventListener('click',action);return node;};
+  for(const [i,item] of sorted.entries()){
+    const state=Dashboard.topicState(type,item),row=make('tr'),title=make('td'),date=make('td'),status=make('td'),actions=make('td');
+    row.className=instructor?'training-row training-'+state.code:'';row.append(make('td',item.no));
+    if(practical)row.append(make('td',item.unit));
+    title.append(make('strong',item.title,'syllabus-topic'));if(item.hours!=null)title.append(make('small',`${item.hours} hours`,'syllabus-hours'));row.append(title);
+    if(instructor){const input=make('input');input.type='date';input.value=item.plannedDate||'';input.setAttribute('aria-label',`Planned date for ${practical?'Demo':'Lesson'} ${item.no}`);input.addEventListener('change',()=>manager.setPlanned(item.no,input.value));date.append(input);if(state.finish)date.append(make('small',`Finish: ${state.finish}`,'syllabus-hours'));}else date.textContent=String(item.plannedDate||'—');
+    status.append(make('span',instructor?state.label:item.status==='completed'?`Done ${item.doneDate||''}`:'Pending',instructor?'training-status training-'+state.code:item.status==='completed'?'badge signed':'badge pending'));
+    const primary=make('div',undefined,'syllabus-primary-actions');primary.append(button(SESSION?.role==='student'?'View Notes':'View Plan',()=>PlanViewer.open(type,item.no)));actions.append(primary);
+    if(instructor){
+      if(item.status!=='completed')primary.append(button('Mark Complete',()=>MarkComplete.open(type,item.no,`${practical?'Demo':'Lesson'} ${item.no}: ${item.title??''}`)));
+      const more=make('details',undefined,'syllabus-more'),summary=make('summary','More actions');summary.setAttribute('aria-label',`More actions for ${practical?'Demo':'Lesson'} ${item.no}`);more.append(summary);
+      const options=make('div',undefined,'syllabus-secondary-actions'),up=button('↑',()=>manager.moveSeq(item.no,-1)),down=button('↓',()=>manager.moveSeq(item.no,1));up.disabled=i===0;down.disabled=i===sorted.length-1;up.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} up`);down.setAttribute('aria-label',`Move ${practical?'Demo':'Lesson'} ${item.no} down`);
+      options.append(button('Edit',()=>manager.openEdit(item.no)),up,down,button('Delete',()=>manager.remove(item.no)));if(item.status==='completed')options.append(button('Edit completion date',()=>MarkComplete.open(type,item.no,`${practical?'Demo':'Lesson'} ${item.no}: ${item.title??''}`)));more.append(options);actions.append(more);
+    }
+    row.append(date,status,actions);[...row.children].forEach((cell,j)=>cell.dataset.label=(practical?['No.','Unit','Skill / Practical','Planned date','Status','Actions']:['No.','Topic','Planned date','Status','Actions'])[j]);body.append(row);
+  }
+  if(!sorted.length){const row=make('tr'),cell=make('td',`No ${practical?'practicals':'theory topics'} added yet.`,'muted');cell.colSpan=practical?6:5;row.append(cell);body.append(row);}
+}
 const Practicals = {
-  render(){
-    const sorted = DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence);
-    document.getElementById("practicalTableBody").innerHTML = sorted.map((p,i)=>`
-      <tr>
-        <td>${p.no}</td><td>${p.unit}</td><td>${p.title} <span class="muted">(${p.hours} hrs)</span></td>
-        <td>${SESSION.role==="instructor"
-          ? `<input type="date" value="${p.plannedDate||''}" style="width:130px" onchange="Practicals.setPlanned(${p.no},this.value)">`
-          : (p.plannedDate||'—')}</td>
-        <td>${p.status==="completed"? `<span class="badge signed">Done ${p.doneDate||''}</span>` : `<span class="badge pending">Pending</span>`}</td>
-        <td>
-          <button class="btn ghost small" onclick="PlanViewer.open('practical',${p.no})">${SESSION.role==="student"?"View Notes":"View Plan"}</button>
-          ${SESSION.role==="instructor" && p.status!=="completed" ? `<button class="btn ghost small" onclick="MarkComplete.open('practical',${p.no},'Demo ${p.no}: ${p.title.replace(/'/g,"\\'")}')">Mark Complete</button>`:""}
-          ${SESSION.role==="instructor" ? `<button class="btn ghost small" onclick="Practicals.moveSeq(${p.no},-1)" ${i===0?'disabled':''}>&uarr;</button><button class="btn ghost small" onclick="Practicals.moveSeq(${p.no},1)" ${i===sorted.length-1?'disabled':''}>&darr;</button>
-          <button class="btn ghost small" onclick="Practicals.openEdit(${p.no})">Edit</button>
-          <button class="btn ghost small" onclick="Practicals.remove(${p.no})">Delete</button>`:""}
-        </td>
-      </tr>`).join("");
+  render(){ renderSyllabusRows('practical',DATA.practicals,this);
   },
   openAdd(){
+    if(SESSION?.role!=='instructor')return;
     document.getElementById("practicalEditTitle").textContent = "Add Custom Practical";
     document.getElementById("pracEditUnit").value = "";
     document.getElementById("pracEditName").value = "";
     document.getElementById("pracEditHours").value = 7;
     Practicals._editingNo = null;
+    this._editContext={...syllabusContext(),snapshot:null};
     document.getElementById("practicalEditModal").style.display="flex";
   },
   openEdit(no){
+    if(SESSION?.role!=='instructor')return;
     const p = DATA.practicals.find(x=>x.no===no);
     if(!p) return;
     document.getElementById("practicalEditTitle").textContent = "Edit Demo "+p.no;
@@ -2845,10 +2959,13 @@ const Practicals = {
     document.getElementById("pracEditName").value = p.title;
     document.getElementById("pracEditHours").value = p.hours;
     Practicals._editingNo = no;
+    this._editContext={...syllabusContext(),snapshot:syllabusRecordVersion(p)};
     document.getElementById("practicalEditModal").style.display="flex";
   },
-  closeEdit(){ document.getElementById("practicalEditModal").style.display="none"; },
+  closeEdit(){ this._editContext=null;document.getElementById("practicalEditModal").style.display="none"; },
   saveEdit(){
+    if(SESSION?.role!=='instructor')return;
+    if(!syllabusContextCurrent(this._editContext)||(this._editingNo!=null&&syllabusRecordVersion(DATA.practicals.find(x=>x.no===this._editingNo))!==this._editContext.snapshot)){this.closeEdit();alert('The syllabus changed. Reopen the editor before saving.');return;}
     const unit = document.getElementById("pracEditUnit").value.trim() || "Custom";
     const title = document.getElementById("pracEditName").value.trim();
     const hours = Number(document.getElementById("pracEditHours").value)||7;
@@ -2860,18 +2977,22 @@ const Practicals = {
         sequence:nextSeq, plan:null, materials:{pdfLink:"",youtubeLink:"",updatedDate:null}});
     } else {
       const p = DATA.practicals.find(x=>x.no===Practicals._editingNo);
+      if(!p)return;
       p.unit = unit; p.title = title; p.hours = hours;
     }
     saveData(); Practicals.closeEdit(); Practicals.render(); Dashboard.render();
   },
   remove(no){
+    if(SESSION?.role!=='instructor')return;
     if(!confirm("Delete Demo "+no+"? This removes it permanently, including from any generated schedule. If this is one of the 119 official DVET practicals, make sure that's really what you want.")) return;
     DATA.practicals = DATA.practicals.filter(p=>p.no!==no);
     saveData(); Practicals.render(); Dashboard.render();
   },
   moveSeq(no, dir){
+    if(SESSION?.role!=='instructor')return;
     const sorted = DATA.practicals.slice().sort((a,b)=>a.sequence-b.sequence);
     const idx = sorted.findIndex(p=>p.no===no);
+    if(idx<0 || ![-1,1].includes(dir))return;
     const swapIdx = idx+dir;
     if(swapIdx<0 || swapIdx>=sorted.length) return;
     const a = sorted[idx], b = sorted[swapIdx];
@@ -2879,6 +3000,7 @@ const Practicals = {
     saveData(); Practicals.render();
   },
   setPlanned(no, date){
+    if(SESSION?.role!=='instructor')return;
     const p = DATA.practicals.find(x=>x.no===no);
     if(!p) return;
     p.plannedDate = date || null;
@@ -2889,11 +3011,15 @@ const Practicals = {
 /* ===================== THEORY ===================== */
 const Theory = {
   openBulkAdd(){
+    if(SESSION?.role!=='instructor')return;
+    this._bulkContext=syllabusContext();
     document.getElementById("theoryBulkText").value="";
     document.getElementById("theoryModal").style.display="flex";
   },
-  closeBulkAdd(){ document.getElementById("theoryModal").style.display="none"; },
+  closeBulkAdd(){ this._bulkContext=null;document.getElementById("theoryModal").style.display="none"; },
   saveBulkAdd(){
+    if(SESSION?.role!=='instructor')return;
+    if(!syllabusContextCurrent(this._bulkContext)){this.closeBulkAdd();alert('The workspace changed. Reopen the bulk editor before saving.');return;}
     const lines = document.getElementById("theoryBulkText").value.split("\n").map(l=>l.trim()).filter(Boolean);
     if(!lines.length){ Theory.closeBulkAdd(); return; }
     let nextNo = DATA.theory.length? Math.max(...DATA.theory.map(t=>t.no))+1 : 1;
@@ -2903,40 +3029,30 @@ const Theory = {
     });
     saveData(); Theory.closeBulkAdd(); Theory.render(); Dashboard.render();
   },
-  render(){
-    const sorted = DATA.theory.slice().sort((a,b)=>a.sequence-b.sequence);
-    document.getElementById("theoryTableBody").innerHTML = sorted.map((t,i)=>`
-      <tr>
-        <td>${t.no}</td><td>${t.title}</td>
-        <td>${SESSION.role==="instructor"
-          ? `<input type="date" value="${t.plannedDate||''}" style="width:130px" onchange="Theory.setPlanned(${t.no},this.value)">`
-          : (t.plannedDate||'—')}</td>
-        <td>${t.status==="completed"? `<span class="badge signed">Done ${t.doneDate||''}</span>` : `<span class="badge pending">Pending</span>`}</td>
-        <td>
-          <button class="btn ghost small" onclick="PlanViewer.open('theory',${t.no})">${SESSION.role==="student"?"View Notes":"View Plan"}</button>
-          ${SESSION.role==="instructor" && t.status!=="completed" ? `<button class="btn ghost small" onclick="MarkComplete.open('theory',${t.no},'Lesson ${t.no}: ${t.title.replace(/'/g,"\\'")}')">Mark Complete</button>`:""}
-          ${SESSION.role==="instructor" ? `<button class="btn ghost small" onclick="Theory.moveSeq(${t.no},-1)" ${i===0?'disabled':''}>&uarr;</button><button class="btn ghost small" onclick="Theory.moveSeq(${t.no},1)" ${i===sorted.length-1?'disabled':''}>&darr;</button>
-          <button class="btn ghost small" onclick="Theory.openEdit(${t.no})">Edit</button>
-          <button class="btn ghost small" onclick="Theory.remove(${t.no})">Delete</button>`:""}
-        </td>
-      </tr>`).join("") || `<tr><td colspan="5" class="muted">No theory topics added yet. Use "+ Add Theory Topics" to paste in your 58-topic list.</td></tr>`;
+  render(){ renderSyllabusRows('theory',DATA.theory,this);
   },
   openAdd(){
+    if(SESSION?.role!=='instructor')return;
     document.getElementById("theoryEditTitle").textContent = "Add Theory Topic";
     document.getElementById("theoryEditName").value = "";
     Theory._editingNo = null;
+    this._editContext={...syllabusContext(),snapshot:null};
     document.getElementById("theoryEditModal").style.display="flex";
   },
   openEdit(no){
+    if(SESSION?.role!=='instructor')return;
     const t = DATA.theory.find(x=>x.no===no);
     if(!t) return;
     document.getElementById("theoryEditTitle").textContent = "Edit Lesson "+t.no;
     document.getElementById("theoryEditName").value = t.title;
     Theory._editingNo = no;
+    this._editContext={...syllabusContext(),snapshot:syllabusRecordVersion(t)};
     document.getElementById("theoryEditModal").style.display="flex";
   },
-  closeEdit(){ document.getElementById("theoryEditModal").style.display="none"; },
+  closeEdit(){ this._editContext=null;document.getElementById("theoryEditModal").style.display="none"; },
   saveEdit(){
+    if(SESSION?.role!=='instructor')return;
+    if(!syllabusContextCurrent(this._editContext)||(this._editingNo!=null&&syllabusRecordVersion(DATA.theory.find(x=>x.no===this._editingNo))!==this._editContext.snapshot)){this.closeEdit();alert('The syllabus changed. Reopen the editor before saving.');return;}
     const title = document.getElementById("theoryEditName").value.trim();
     if(!title){ alert("Enter a title."); return; }
     if(Theory._editingNo==null){
@@ -2946,18 +3062,22 @@ const Theory = {
         sequence:nextSeq, plan:null, materials:{pdfLink:"",youtubeLink:"",updatedDate:null}});
     } else {
       const t = DATA.theory.find(x=>x.no===Theory._editingNo);
+      if(!t)return;
       t.title = title;
     }
     saveData(); Theory.closeEdit(); Theory.render(); Dashboard.render();
   },
   remove(no){
+    if(SESSION?.role!=='instructor')return;
     if(!confirm("Delete Lesson "+no+"? This removes it permanently, including from any generated schedule. If this is one of the 58 official DVET theory topics, make sure that's really what you want.")) return;
     DATA.theory = DATA.theory.filter(t=>t.no!==no);
     saveData(); Theory.render(); Dashboard.render();
   },
   moveSeq(no, dir){
+    if(SESSION?.role!=='instructor')return;
     const sorted = DATA.theory.slice().sort((a,b)=>a.sequence-b.sequence);
     const idx = sorted.findIndex(t=>t.no===no);
+    if(idx<0 || ![-1,1].includes(dir))return;
     const swapIdx = idx+dir;
     if(swapIdx<0 || swapIdx>=sorted.length) return;
     const a = sorted[idx], b = sorted[swapIdx];
@@ -2965,6 +3085,7 @@ const Theory = {
     saveData(); Theory.render();
   },
   setPlanned(no, date){
+    if(SESSION?.role!=='instructor')return;
     const t = DATA.theory.find(x=>x.no===no);
     if(!t) return;
     t.plannedDate = date || null;
@@ -2976,56 +3097,56 @@ const Theory = {
 const CRITERIA = [["prep",5],["process",8],["accuracy",8],["safety",4],["time",4],["finish",6]];
 
 const Evaluation = {
+  _dirty:false,
+  context(){return {...syllabusContext(),role:SESSION?.role};},
+  sameContext(){const c=this._context,n=this.context();return !!c&&c.data===n.data&&c.uid===n.uid&&c.workspace===n.workspace&&c.role===n.role;},
+  orderedPracticals(){return (DATA.practicals||[]).slice().sort((a,b)=>{const seq=x=>Number.isFinite(Number(x.sequence))&&Number(x.sequence)>0?Number(x.sequence):Number.MAX_SAFE_INTEGER;return seq(a)-seq(b)||String(a.no??'').localeCompare(String(b.no??''),undefined,{numeric:true});});},
   populateSelects(){
-    const opts = DATA.practicals.map(p=>`<option value="${p.no}">${p.no}. ${p.title}</option>`).join("");
-    document.getElementById("evalPracticalSelect").innerHTML = opts;
-    document.getElementById("studentSubmitSelect").innerHTML = opts;
+    const same=this.sameContext();if(!same){this._dirty=false;this._loadedNo=null;document.getElementById('evalTableBody')?.replaceChildren();}
+    if(same&&this._dirty)return;
+    for(const id of ['evalPracticalSelect','studentSubmitSelect']){
+      const select=document.getElementById(id);if(!select)continue;const previous=select.value;select.replaceChildren();
+      for(const p of this.orderedPracticals()){const option=document.createElement('option');option.value=String(p.no);option.textContent=`${p.no}. ${p.title??''}`;select.append(option);}
+      if([...select.options].some(o=>o.value===previous))select.value=previous;
+    }
+    this._context=this.context();
   },
+  render(){if(!this.sameContext()||this._loadedNo==null)this.loadGrid();},
   loadGrid(){
-    const no = document.getElementById("evalPracticalSelect").value;
-    const marksForPractical = DATA.marks[no] || {};
-    const subs = DATA.submissions[no] || {};
-    document.getElementById("evalTableBody").innerHTML = DATA.trainees.map(t=>{
-      const m = marksForPractical[t.id] || {};
-      const sub = subs[t.id];
-      const inputs = CRITERIA.map(([key,max])=>
-        `<td><input type="number" min="0" max="${max}" value="${m[key]??''}" data-key="${key}" onchange="Evaluation.recalc('${t.id}')" id="ev-${t.id}-${key}"></td>`
-      ).join("");
-      return `<tr data-trainee="${t.id}">
-        <td>${t.roll} — ${t.name}</td>
-        ${inputs}
-        <td id="ev-${t.id}-total">${m.total ?? 0}</td>
-        <td>${sub? `<a href="${sub.link}" target="_blank">View</a> (${sub.date})` : '<span class="muted">—</span>'}</td>
-      </tr>`;
-    }).join("") || `<tr><td colspan="9" class="muted">Add trainees first.</td></tr>`;
+    if(SESSION?.role!=='instructor')return;
+    const select=document.getElementById('evalPracticalSelect'),no=select.value;
+    if(this.sameContext()&&this._dirty&&!confirm('Discard unsaved marks and load this practical?')){select.value=this._loadedNo;return;}
+    const body=document.getElementById('evalTableBody');body.replaceChildren();this._context=this.context();this._loadedNo=no;this._dirty=false;
+    this._marksSnapshot=JSON.stringify(DATA.marks[no]||{});
+    const records=Reports.sortedTrainees();this._traineeSnapshot=JSON.stringify(records.map(t=>t.id));
+    const cell=(row,text)=>{const td=document.createElement('td');if(text!==undefined)td.textContent=String(text??'');row.append(td);return td;};
+    records.forEach((t,index)=>{
+      const row=document.createElement('tr');row.dataset.trainee=t.id;const marks=DATA.marks[no]?.[t.id]||{},sub=DATA.submissions[no]?.[t.id];
+      cell(row,index+1);cell(row,t.roll);cell(row,t.name);
+      for(const [key,max] of CRITERIA){const input=document.createElement('input');input.type='number';input.min=0;input.max=max;input.step='1';input.value=marks[key]??'';input.id=`ev-${t.id}-${key}`;input.dataset.key=key;input.setAttribute('aria-label',`${t.roll} ${t.name} ${key} out of ${max}`);input.addEventListener('input',()=>{this._dirty=true;this.recalc(t.id);});cell(row).append(input);}
+      const total=cell(row,marks.total??0);total.id=`ev-${t.id}-total`;const submission=cell(row,'—');
+      try{const url=new URL(sub?.link);if(url.protocol==='https:'&&!url.username&&!url.password){const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='View submission';submission.replaceChildren(link);}}catch(e){}
+      body.append(row);
+    });
+    if(!records.length){const row=document.createElement('tr');cell(row,'Add trainees first.').colSpan=11;body.append(row);}
   },
   recalc(traineeId){
-    let total = 0;
-    CRITERIA.forEach(([key])=>{
-      const el = document.getElementById(`ev-${traineeId}-${key}`);
-      total += Number(el.value)||0;
-    });
-    document.getElementById(`ev-${traineeId}-total`).textContent = total;
+    let total=0;for(const [key] of CRITERIA)total+=Number(document.getElementById(`ev-${traineeId}-${key}`)?.value)||0;
+    const cell=document.getElementById(`ev-${traineeId}-total`);if(cell)cell.textContent=total;
   },
   saveGrid(){
-    const no = document.getElementById("evalPracticalSelect").value;
-    const rec = {};
-    document.querySelectorAll("#evalTableBody tr").forEach(row=>{
-      const id = row.dataset.trainee;
-      if(!id) return;
-      const entry = {};
-      let total=0;
-      CRITERIA.forEach(([key])=>{
-        const val = Number(document.getElementById(`ev-${id}-${key}`).value)||0;
-        entry[key]=val; total+=val;
-      });
-      entry.total = total;
-      rec[id]=entry;
-    });
-    DATA.marks[no] = rec;
-    saveData();
-    alert("Marks saved for practical "+no);
-    Trainees.render(); Dashboard.render();
+    if(SESSION?.role!=='instructor')return;
+    const no=document.getElementById('evalPracticalSelect').value;
+    if(!this.sameContext()||no!==this._loadedNo||JSON.stringify(DATA.marks[no]||{})!==this._marksSnapshot||JSON.stringify(Reports.sortedTrainees().map(t=>t.id))!==this._traineeSnapshot){alert('The workspace, practical, trainees or saved marks changed. Reload the grid before saving.');return;}
+    if(!DATA.practicals.some(p=>String(p.no)===no)){alert('Select a valid practical.');return;}
+    const rec={};
+    for(const row of document.querySelectorAll('#evalTableBody tr[data-trainee]')){
+      const id=row.dataset.trainee,entry={};let total=0;
+      for(const [key,max] of CRITERIA){const input=document.getElementById(`ev-${id}-${key}`),val=input.value===''?0:Number(input.value);if(!Number.isInteger(val)||val<0||val>max){alert(`Enter ${key} marks from 0 to ${max}.`);input.focus();return;}entry[key]=val;total+=val;}
+      entry.total=total;rec[id]=entry;
+    }
+    DATA.marks[no]=rec;saveData();this._marksSnapshot=JSON.stringify(rec);this._dirty=false;
+    alert('Marks saved for practical '+no);Trainees.render();Dashboard.render();
   },
   studentSubmit(){
     const no = document.getElementById("studentSubmitSelect").value;
@@ -3372,12 +3493,13 @@ const Reports = {
     Reports.doPrint(html);
   },
   printSplitUp(){
-    const rows = Schedule.buildRows();
-    if(!rows.length){ alert("No schedule yet — use 'Use Official 2026-27 Calendar' or Generate an alternate schedule first."); return; }
+    const rows = Schedule.rowsForPrint?Schedule.rowsForPrint():Schedule.buildRows();
+    if(!rows.length){ alert('No schedule yet. Create a complete training plan or generate an alternate schedule first.'); return; }
+    const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const trs = rows.map(r=>`<tr class="${r.holiday?'splitup-holiday':''}">
-      <td>${r.date}</td><td>${r.day}</td><td>${r.week}</td>
-      <td class="splitup-practical">${r.holiday? '<b>HOLIDAY — '+r.label+'</b>' : (r.practical||'—')}</td>
-      <td class="splitup-theory">${r.holiday? '<b>HOLIDAY — '+r.label+'</b>' : (r.theory||'—')}</td></tr>`).join("");
+      <td>${esc(r.date)}</td><td>${esc(r.day)}</td><td>${esc(r.week)}</td>
+      <td class="splitup-practical">${r.holiday? '<b>HOLIDAY — '+esc(r.label)+'</b>' : esc(r.practical||'—')}</td>
+      <td class="splitup-theory">${r.holiday? '<b>HOLIDAY — '+esc(r.label)+'</b>' : esc(r.theory||'—')}</td></tr>`).join("");
     const html = `<style>
       @page{size:A4 landscape;margin:8mm}
       @media print{
@@ -3401,8 +3523,8 @@ const Reports = {
         #printArea .splitup-print .sign-block{font-size:8.5px;margin-top:28px}
       }
     </style>
-    <div class="splitup-print">
-      ${Reports.header("Split-up Syllabus (Week-wise)")}
+    <div class="splitup-print report-splitup">
+      ${Reports.header("Split-up Syllabus"+(Schedule.printCaption?" — "+Schedule.printCaption():" (Day-wise)"))}
       <table class="print-table splitup-table"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Trade Practical</th><th>Trade Theory</th></tr></thead>
       <tbody>${trs}</tbody></table>${Reports.signBlock()}
     </div>`;
@@ -3490,13 +3612,16 @@ const UniversalSyllabus = {
     if(!file){this.status('Please select a syllabus file first.','error');return;}
     this.status('Reading and analyzing '+file.name+' …');
     try{
-      const text=await this.extractText(file);
+      let reviewed=null;
+      if(/\.xlsx?$/i.test(file.name) && window.InstructorTemplates){reviewed=await window.InstructorTemplates.parseFile(file);}
+      const text=reviewed?'':await this.extractText(file);
       const trade=(document.getElementById('uTrade').value||this.detectTrade(text)||file.name.replace(/\.[^.]+$/,'')).trim();
       document.getElementById('uTrade').value=trade;
       this.state.trade=trade; this.state.sourceName=file.name; this.state.analyzedAt=new Date().toISOString();
-      this.state.items=this.classifyLines(text);
+      this.state.items=reviewed?reviewed.items:this.classifyLines(text);
       this.renderPreview();
-      this.status(`Analysis complete: ${this.state.items.length} syllabus items found. Review them before generating the calendar.`,'ok');
+      if(reviewed)this.status('Excel template validated. Review the Theory and Practical items; nothing has been saved to the register.','ok');
+      if(!reviewed)this.status(`Analysis complete: ${this.state.items.length} syllabus items found. Review them before generating the calendar.`,'ok');
     }catch(e){console.error(e);this.status('Could not read this file: '+(e.message||e),'error');}
   },
   async extractText(file){
@@ -3540,14 +3665,14 @@ const UniversalSyllabus = {
       if(raw.length<8 || /^(contents|syllabus|curriculum|page|index|unit|module|learning outcomes?)$/i.test(raw)) continue;
       const nm=raw.match(numberRe); const title=(nm?nm[2]:raw).trim();
       if(title.length<10 || /^\d+$/.test(title)) continue;
-      const hm=raw.match(hourRe); const hours=hm?Math.max(1,Math.round(parseFloat(hm[1]))):1;
+      const hm=raw.match(hourRe); const hours=hm?parseFloat(hm[1]):'';
       let type='theory', confidence=0.58;
       if(practicalWords.test(title) && !theoryWords.test(title)){type='practical';confidence=0.84;}
       else if(theoryWords.test(title)){type='theory';confidence=0.78;}
       else if(/practical|exercise|job|task|activity|demonstration/i.test(raw)){type='practical';confidence=0.74;}
       // Avoid obvious page/table noise.
       if(/^(note|remarks|reference|assessment|duration|total hours?)\b/i.test(title)) continue;
-      seq++; items.push({id:'u'+Date.now()+'_'+seq,seq,type,module,title,hours,confidence});
+      seq++; items.push({id:'u'+Date.now()+'_'+seq,seq,no:nm?nm[1]:'',type,module,title,hours,confidence});
     }
     // De-duplicate near-identical lines while retaining first occurrence.
     const seen=new Set(); return items.filter(x=>{const k=x.type+'|'+x.title.toLowerCase().replace(/\W+/g,' ');if(seen.has(k))return false;seen.add(k);return true;}).slice(0,1000);
@@ -3556,7 +3681,7 @@ const UniversalSyllabus = {
     const body=document.getElementById('uPreviewBody'); if(!body)return;
     const items=this.state.items;
     document.getElementById('uCounts').textContent=`${items.filter(x=>x.type==='practical').length} practical · ${items.filter(x=>x.type==='theory').length} theory · ${items.reduce((s,x)=>s+x.hours,0)} hrs detected`;
-    body.innerHTML=items.map((x,i)=>`<tr><td>${i+1}</td><td><select onchange="UniversalSyllabus.updateItem(${i},'type',this.value)"><option value="theory" ${x.type==='theory'?'selected':''}>Theory</option><option value="practical" ${x.type==='practical'?'selected':''}>Practical</option></select></td><td><input value="${this.esc(x.module)}" onchange="UniversalSyllabus.updateItem(${i},'module',this.value)" style="min-width:150px"></td><td style="text-align:left"><textarea rows="2" onchange="UniversalSyllabus.updateItem(${i},'title',this.value)" style="min-width:260px">${this.esc(x.title)}</textarea></td><td><input type="number" min="0.5" step="0.5" value="${x.hours}" onchange="UniversalSyllabus.updateItem(${i},'hours',this.value)" style="width:75px"></td><td>${Math.round(x.confidence*100)}% <button class="btn ghost small" onclick="UniversalSyllabus.removeItem(${i})">✕</button></td></tr>`).join('')||'<tr><td colspan="6" class="muted">No syllabus items detected yet.</td></tr>';
+    body.innerHTML=items.map((x,i)=>`<tr><td>${i+1}</td><td><input aria-label="Topic source number" value="${this.esc(x.sourceNo||String(x.seq||i+1))}" onchange="UniversalSyllabus.updateItem(${i},'sourceNo',this.value)" style="width:95px"></td><td><select onchange="UniversalSyllabus.updateItem(${i},'type',this.value)"><option value="theory" ${x.type==='theory'?'selected':''}>Theory</option><option value="practical" ${x.type==='practical'?'selected':''}>Practical</option></select></td><td><input value="${this.esc(x.module)}" onchange="UniversalSyllabus.updateItem(${i},'module',this.value)" style="min-width:150px"></td><td style="text-align:left"><textarea rows="2" onchange="UniversalSyllabus.updateItem(${i},'title',this.value)" style="min-width:260px">${this.esc(x.title)}</textarea></td><td><input type="number" min="0.5" step="0.5" value="${x.hours}" onchange="UniversalSyllabus.updateItem(${i},'hours',this.value)" style="width:75px"></td><td>${Math.round(x.confidence*100)}% <button class="btn ghost small" onclick="UniversalSyllabus.removeItem(${i})">✕</button></td></tr>`).join('')||'<tr><td colspan="7" class="muted">No syllabus items detected yet.</td></tr>';
   },
   updateItem(i,key,value){const x=this.state.items[i];if(!x)return;if(key==='hours')value=Math.max(0.5,Number(value)||1);x[key]=value;x.confidence=Math.min(Number(x.confidence)||0.7,0.95);document.getElementById('uCounts').textContent=`${this.state.items.filter(x=>x.type==='practical').length} practical · ${this.state.items.filter(x=>x.type==='theory').length} theory · ${this.state.items.reduce((sum,x)=>sum+Number(x.hours||0),0)} hrs detected`;},
   removeItem(i){this.state.items.splice(i,1);this.state.items.forEach((x,j)=>x.seq=j+1);this.renderPreview();},
@@ -3575,103 +3700,34 @@ const UniversalSyllabus = {
   isSecondOrFourthSaturday(date){
     if(date.getDay()!==6)return false; const n=Math.floor((date.getDate()-1)/7)+1; return n===2||n===4;
   },
-  generateCalendar(){
-    if(!this.state.items.length){this.status('Analyze a syllabus before generating the calendar.','error');return;}
-    const start=document.getElementById('uStart').value, end=document.getElementById('uEnd').value;
-    if(!start||!end||start>end){this.status('Please enter a valid session start and end date.','error');return;}
-    const hoursPerDay=Math.max(1,Number(document.getElementById('uHours')?.value)||7);
-    const theoryHoursPerDay=Math.max(0,Math.min(hoursPerDay,Number(document.getElementById('uTheoryHours')?.value)||1));
-    const workdays=[...document.querySelectorAll('#uDays input:checked')].map(x=>Number(x.value));
-    const holidayMap=new Map(this.parseHolidayText(document.getElementById('uHolidays')?.value||'').map(x=>[x.date,x.label]));
-    if(document.getElementById('uUseExistingHolidays')?.checked && typeof DATA!=='undefined') (DATA.holidays||[]).forEach(h=>{if(h?.date&&!holidayMap.has(h.date))holidayMap.set(h.date,h.label||'Institute holiday');});
-    const altSat=!!document.getElementById('uAltSat')?.checked;
-    const pr=this.state.items.filter(x=>x.type==='practical'), th=this.state.items.filter(x=>x.type==='theory');
-    let pi=0,ti=0,pRemain=pr[0]?Number(pr[0].hours)||1:0,tRemain=th[0]?Number(th[0].hours)||1:0;
-    let date=new Date(start+'T00:00:00'), rows=[], safety=0;
-    const allocate=(list,kind,cap)=>{
-      let idx=kind==='practical'?pi:ti, remain=kind==='practical'?pRemain:tRemain, used=0, parts=[];
-      while(cap>0.0001 && idx<list.length){
-        if(remain<=0) remain=Math.max(.5,Number(list[idx].hours)||1);
-        const take=Math.min(cap,remain); parts.push({seq:list[idx].seq,title:list[idx].title,hours:Math.round(take*100)/100,module:list[idx].module||'General'}); used+=take; cap-=take; remain-=take;
-        if(remain<=0.0001){idx++; remain=idx<list.length?Math.max(.5,Number(list[idx].hours)||1):0;}
+  validateIdentifiers(){
+    const ids=new Set();
+    for(const item of this.state.items){
+      const number=String(item.sourceNo||item.seq||'').trim(),type=item.type;
+      if(!number||!['practical','theory'].includes(type)){
+        this.status('Each topic needs a valid number and a Theory or Practical type.','error');return false;
       }
-      if(kind==='practical'){pi=idx;pRemain=remain;}else{ti=idx;tRemain=remain;}
-      return {parts,used};
-    };
-    while(date.toISOString().slice(0,10)<=end && safety++<5000){
-      const iso=date.toISOString().slice(0,10), dow=date.getDay();
-      let holidayLabel=holidayMap.get(iso)||'';
-      if(!holidayLabel && altSat && this.isSecondOrFourthSaturday(date)) holidayLabel='2nd/4th Saturday';
-      if(!holidayLabel && !workdays.includes(dow)) holidayLabel=dow===0?'Sunday':'Non-working day';
-      if(holidayLabel){
-        rows.push({date:iso,day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow],week:this.weekLabel(date),holiday:true,label:holidayLabel,practical:'HOLIDAY — '+holidayLabel,theory:'HOLIDAY — '+holidayLabel,practicalItems:[],theoryItems:[],hours:0});
-      }else{
-        const both=pi<pr.length&&ti<th.length;
-        let tCap=both?theoryHoursPerDay:(ti<th.length?hoursPerDay:0), pCap=both?Math.max(0,hoursPerDay-tCap):(pi<pr.length?hoursPerDay:0);
-        if(both && pCap<=0 && pi<pr.length){pCap=Math.min(hoursPerDay,Math.max(.5,hoursPerDay/2));tCap=hoursPerDay-pCap;}
-        const ta=allocate(th,'theory',tCap), pa=allocate(pr,'practical',pCap);
-        const fmt=parts=>parts.map(x=>`${x.seq}. ${x.title} (${x.hours}h)`).join('; ');
-        rows.push({date:iso,day:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow],week:this.weekLabel(date),holiday:false,label:'',practical:fmt(pa.parts),theory:fmt(ta.parts),practicalItems:pa.parts,theoryItems:ta.parts,hours:Math.round((pa.used+ta.used)*100)/100});
-      }
-      date.setDate(date.getDate()+1);
+      const id=type+'|'+number.toLowerCase();
+      if(ids.has(id)){this.status('Duplicate '+type+' number '+number+'. Correct it before generating or saving.','error');return false;}
+      ids.add(id);
     }
-    this.state.calendar=rows; this.renderCalendar();
-    const working=rows.filter(r=>!r.holiday).length, holidays=rows.filter(r=>r.holiday).length;
-    this.status(`Calendar generated: ${working} working days + ${holidays} holidays/non-working days. Remaining — practical ${Math.max(0,pr.length-pi)}, theory ${Math.max(0,th.length-ti)}.`,(pi>=pr.length&&ti>=th.length)?'ok':'info');
+    return true;
+  },
+  generateCalendar(){
+    this.state.calendar=[];this.renderCalendar();
+    try{const P=window.ITISyllabusPlanning;if(!P)throw Error('Reload the planning calculator.');
+      const result=P.allocate(this.state.items,{startDate:document.getElementById('uStart').value,endDate:document.getElementById('uEnd').value,practicalHours:Number(document.getElementById('uHours').value),theoryHours:Number(document.getElementById('uTheoryHours').value),workdays:[...document.querySelectorAll('#uDays input:checked')].map(x=>Number(x.value)),alternateSaturdays:!!document.getElementById('uAltSat')?.checked,includeExistingHolidays:!!document.getElementById('uUseExistingHolidays')?.checked,holidays:this.parseHolidayText(document.getElementById('uHolidays')?.value||'')},DATA.holidays||[]);
+      this.state.calendar=result.rows;this.state.summary=result.summary;this._calendarContext=typeof syllabusContext==='function'?syllabusContext():null;this._unscheduled=result.summary.practical.incompleteTopics+result.summary.theory.incompleteTopics;this.renderCalendar();
+      this.status(`Calendar calculated: ${result.summary.workingDays} working days. Remaining practical ${result.summary.practical.remainingHours}h; theory ${result.summary.theory.remainingHours}h. Review holidays for ${result.years.join(', ')} before saving.`,'ok');return true;
+    }catch(e){this.status(e.message||'Review the syllabus and daily-hour settings.','error');return false;}
   },
   renderCalendar(){
     const body=document.getElementById('uCalendarBody'); if(!body)return;
     body.innerHTML=this.state.calendar.map(r=>`<tr><td>${r.date}</td><td>${r.day}</td><td>${r.week}</td><td style="text-align:left">${this.esc(r.practical||'—')}</td><td style="text-align:left">${this.esc(r.theory||'—')}</td><td>${r.hours||'—'}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">Generate a calendar to see it here.</td></tr>';
   },
   weekLabel(d){const x=new Date(d);const day=x.getDay()||7;x.setDate(x.getDate()-day+1);return 'W'+Math.ceil((((x-new Date(x.getFullYear(),0,1))/86400000)+1)/7);},
-  applyToRegister(){
-    if(!this.state.items.length){this.status('Analyze a syllabus first.','error');return;}
-    if(SESSION.role!=='instructor'){this.status('Only the instructor can apply a new syllabus to the register.','error');return;}
-    const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    const moduleMap=new Map();
-    this.state.items.forEach(x=>{const name=(x.module||'General').trim(); if(!moduleMap.has(name))moduleMap.set(name,{id:uid(),code:`M${String(moduleMap.size+1).padStart(2,'0')}`,name,hours:0,description:'Imported from '+this.state.sourceName,topics:[]}); const m=moduleMap.get(name); m.hours+=Number(x.hours)||0; m.topics.push({id:uid(),type:x.type,title:x.title,hours:x.hours,sequence:m.topics.length+1});});
-    if(!confirm(`Replace the current register syllabus with ${ps.length} practicals and ${ts.length} theory topics for ${this.state.trade||'this trade'}?\n\nYour trainee, attendance and other records will remain.`))return;
-    DATA.meta.trade=this.state.trade||DATA.meta.trade; DATA.meta.officialPlanPack=/desktop publishing|dtpo|\bdtp\b/i.test(DATA.meta.trade||'')?'DTPO':'NONE'; DATA.practicals=ps; DATA.theory=ts; DATA.modules=[...moduleMap.values()]; DATA.meta.tradeSource=this.state.sourceName; DATA.meta.syllabusImportedAt=todayISO();
-    saveData();
-    Practicals.render(); Theory.render(); Schedule.render(); Dashboard.render(); if(typeof InstructorAI!=='undefined'){InstructorAI.refreshTopicPicker();InstructorAI.renderToday();}
-    document.getElementById('brandSub').textContent=DATA.meta.institute;
-    document.getElementById('heroSub').textContent=`${DATA.meta.trade} — ${DATA.meta.batch} · ${DATA.meta.institute}`;
-    this.status('Syllabus applied to the main register. Generate the alternate schedule from Split-up Syllabus if you want those dates there too.','ok');
-    alert('Syllabus applied successfully.');
-  },
-  createCompletePlan(){
-    if(!this.state.items.length){this.status('Analyze a syllabus first.','error');return;}
-    if(SESSION?.role!=='instructor'){this.status('Only the instructor can create the complete training plan.','error');return;}
-    if(!this.state.calendar.length){ this.generateCalendar(); if(!this.state.calendar.length){return;} }
-    const start=document.getElementById('uStart').value, end=document.getElementById('uEnd').value;
-    const rows=this.state.calendar.filter(r=>r.hours>0 && !r.holiday);
-    if(!confirm(`Create the complete ${this.state.trade||'trade'} training plan?\n\nThis will create modules, theory/practical records and planned dates. Existing trainee and attendance records will remain.`)) return;
-    const ps=this.state.items.filter(x=>x.type==='practical').map((x,i)=>({no:i+1,title:x.title,hours:x.hours,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    const ts=this.state.items.filter(x=>x.type==='theory').map((x,i)=>({no:i+1,title:x.title,hours:Number(x.hours)||1,unit:x.module,status:'pending',doneDate:null,plannedDate:null,sequence:i+1,plan:null,materials:{pdfLink:'',youtubeLink:'',updatedDate:null}}));
-    // Assign practical dates from generated calendar rows.
-    const prRows=rows.filter(r=>(r.practicalItems||[]).length || (r.practical && r.practical!=='—'));
-    const thRows=rows.filter(r=>(r.theoryItems||[]).length || (r.theory && r.theory!=='—'));
-    ps.forEach(p=>{const row=prRows.find(r=>(r.practicalItems||[]).some(x=>Number(x.seq)===Number(p.sequence)) || String(r.practical||'').startsWith(`${p.sequence}. `)); if(row)p.plannedDate=row.date;});
-    ts.forEach(t=>{const row=thRows.find(r=>(r.theoryItems||[]).some(x=>Number(x.seq)===Number(t.sequence)) || String(r.theory||'').startsWith(`${t.sequence}. `)); if(row)t.plannedDate=row.date;});
-    const moduleMap=new Map();
-    this.state.items.forEach(x=>{const name=(x.module||'General').trim(); if(!moduleMap.has(name))moduleMap.set(name,{id:uid(),code:`M${String(moduleMap.size+1).padStart(2,'0')}`,name,hours:0,description:'Imported from '+this.state.sourceName,topics:[]}); const m=moduleMap.get(name); m.hours+=Number(x.hours)||0; m.topics.push({id:uid(),type:x.type,title:x.title,hours:Number(x.hours)||1,sequence:m.topics.length+1});});
-    DATA.meta.trade=this.state.trade||DATA.meta.trade;
-    DATA.meta.officialPlanPack=/desktop publishing|dtpo|\bdtp\b/i.test(DATA.meta.trade||'')?'DTPO':'NONE';
-    DATA.meta.tradeSource=this.state.sourceName;
-    DATA.meta.syllabusImportedAt=todayISO();
-    DATA.meta.trainingPlan={createdAt:new Date().toISOString(),startDate:start,endDate:end,hoursPerDay:Number(document.getElementById('uHours').value)||7,theoryHoursPerDay:Number(document.getElementById('uTheoryHours')?.value)||1,calendarRows:this.state.calendar.length,dayPlan:this.state.calendar};
-    this.state.calendar.filter(r=>r.holiday).forEach(r=>{if(!DATA.holidays.some(h=>h.date===r.date))DATA.holidays.push({date:r.date,label:r.label||'Holiday'});});
-    DATA.holidays.sort((a,b)=>a.date.localeCompare(b.date));
-    DATA.practicals=ps; DATA.theory=ts; DATA.modules=[...moduleMap.values()];
-    DATA.practicals.forEach(p=>{if(p.plannedDate){const d=new Date(p.plannedDate+'T00:00:00'); p.week=this.weekLabel(d);}});
-    DATA.theory.forEach(t=>{if(t.plannedDate){const d=new Date(t.plannedDate+'T00:00:00'); t.week=this.weekLabel(d);}});
-    saveData(); Practicals.render(); Theory.render(); Schedule.render(); Dashboard.render(); if(typeof InstructorAI!=='undefined'){InstructorAI.refreshTopicPicker();InstructorAI.renderToday();} if(typeof ModuleManager!=='undefined')ModuleManager.refresh();
-    document.getElementById('brandSub').textContent=DATA.meta.institute;
-    document.getElementById('heroSub').textContent=`${DATA.meta.trade} — ${DATA.meta.batch} · ${DATA.meta.institute}`;
-    this.status(`Complete training plan created: ${DATA.modules.length} modules, ${ps.length} practicals, ${ts.length} theory topics and ${this.state.calendar.length} calendar rows.`, 'ok');
-    alert('Complete training plan created successfully. Open Module Manager, Practicals, Theory and Split-up Syllabus to review it.');
-  },
+  applyToRegister(){return this.createCompletePlan();},
+  createCompletePlan(){this.status('Sign in to the secure V15 Instructor workspace to save a reviewed year-plan revision. Preview and printing do not require an AI key.','error');},
   exportJSON(){
     if(!this.state.items.length){this.status('Nothing to export yet.','error');return;}
     const out={trade:this.state.trade,source:this.state.sourceName,analyzedAt:this.state.analyzedAt,items:this.state.items,calendar:this.state.calendar};
@@ -3701,3 +3757,9 @@ const UniversalSyllabus = {
 // The original app binds the tab events during App.init(). Add a second listener for the new module.
 document.addEventListener('DOMContentLoaded',()=>{UniversalSyllabus.init(); if(typeof ModuleManager!=='undefined') ModuleManager.refresh();});
 
+
+// The Instructor import adapter accesses lexical records without exposing DATA publicly.
+if(window.TraineeBulkImport)window.TraineeBulkImport.bind({
+  data:()=>DATA,role:()=>SESSION?.role,id:()=>uid(),save:()=>saveData(),
+  refresh:()=>{Trainees.render();Evaluation.populateSelects();Reports.populateSelects();Leave.populateSelects();}
+});

@@ -8,6 +8,8 @@ permissions:
 
 jobs:
   deploy-rules:
+    if: github.ref == 'refs/heads/main'
+    environment: production
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -21,17 +23,20 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
-      - name: Install Firebase CLI
-        run: npm install --global firebase-tools
+      - name: Install locked development tooling
+        run: npm ci --ignore-scripts
 
       - name: Verify Firebase configuration
         run: |
           test -f firebase.json
           test -f firestore.rules
-          echo "Project: ${{ secrets.FIREBASE_PROJECT_ID }}"
-          firebase --version
+          npx --no-install firebase --version
 
       - name: Deploy Firestore security rules
-        run: firebase deploy --only firestore:rules --project "${{ secrets.FIREBASE_PROJECT_ID }}" --non-interactive
+        env:
+          ITI_DEPLOY_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          test -n "$ITI_DEPLOY_PROJECT"
+          npx --no-install firebase deploy --only firestore:rules --project "$ITI_DEPLOY_PROJECT" --non-interactive

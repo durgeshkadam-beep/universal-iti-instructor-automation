@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script>if(!window.__ITI_V15)location.replace(new URL("final/",location.href));</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Universal ITI Instructor Automation V14</title>
 <link rel="manifest" href="manifest.json">
@@ -124,20 +125,18 @@
 
     <!-- ---------- FREE AI INSTRUCTOR ASSISTANT ---------- -->
     <section id="tab-ai-assistant" class="panel">
-      <div class="hero" style="margin-bottom:16px"><div class="hero-content"><div><h2>✨ Instructor AI Assistant</h2><p>Create syllabus analysis, Lesson Plans and Demonstration Plans. AI prepares a draft; the instructor reviews and approves the record.</p></div></div></div>
-      <div class="cards" style="grid-template-columns:1fr 1fr">
+      <div class="hero" style="margin-bottom:16px"><div class="hero-content"><div><h2>Instructor Teaching Assistant</h2><p>Prepare Lesson and Demonstration Plans from your actual approved topics. A free starter works without an AI key; optional AI drafts still require review.</p></div></div></div>
+      <div class="cards instructor-ai-grid">
         <div class="card">
-          <div class="field-row" style="justify-content:space-between"><h3>AI Connection</h3><span id="aiConnectionBadge" class="badge">○ Manual / no-key mode</span></div>
-          <p id="aiConnectionHelp" class="muted"></p>
-          <div class="field"><label>Gemini API key <span class="muted">(optional)</span></label><input id="aiApiKey" type="password" autocomplete="off" placeholder="Paste key for this session only"></div>
-          <div class="field"><label>Model</label><input id="aiModel" value="gemini-3.6-flash"></div>
-          <div class="field-row"><button class="btn primary" onclick="InstructorAI.setKey()">Connect Gemini</button><button class="btn ghost" onclick="InstructorAI.disconnect()">Disconnect</button></div>
-          <div class="callout" style="margin-top:12px"><b>Privacy:</b> API key stays only in browser sessionStorage and is not saved in the app database. Do not send trainee Aadhaar, phone numbers or other personal records to free AI services.</div>
+          <div class="field-row" style="justify-content:space-between"><h3>Optional AI Connection</h3><span id="aiConnectionBadge" class="badge">○ Manual / no-key mode</span></div>
+          <p id="aiConnectionHelp" class="muted" role="status" aria-live="polite"></p>
+          <div class="field-row"><button id="aiCheckConnection" class="btn primary" onclick="InstructorAI.testConnection()">Check AI availability</button><button class="btn ghost" onclick="InstructorAI.disconnect()">Use manual mode</button></div>
+          <div class="callout" style="margin-top:12px"><b>Gemini Free Tier (when enabled):</b> Optional AI can draft Lesson and Demonstration Plans; free local starters remain available without a key. The AI key stays on the secure Render backend. Google Free Tier usage limits apply per API project, and submitted text may be used to improve the provider’s products. Never send student names, Aadhaar, phone numbers, email, answer keys or private records. Availability checks use no generation tokens. Confirm the API project is on the Free Tier in Google AI Studio before use.</div>
         </div>
         <div class="card"><h3>Today's Teaching</h3><div id="aiToday"></div></div>
       </div>
-      <div class="card"><h3>Prepare Any Plan</h3><p class="muted">Choose a topic from the approved register. Trade, batch, duration and previous/next topic are added automatically.</p><div class="field-row"><select id="aiTopicSelect" style="flex:1"><option value="">Select a topic…</option></select><button class="btn primary" onclick="InstructorAI.openQuickPlan()">✨ Create AI Draft</button></div></div>
-      <div class="card"><h3>Free workflow without an API key</h3><p>1. Generate a prompt here. 2. Copy it to any free AI chatbot. 3. Paste the returned JSON back into the AI window. 4. Preview. 5. Approve &amp; Keep only when satisfied.</p></div>
+      <div class="card instructor-ai-workflow"><h3>Prepare a Lesson / Demonstration Plan</h3><p class="muted">Select an approved topic. Trade, batch and schedule context come from your current workspace; no student information is sent automatically.</p><div class="field"><label for="aiTopicSelect">Theory or Practical topic</label><select id="aiTopicSelect" style="width:100%;max-width:100%"><option value="">Select a topic…</option></select></div><div class="field-row instructor-ai-actions"><button class="btn primary" onclick="InstructorAI.openQuickPlan(true)">Create Free Starter Plan</button><button class="btn secondary" onclick="InstructorAI.openQuickPlan()">Open AI / Manual Draft</button></div><p class="muted">Free Starter creates an editable plan locally, with clearly marked fields to complete. It does not use tokens, change marks, or save a record.</p></div>
+      <div class="card instructor-ai-workflow"><h3>How plan preparation works</h3><ol class="instructor-ai-steps"><li><b>Select</b> a verified topic</li><li><b>Prepare</b> a free starter, use an external assistant, or request optional backend AI</li><li><b>Edit and preview</b> all learning objectives, procedures and checks</li><li><b>Save/approve</b> only a completed, instructor-reviewed plan</li></ol><p class="muted">Optional AI is not a source of official syllabus hours, marks, attendance or job statistics. Existing records remain unchanged until you explicitly save.</p></div>
     </section>
 
     <!-- ---------- UNIVERSAL SYLLABUS AI ---------- -->
@@ -145,7 +144,7 @@
       <div class="hero" style="margin-bottom:16px">
         <div class="hero-content">
           <div>
-            <h2>🤖 Universal Syllabus AI</h2>
+            <h2>Syllabus Import &amp; Year Planning</h2>
             <p>Upload a trade syllabus once. The app extracts modules, practicals, theory and hours, then builds a working-day calendar.</p>
           </div>
         </div>
@@ -154,7 +153,7 @@
       <div class="cards" style="grid-template-columns:1fr 1fr">
         <div class="card">
           <h3>1. Trade & Session</h3>
-          <div class="field"><label>Trade name</label><input id="uTrade" placeholder="e.g. Electrician"></div>
+          <div class="field"><label>Trade name</label><input id="uTrade" readonly placeholder="Current authorised workspace trade"></div>
           <div class="field-row">
             <div class="field" style="flex:1"><label>Session start</label><input id="uStart" type="date"></div>
             <div class="field" style="flex:1"><label>Session end</label><input id="uEnd" type="date"></div>
@@ -166,15 +165,15 @@
           </div>
           <div class="field-row">
             <button class="btn primary" onclick="InstructorAI.analyzeSyllabusFile()">✨ Analyze with AI</button>
-            <button class="btn secondary" onclick="UniversalSyllabus.analyzeFile()">🔍 Basic Analyze</button>
-            <button class="btn ghost" onclick="UniversalSyllabus.loadDemo()">Load Demo</button>
+            <button class="btn secondary" onclick="UniversalSyllabus.analyzeFile()">Read / Import Syllabus</button>
+            <a class="btn ghost" href="assets/templates/syllabus-template.xlsx" download>Download Excel Template</a><button class="btn ghost" onclick="UniversalSyllabus.loadCurrentSyllabus()">Load Current Syllabus</button>
           </div>
           <div id="uStatus" class="callout" style="display:none"></div>
         </div>
 
         <div class="card">
           <h3>2. Government / Institute Calendar</h3>
-          <p class="muted">Free mode uses verified Maharashtra 2026 public holidays plus your institute rules. For future years, add/import the dates published by Government/DVET.</p>
+          <p class="muted">Calendar allocation is calculated without AI. Review Government/DVET holiday dates for every calendar year in your session, plus institute closures.</p>
           <div class="field-row" id="uDays">
             <label><input type="checkbox" value="1" checked> Mon</label>
             <label><input type="checkbox" value="2" checked> Tue</label>
@@ -189,8 +188,8 @@
             <label><input id="uUseExistingHolidays" type="checkbox" checked> Include existing institute holidays</label>
           </div>
           <div class="field-row">
-            <div class="field"><label>Total training hours / day</label><input id="uHours" type="number" value="7" min="1" max="12"></div>
-            <div class="field"><label>Theory hours / day</label><input id="uTheoryHours" type="number" value="1" min="0" max="7" step="0.5"></div>
+            <div class="field"><label>Practical hours / day</label><input id="uHours" type="number" value="5" min="0" max="12" step="0.01"></div>
+            <div class="field"><label>Theory hours / day</label><input id="uTheoryHours" type="number" value="3" min="0" max="12" step="0.01"></div>
           </div>
           <div class="field">
             <label>Government / additional holidays <span class="muted">(YYYY-MM-DD | Holiday name)</span></label>
@@ -210,11 +209,11 @@
 
       <div class="card">
         <div class="field-row" style="justify-content:space-between">
-          <div><h3 style="margin-bottom:3px">3. AI/Automatic analysis preview</h3><p class="muted">Edit type, module, topic or hours before applying anything to the main register.</p></div>
+          <div><h3 style="margin-bottom:3px">3. Review syllabus topics</h3><p class="muted">Edit type, module, topic or hours before applying anything to the main register.</p></div>
           <div id="uCounts" class="muted"></div>
         </div>
         <div class="table-scroll">
-          <table class="datatable"><thead><tr><th>#</th><th>Type</th><th>Module / Unit</th><th>Title</th><th>Hours</th><th>Confidence</th></tr></thead><tbody id="uPreviewBody"></tbody></table>
+          <table class="datatable"><thead><tr><th>Type</th><th>Exercise No.</th><th>Module / Unit</th><th>Title</th><th>Hours</th><th>Actions</th></tr></thead><tbody id="uPreviewBody"></tbody></table>
         </div>
       </div>
 
@@ -222,24 +221,24 @@
         <div class="field-row" style="justify-content:space-between">
           <h3>4. Generated day-wise calendar</h3>
           <div class="field-row">
-            <button class="btn primary" onclick="UniversalSyllabus.createCompletePlan()">⚡ Create Complete Training Plan</button>
-            <button class="btn secondary" onclick="UniversalSyllabus.applyToRegister()">Apply Syllabus Only</button>
-            <button class="btn ghost" onclick="UniversalSyllabus.printCalendar()">🖨️ Print Calendar</button>
+            <button class="btn primary" onclick="UniversalSyllabus.createCompletePlan()">Save / Revise Year Plan</button>
+
+            <button class="btn ghost" onclick="UniversalSyllabus.printCalendar()">🖨️ Print Preview</button>
           </div>
         </div>
-        <div class="table-scroll"><table class="datatable"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Practical</th><th>Theory</th><th>Allocated Hours</th></tr></thead><tbody id="uCalendarBody"></tbody></table></div>
+        <div id="uCapacitySummary" aria-live="polite"></div><div class="table-scroll"><table class="datatable"><thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Practical</th><th>Theory</th><th>Allocated Hours</th></tr></thead><tbody id="uCalendarBody"></tbody></table></div>
       </div>
 
       <div class="card accent-teal" style="margin-top:16px">
-        <h3>🚀 What “Create Complete Training Plan” does</h3>
+        <h3>What saving a year plan does</h3>
         <div class="cards" style="grid-template-columns:repeat(5,1fr);gap:10px">
           <div class="stat-card"><strong>1</strong><span>Read syllabus</span></div>
-          <div class="stat-card"><strong>2</strong><span>Create modules</span></div>
-          <div class="stat-card"><strong>3</strong><span>Create theory & practicals</span></div>
+          <div class="stat-card"><strong>2</strong><span>Review topic groups</span></div>
+          <div class="stat-card"><strong>3</strong><span>Keep topic identities</span></div>
           <div class="stat-card"><strong>4</strong><span>Assign calendar dates</span></div>
           <div class="stat-card"><strong>5</strong><span>Update training records</span></div>
         </div>
-        <p class="muted" style="margin-top:12px">Review the detected syllabus first. The complete-plan action updates the syllabus structure and planned dates while keeping trainee and attendance records.</p>
+        <p class="muted" style="margin-top:12px">Review the detected syllabus first. Saving creates one numbered revision and retains existing plans, completion records and student links. Practical and Theory daily budgets stay separate; unused hours do not move to the other stream.</p>
       </div>
     </section>
 
@@ -294,7 +293,7 @@
       </div>
 
       <div class="card accent-teal">
-        <h3>🗺️ Coming Up Next</h3>
+        <h3>🗺️ Plan vs Actual Progress</h3>
         <div id="dashRoadmap"></div>
       </div>
 
@@ -393,8 +392,13 @@
       <h2>Trainee Master</h2>
       <div id="instructorOnlyTrainees" class="field-row">
         <button class="btn primary" onclick="Trainees.openForm()">+ Add Trainee</button>
+        <button class="btn secondary" type="button" onclick="TraineeBulkImport.download()">⬇ Download Excel Template</button>
+        <button class="btn secondary" type="button" onclick="document.getElementById('traineeBulkFile').click()">⬆ Import Excel</button>
+        <input id="traineeBulkFile" type="file" accept=".xlsx,.xls,.csv" hidden onchange="TraineeBulkImport.previewFile(this.files[0])">
         <button class="btn ghost" onclick="Trainees.loadSample()">Load 5 sample trainees (for testing)</button>
         <button class="btn ghost" onclick="Trainees.clearAll()">Clear all trainees</button>
+        <div id="traineeBulkStatus" role="status" aria-live="polite" style="width:100%;font-size:.9em"></div>
+        <div id="traineeBulkPreview" class="card" style="width:100%;margin-top:10px" hidden></div>
       </div>
       <table class="datatable">
         <thead><tr><th>Roll</th><th>Name</th><th>PRN</th><th>Category</th><th>Attendance %</th><th>Practical Avg</th><th>PIN</th><th></th></tr></thead>
@@ -408,7 +412,7 @@
       <div id="instructorOnlyAttendance">
         <div class="field-row">
           <label>Date</label>
-          <input type="date" id="attDate">
+          <input type="date" id="attDate" onchange="Attendance.loadDay()">
           <button class="btn secondary" onclick="Attendance.loadDay()">Load</button>
         </div>
         <div id="attHolidayWarning"></div>
@@ -618,22 +622,20 @@
     <!-- ---------- SPLIT-UP SYLLABUS ---------- -->
     <section id="tab-splitup" class="panel">
       <h2>🗓️ Split-up Syllabus (Day-wise)</h2>
-      <p class="muted">Auto-generates which Practical and Theory topic falls on which working day — like your
-        week-wise split-up sheet — using teaching sequence (set via ↑↓ in Practicals/Theory), hours per
-        practical, and your Holiday Calendar.</p>
+      <p class="muted" id="splitupInfo">Shows your saved complete training plan or an alternate schedule using the current topic sequence and holiday calendar.</p>
       <div id="instructorOnlySplitup">
         <div class="field-row">
-          <button class="btn primary" onclick="Schedule.useRealCalendar()">Use Official 2026-27 Calendar</button>
+          <button class="btn primary" id="splitupOfficial" onclick="Schedule.useRealCalendar()">Use bundled DTPO 2026-27 calendar</button>
           <button class="btn secondary" onclick="Reports.printSplitUp()">Print Split-up Syllabus</button>
         </div>
-        <p class="muted">The button above resets every Planned Date to match your actual <code>DPO_LIVE_2026-27</code> calendar — use this unless you've reordered teaching sequence. The generator below is only for exploring an alternate order.</p>
+        <div id="splitupAlternateSettings"><p class="muted">Legacy alternate scheduling is available until a managed year plan is saved. Year Planning uses separate Practical and Theory hours. The alternate generator below allocates practical hours and theory days separately. Applying either schedule replaces planned dates; review before confirming.</p>
         <div class="field-row">
           <label>Alt. Start Date</label><input type="date" id="splitupStart">
-          <label>Hours/working day</label><input type="number" id="splitupHoursPerDay" value="7" min="1" max="12" style="width:70px">
+          <label>Practical hours/working day</label><input type="number" id="splitupHoursPerDay" value="7" min="1" max="12" style="width:70px">
           <label>Days per Theory topic</label><input type="number" id="splitupDaysPerTheory" value="1" min="1" max="10" style="width:70px">
           <button class="btn ghost" onclick="Schedule.generate()">Generate Alternate Schedule</button>
         </div>
-        <div class="callout" style="background:#fdf1ee;border-left:4px solid var(--bad);padding:10px 14px;margin:14px 0;font-size:.85em" id="splitupWarning"></div>
+        <div class="callout" style="background:#fdf1ee;border-left:4px solid var(--bad);padding:10px 14px;margin:14px 0;font-size:.85em" id="splitupWarning"></div></div>
       </div>
       <table class="datatable">
         <thead><tr><th>Date</th><th>Day</th><th>Week</th><th>Trade Practical</th><th>Trade Theory</th></tr></thead>
@@ -647,13 +649,13 @@
       <div id="instructorOnlyEval">
         <div class="field-row">
           <label>Practical No.</label>
-          <select id="evalPracticalSelect"></select>
+          <select id="evalPracticalSelect" aria-label="Practical for evaluation" onchange="Evaluation.loadGrid()"></select>
           <button class="btn secondary" onclick="Evaluation.loadGrid()">Load</button>
         </div>
         <table class="datatable" id="evalTable">
           <thead>
             <tr>
-              <th>Trainee</th>
+              <th>Sr. No.</th><th>Roll No.</th><th>Trainee</th>
               <th>Prep<br><small>/5</small></th>
               <th>Process<br><small>/8</small></th>
               <th>Accuracy<br><small>/8</small></th>
@@ -1084,7 +1086,7 @@
   <div class="modal-card">
     <h3>Mark Complete</h3>
     <p class="muted" id="markCompleteItemLabel"></p>
-    <div class="field"><label>Date actually taught</label><input id="markCompleteDate" type="date"></div>
+    <div class="field"><label for="markCompleteDate">Date actually taught</label><input id="markCompleteDate" type="date"></div>
     <p class="muted">Defaults to today, but change it if your device's date is wrong or you're logging this after the fact.</p>
     <div class="field-row" style="justify-content:flex-end">
       <button class="btn ghost" onclick="MarkComplete.close()">Cancel</button>
@@ -1161,7 +1163,8 @@
     <div class="field-row" style="justify-content:space-between"><h3 id="aiModalTitle">AI Assistant</h3><button class="btn ghost small" onclick="InstructorAI.closeModal()">✕ Close</button></div>
     <div id="aiModalStatus" class="callout">AI draft</div>
     <div class="field"><label>Prompt</label><textarea id="aiPromptText" rows="10"></textarea></div>
-    <div class="field-row"><button class="btn ghost" onclick="InstructorAI.copyPrompt()">📋 Copy Prompt</button><button id="aiGenerateBtn" class="btn primary" onclick="InstructorAI.generatePending()">✨ Generate with Gemini</button></div>
+    <div class="field-row"><button class="btn ghost" onclick="InstructorAI.copyPrompt()">📋 Copy Prompt</button><button id="aiGenerateBtn" class="btn primary" onclick="InstructorAI.generatePending()">✨ Generate AI draft</button></div>
+    <details class="callout"><summary>ⓘ How to copy a prompt and paste JSON</summary><ol><li>Open the intended Theory or Practical topic and check its number, trade and duration in the prompt.</li><li>Copy Prompt, then paste it into an external AI service you choose. Ask it to return only the JSON structure requested in that prompt. Exclude student personal data.</li><li>Copy the complete response, including the opening { and closing }, into AI JSON result below. Do not paste a webpage link or a screenshot.</li><li>Choose Preview Result and review the complete plan. Fix any JSON error in the text; your pasted text is retained.</li><li>Save as Draft or Approve &amp; Keep explicitly. A draft is not teaching completion.</li></ol><p>A practical response uses arrays such as <code>"objective": ["Demonstrate safe working"]</code> and <code>"steps": [{"procedure":"Show the task","keyPoint":"Check accuracy","spotHint":"Observe safe practice"}]</code>. Follow the complete schema in your selected prompt; a lesson has different fields.</p></details>
     <div class="field"><label>AI JSON result <span class="muted">(you may edit before saving)</span></label><textarea id="aiResultText" rows="14" placeholder="Paste JSON returned by your AI here"></textarea></div>
     <div class="field-row"><button class="btn secondary" onclick="InstructorAI.previewResult()">Preview Result</button><button class="btn ghost" onclick="InstructorAI.saveResult(false)">Save as Draft</button><button class="btn primary" onclick="InstructorAI.saveResult(true)">✅ Approve & Keep</button></div>
     <div id="aiPreviewBox" class="callout" style="display:none;margin-top:12px"></div>
@@ -1171,11 +1174,15 @@
 <!-- ============ PRINT AREA (hidden on screen, shown only in print) ============ -->
 <div id="printArea" class="print-only"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="assets/vendor/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="official-plans.js"></script>
+<script src="shared/syllabus-planning.js"></script>
+<script src="trainee-bulk-import.js"></script>
+<script src="instructor-templates.js"></script>
+<script src="instructor-plan-safety.js"></script>
 <script src="app.js"></script>
 <script src="cloud.js"></script>
 <script src="ai.js"></script>
