@@ -712,3 +712,26 @@ test('Instructor imports a reviewed MCQ file and Student receives a private-key 
   const card=student.locator('#tab-exams section').filter({has:student.getByRole('heading',{name:title,exact:true})});await card.getByRole('button',{name:'Start / resume test',exact:true}).click();await card.getByLabel('PDF',{exact:true}).check();await card.getByRole('button',{name:'Submit answers for server grading',exact:true}).click();await expect(card).toContainText('Result: 1 / 1');await expect(card.locator('img')).toHaveCount(0);expect(await student.evaluate(()=>window.mcqImportExecuted)).toBeUndefined();
  }finally{await studentContext.close();}
 });
+
+test('Instructor free Starter Plan works without AI generation and cannot approve unfinished placeholders',async({page})=>{
+ await login(page,'instructor');
+ await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));
+ await expect(page.getByRole('heading',{name:'Instructor Teaching Assistant'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Create Free Starter Plan',exact:true})).toBeVisible();
+ const before=await page.evaluate(()=>JSON.stringify({practicals:DATA.practicals,theory:DATA.theory}));
+ const options=await page.locator('#aiTopicSelect option').count();expect(options).toBeGreaterThan(1);
+ await page.locator('#aiTopicSelect').selectOption({index:1});
+ let aiRequests=0;
+ page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/api')&&r.postDataJSON()?.action==='ai')aiRequests++;});
+ await page.getByRole('button',{name:'Create Free Starter Plan',exact:true}).click();
+ await expect(page.locator('#aiModal')).toBeVisible();
+ await expect(page.locator('#aiResultText')).toHaveValue(/\[FILL BEFORE SAVE\]/);
+ await expect(page.locator('#aiPreviewBox')).toBeVisible();
+ await expect(page.locator('#aiModalStatus')).toContainText('created locally');
+ await page.getByRole('button',{name:'✅ Approve & Keep',exact:true}).click();
+ await expect(page.locator('#aiModalStatus')).toContainText('Complete every');
+ expect(await page.evaluate(()=>JSON.stringify({practicals:DATA.practicals,theory:DATA.theory}))).toBe(before);
+ expect(aiRequests).toBe(0);
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);
+ expect(overflow).toBe(false);
+});
