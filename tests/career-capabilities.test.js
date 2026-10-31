@@ -56,3 +56,68 @@ test('late external AI responses cannot put an old student draft into another wo
   assert(!w.document.getElementById('coach-output').textContent.includes('Synthetic private result from previous workspace'));
  }finally{dom.window.close();}
 });
+
+test('student Career Mentor chats across turns without local storage, automatic saving or user HTML execution',async()=>{
+ const requests=[];const {dom,w,V}=setup(async body=>{
+  if(body.action==='capabilities')return {aiConfigured:true};
+  requests.push(body);
+  return {mode:'ai-chat',text:'<script>not executable</script> Keep practising DTP and ask your instructor.'};
+ });
+ try{
+  V.renderCareerCoach();await settle();
+  const send=w.document.querySelector('#coach-chat-send'),chat=w.document.querySelector('#coach-chat-input');
+  assert.equal(send.disabled,false);
+  chat.value='I have completed DTP. What can I learn?';
+  send.click();assert.equal(requests.length,0);assert.match(w.document.querySelector('#coach-chat-status').textContent,/Consent/);
+  const consent=w.document.querySelector('#coach-chat-card input[type=checkbox]');assert(consent);consent.click();
+  send.click();await settle();
+  assert.equal(requests.length,1);assert.deepEqual(requests[0].history,[]);
+  assert.equal(requests[0].action,'careerChat');
+  assert.equal(w.document.querySelectorAll('#coach-chat-messages .career-chat-line').length,2);
+  assert.equal(w.document.querySelectorAll('#coach-chat-messages script,[onerror]').length,0);
+  chat.value='And how should I prepare for an interview?';send.click();await settle();
+  assert.equal(requests.length,2);
+  assert.equal(requests[1].history.length,2);
+  assert.equal(requests[1].history[0].role,'user');
+  assert.equal(requests[1].history[1].role,'assistant');
+  assert.equal(w.localStorage.length,0);assert.equal(w.sessionStorage.length,0);
+  w.document.querySelector('#coach-chat-clear').click();
+  assert.equal(w.document.querySelectorAll('#coach-chat-messages .career-chat-line').length,0);
+  assert.equal(consent.checked,false);
+  consent.click();chat.value='New private question';send.click();await settle();
+  assert.equal(requests[2].history.length,0);
+ }finally{dom.window.close();}
+});
+test('career chat cannot run without configured provider and cannot leak a late reply across workspaces',async()=>{
+ let complete;const {dom,w,V}=setup(async body=>{
+  if(body.action==='capabilities')return {aiConfigured:true};
+  return new Promise(resolve=>{complete=resolve;});
+ });
+ try{
+  V.renderCareerCoach();await settle();
+  w.document.querySelector('#coach-chat-card input[type=checkbox]').click();
+  w.document.querySelector('#coach-chat-input').value='What verified skills should I practise?';
+  w.document.querySelector('#coach-chat-send').click();
+  V.workspaceId='another-workspace';
+  complete({mode:'ai-chat',text:'Previous workspace private reply'});
+  await settle();
+  assert.equal(w.document.querySelector('#coach-chat-messages').textContent.includes('Previous workspace'),false);
+ }finally{dom.window.close();}
+ const other=setup(async()=>({aiConfigured:false}));
+ try{other.V.renderCareerCoach();await settle();assert.equal(other.w.document.querySelector('#coach-chat-send').disabled,true);
+ assert.equal(other.w.document.querySelector('#coach-chat-card input[type=checkbox]'),null);}finally{other.dom.window.close();}
+});
+test('quota failures preserve chat composer and never claim that static guidance is an AI response',async()=>{
+ const {dom,w,V}=setup(async body=>{
+  if(body.action==='capabilities')return {aiConfigured:true};
+  throw Error('Shared Free Tier allowance reached');
+ });
+ try{V.renderCareerCoach();await settle();
+  w.document.querySelector('#coach-chat-card input[type=checkbox]').click();
+  const prompt=w.document.querySelector('#coach-chat-input');prompt.value='Help me practise interview skills';
+  w.document.querySelector('#coach-chat-send').click();await settle();
+  assert.equal(prompt.value,'Help me practise interview skills');
+  assert.match(w.document.querySelector('#coach-chat-status').textContent,/allowance reached/);
+  assert.equal(w.document.querySelector('#coach-chat-messages').textContent,'');
+ }finally{dom.window.close();}
+});
