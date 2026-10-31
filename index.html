@@ -131,7 +131,7 @@
           <div class="field-row" style="justify-content:space-between"><h3>Optional AI Connection</h3><span id="aiConnectionBadge" class="badge">○ Manual / no-key mode</span></div>
           <p id="aiConnectionHelp" class="muted" role="status" aria-live="polite"></p>
           <div class="field-row"><button id="aiCheckConnection" class="btn primary" onclick="InstructorAI.testConnection()">Check AI availability</button><button class="btn ghost" onclick="InstructorAI.disconnect()">Use manual mode</button></div>
-          <div class="callout" style="margin-top:12px"><b>Privacy:</b> Provider keys stay on the server. Personal-key setup is not yet available. Keep student names, phone numbers and other personal records out of AI prompts. An availability check uses no generation request; free provider quotas still apply when generating.</div>
+          <div class="callout" style="margin-top:12px"><b>Gemini Free Tier (when enabled):</b> Optional AI can draft Lesson and Demonstration Plans; free local starters remain available without a key. The AI key stays on the secure Render backend. Google Free Tier usage limits apply per API project, and submitted text may be used to improve the provider’s products. Never send student names, Aadhaar, phone numbers, email, answer keys or private records. Availability checks use no generation tokens. Confirm the API project is on the Free Tier in Google AI Studio before use.</div>
         </div>
         <div class="card"><h3>Today's Teaching</h3><div id="aiToday"></div></div>
       </div>
