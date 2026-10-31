@@ -173,11 +173,72 @@ V.renderCareerCoach=function(){
  const output=el('pre','',host);output.id='coach-output';output.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font:inherit';output.setAttribute('aria-live','polite');
  const guide=el('button','Start free guided practice',host);guide.className='btn primary';guide.onclick=()=>{output.textContent=ITIGuidance.offlineGuide(task.value,language.value,input.value);};
  const status=el('p',api?'Checking optional AI configuration… Free guided practice is ready.':'AI-generated drafts are not enabled here. Free guided practice is ready.',host);status.id='coach-ai-status';status.setAttribute('role','status');
+ // Gemini Career Mentor: multi-turn questions with session-only context, never stored
+ // in localStorage, Firestore, URLs or analytics. Only recent turns are sent.
+ const chatCard=el('section',null,host);chatCard.id='coach-chat-card';chatCard.className='card career-chat';
+ el('h3','Career Mentor — AI Chat',chatCard);
+ const chatIntro=el('p','Ask follow-up questions like a conversation. Only the latest few turns are sent for context; nothing is saved after leaving this page. No verified vacancy or placement is promised.',chatCard);
+ chatIntro.className='muted';
+ const chatMessages=el('div',null,chatCard);chatMessages.id='coach-chat-messages';
+ chatMessages.className='career-chat-messages';chatMessages.setAttribute('role','log');chatMessages.setAttribute('aria-live','polite');
+ const chatLabel=el('label','Your next career question',chatCard);
+ const chatInput=el('textarea',null,chatCard);chatInput.id='coach-chat-input';chatInput.maxLength=1200;chatInput.rows=3;
+ chatInput.placeholder='e.g. I learned DTP. Ask me about my skills and suggest what to learn next.';
+ chatLabel.htmlFor=chatInput.id;chatInput.disabled=true;
+ const chatActions=el('div',null,chatCard);chatActions.className='field-row';
+ const sendChat=el('button','Send to AI Career Mentor',chatActions);sendChat.id='coach-chat-send';sendChat.type='button';sendChat.className='btn primary';sendChat.disabled=true;
+ const clearChatButton=el('button','New chat / Clear',chatActions);clearChatButton.id='coach-chat-clear';clearChatButton.type='button';clearChatButton.className='btn ghost';
+ const chatStatus=el('p','Checking whether secure AI Career Chat is configured. Free guided practice remains available above.',chatCard);
+ chatStatus.id='coach-chat-status';chatStatus.className='muted';chatStatus.setAttribute('role','status');
+ let history=[],chatVersion=0,chatConsent=null,chatBusy=false,chatEnabled=false;
+ const addChatLine=(who,body)=>{
+  const line=el('div',null,chatMessages);line.className='career-chat-line '+(who==='user'?'career-chat-user':'career-chat-mentor');
+  const name=el('strong',who==='user'?'You':'AI Career Mentor',line);name.className='career-chat-name';
+  const content=el('p',null,line);content.textContent=body;return line;
+ };
+ const clearChat=()=>{
+  chatVersion++;history=[];chatMessages.replaceChildren();chatInput.value='';
+  if(chatConsent)chatConsent.checked=false;
+  chatStatus.textContent=chatEnabled?'New private chat. Review the provider consent before asking a question.':'AI chat is not enabled; use free guided practice.';
+ };
+ clearChatButton.onclick=clearChat;
+ language.addEventListener('change',clearChat);
+ sendChat.onclick=async()=>{
+  if(!current()||!chatEnabled||chatBusy)return;
+  if(!chatConsent?.checked){chatStatus.textContent='Consent is required to send this chat to the optional external AI provider.';return;}
+  const question=chatInput.value.trim();
+  if(!question){chatStatus.textContent='Write a career question first.';return;}
+  // Retain complete user/assistant pairs, with an upper bound below the server cap.
+  while(history.length&&(history.length>6||history.reduce((sum,x)=>sum+x.text.length,0)+question.length>5600))history.splice(0,2);
+  const selectedLanguage=language.value,turn=++chatVersion;
+  chatBusy=true;sendChat.disabled=true;chatStatus.textContent='AI Career Mentor is preparing an answer…';
+  try{
+   const out=await V.backendRequest({action:'careerChat',language:selectedLanguage,input:question,history:history.map(x=>({...x})),consent:true});
+   if(!current()||chatVersion!==turn)return;
+   if(out.mode!=='ai-chat'||typeof out.text!=='string'||!out.text.trim())throw Error('Generative AI chat is not available on this backend.');
+   addChatLine('user',question);addChatLine('assistant',out.text);
+   history.push({role:'user',text:question},{role:'assistant',text:out.text});
+   chatInput.value='';chatStatus.textContent='AI answer is for guidance only. Verify real opportunities on official listings.';
+  }catch(e){
+   if(!current()||chatVersion!==turn)return;
+   chatStatus.textContent='AI chat unavailable: '+(e.message||'Try again later.')+' Your question is retained. Use free guided practice above without an AI request.';
+  }finally{if(current()&&chatVersion===turn){chatBusy=false;sendChat.disabled=!chatEnabled;}}
+ };
+ chatInput.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'&&!sendChat.disabled){e.preventDefault();sendChat.click();}});
+ const enableChat=()=>{
+  chatEnabled=true;chatInput.disabled=false;sendChat.disabled=false;
+  const consentLabel=el('label',null,chatCard);consentLabel.className='career-chat-consent';
+  chatConsent=el('input',null,consentLabel);chatConsent.type='checkbox';chatConsent.style.width='auto';
+  consentLabel.append(' I consent to sending my questions and recent chat turns to the configured AI provider. Do not include personal details.');
+  chatCard.insertBefore(consentLabel,chatActions);
+  chatStatus.textContent='Secure AI provider is configured (actual quota/availability is checked only when you send). Ask a career question to begin.';
+ };
  if(!api)return;
  V.backendRequest({action:'capabilities'}).then(capabilities=>{
  if(!current())return;
- if(capabilities?.aiConfigured!==true){status.textContent='AI-generated drafts are not enabled here. Free guided practice is ready.';return;}
+ if(capabilities?.aiConfigured!==true){status.textContent='AI-generated drafts are not enabled here. Free guided practice is ready.';chatStatus.textContent='AI Chat is not configured. Use free guided practice above.';return;}
  status.textContent='An optional AI provider is configured. Generated drafts require your consent and review.';
+ enableChat();
  const consentLabel=el('label',null,host);consentLabel.style.display='block';const consent=el('input',null,consentLabel);consent.type='checkbox';consent.style.width='auto';consentLabel.append(' I consent to sending only the text above to the configured AI provider.');
  const ai=el('button','Request optional AI draft',host);ai.className='btn';ai.disabled=!window.ITI_RUNTIME?.apiUrl;
  ai.onclick=async()=>{
@@ -196,7 +257,7 @@ V.renderCareerCoach=function(){
     '\n\nFree guided practice (not generated by AI):\n'+ITIGuidance.offlineGuide(selected.task,selected.language,selected.input);
   }finally{if(current())ai.disabled=false;}
  };
- }).catch(()=>{if(current())status.textContent='Optional AI configuration could not be checked. Free guided practice is ready.';});
+ }).catch(()=>{if(current()){status.textContent='Optional AI configuration could not be checked. Free guided practice is ready.';chatStatus.textContent='Career Chat cannot check AI availability. Use free guided practice above.';}});
 };
 const oldExamLoad=V.load?.bind(V);
 if(oldExamLoad)V.load=function(...args){this._examRenderGeneration=(this._examRenderGeneration||0)+1;return oldExamLoad(...args);};
