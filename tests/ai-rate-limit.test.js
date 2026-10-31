@@ -30,3 +30,19 @@ test('missing consent, invalid authentication and keyless guidance never consume
  const f=fixture({dailyLimit:1});await assert.rejects(f.api.execute('invalid',request),e=>e.status===401);await assert.rejects(f.api.execute('u',{...request,consent:false}),e=>e.status===400);await f.api.execute('u',request);assert.equal(f.calls(),1);
  const guided=fixture({provider:'none'});for(let i=0;i<12;i++)assert.equal((await guided.api.execute('u',request)).mode,'guided');assert.equal(guided.calls(),0);
 });
+
+test('Free Tier external AI blocks obvious student personal identifiers before consuming provider quota',async()=>{
+ const f=fixture({dailyLimit:1});
+ for(const input of [
+  'Please write a resume for 9123456789',
+  'My email is trainee@example.org. Help with interview.',
+  'Aadhaar 1234 5678 9012 to submit a form',
+  'Please check number +91 9876543210',
+ ]){
+  await assert.rejects(f.api.execute('u',{...request,input}),e=>e.status===400&&/Remove/.test(e.message));
+ }
+ assert.equal(f.calls(),0);
+ await f.api.execute('u',{...request,input:'Help practise a synthetic workshop interview'});
+ assert.equal(f.calls(),1);
+ await assert.rejects(f.api.execute('u',{...request,input:'Another synthetic interview'}),e=>e.status===429);
+});
