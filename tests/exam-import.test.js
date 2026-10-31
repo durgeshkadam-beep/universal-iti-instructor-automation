@@ -16,3 +16,19 @@ test('an unannounced text edit or expired reviewed schedule cannot bypass previe
 for(const context of ['workspace','institute','database','user','role','api'])test('import publisher rejects stale '+context+' context',async()=>{const f=setup();try{await f.V.renderSecureExams();const c=f.controls();c.input.value=JSON.stringify(f.valid());c.preview.onclick();c.consent.checked=true;if(context==='workspace')f.V.workspaceId='w2';if(context==='institute')f.V.INSTITUTE_ID='i2';if(context==='database')f.V.fb.db={};if(context==='user')f.V.fb.user={uid:'other'};if(context==='role')f.V.selectedRole='student';if(context==='api')f.w.ITI_RUNTIME.apiUrl='https://other.example/api';await c.publish.onclick();assert.equal(f.calls.length,0);assert.match(c.status.textContent,/changed/);}finally{f.dom.window.close();}});
 test('late file reads cannot replace newer pasted JSON, newer files or another workspace',async()=>{const f=setup();try{await f.V.renderSecureExams();const c=f.controls();let release;Object.defineProperty(c.file,'files',{configurable:true,value:[{name:'first.json',size:20,text:()=>new Promise(r=>release=r)}]});const old=c.file.onchange();c.input.value='newer pasted draft';c.input.dispatchEvent(new f.w.Event('input'));release('stale file');await old;assert.equal(c.input.value,'newer pasted draft');const older=c.file.onchange();Object.defineProperty(c.file,'files',{configurable:true,value:[{name:'latest.json',size:20,text:async()=>JSON.stringify(f.valid())}]});await c.file.onchange();const latest=c.input.value;release('older file');await older;assert.equal(c.input.value,latest);Object.defineProperty(c.file,'files',{configurable:true,value:[{name:'late.json',size:20,text:()=>new Promise(r=>release=r)}]});const pending=c.file.onchange();f.V.workspaceId='w2';release('foreign draft');await pending;assert.equal(c.input.value,latest);assert.equal(f.calls.length,0);}finally{f.dom.window.close();}});
 test('unsupported files retain existing input and never issue a request',async()=>{const f=setup();try{await f.V.renderSecureExams();const c=f.controls();c.input.value='retained';for(const file of [{name:'x.pdf',size:1},{name:'x.json',size:150001}]){Object.defineProperty(c.file,'files',{configurable:true,value:[file]});await c.file.onchange();assert.equal(c.input.value,'retained');assert.match(c.status.textContent,/150 KB/);}assert.equal(f.calls.length,0);}finally{f.dom.window.close();}});
+
+test('Instructor sees reviewed MCQ file tools expanded before manual question form',async()=>{
+ const f=setup();try{
+  await f.V.renderSecureExams();
+  const host=f.w.document.querySelector('#tab-exams'),advanced=host.querySelector('#exam-import'),manual=host.querySelector('#exam-publisher');
+  assert.equal(advanced.open,true);
+  assert.equal(advanced.parentElement,host);
+  assert.equal(manual.parentElement,host);
+  assert(advanced.compareDocumentPosition(manual)&f.w.Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.match(advanced.querySelector('summary').textContent,/template, file upload, preview & reviewed publish/);
+  assert(advanced.querySelector('input[type=file]'));
+  assert(advanced.querySelector('#exam-import-preview'));
+  assert([...advanced.querySelectorAll('button')].some(b=>b.textContent==='Download example question file'));
+  assert([...advanced.querySelectorAll('button')].some(b=>b.textContent==='Publish JSON question set'));
+ }finally{f.dom.window.close();}
+});
