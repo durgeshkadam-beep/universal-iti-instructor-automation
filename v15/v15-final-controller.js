@@ -226,7 +226,13 @@ async function renderGroup(name,requested){
   host.replaceChildren(groupHeading(group.title,group.intro,group.items,selected),...children);
   if(selected==='pilot-impact')await V.renderPilotTimeEvidence?.();else renderLegacyInstructor(selected);
   if(selected==='syllabus-ai'){UniversalSyllabus.init();UniversalSyllabus.renderPreview();UniversalSyllabus.renderCalendar();}
-  if(selected==='record-formats')RecordFormats.populatePlanSelects?.();
+  if(selected==='record-formats'){
+    // Grouped navigation reuses the existing print forms. Their selectors must
+    // reflect the currently loaded workspace, not the roster from initial boot.
+    window.OtherPrintableRecords?.init?.();
+    window.OtherPrintableRecords?.refresh?.();
+    RecordFormats.populatePlanSelects?.();
+  }
   if(selected==='reports')Reports.renderStorageStats?.();
 }
 async function renderSkillGroup(requested){
