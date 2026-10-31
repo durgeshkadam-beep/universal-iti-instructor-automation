@@ -197,7 +197,7 @@ V.renderCareerCoach=function(){
   const content=el('p',null,line);content.textContent=body;return line;
  };
  const clearChat=()=>{
-  chatVersion++;history=[];chatMessages.replaceChildren();chatInput.value='';
+  chatVersion++;history=[];chatBusy=false;sendChat.disabled=!chatEnabled;chatMessages.replaceChildren();chatInput.value='';
   if(chatConsent)chatConsent.checked=false;
   chatStatus.textContent=chatEnabled?'New private chat. Review the provider consent before asking a question.':'AI chat is not enabled; use free guided practice.';
  };
