@@ -29,6 +29,7 @@ function validateStagingRuntime(env=process.env){
   if(!env.AI_MODEL||!['https:','http:'].includes(url.protocol)||url.username||url.password)fail('configure the model server and model');
  }
  if(env.AI_DAILY_LIMIT&&(!/^[1-9]\d*$/.test(env.AI_DAILY_LIMIT)||Number(env.AI_DAILY_LIMIT)>1000))fail('AI daily limit must be 1–1000');
+ if(env.AI_GLOBAL_DAILY_LIMIT&&(!/^[1-9]\d*$/.test(env.AI_GLOBAL_DAILY_LIMIT)||Number(env.AI_GLOBAL_DAILY_LIMIT)>10000))fail('Shared AI daily limit must be 1–10000');
  return {projectId:PROJECT,origins,provider,credential};
 }
 module.exports={validateStagingRuntime};
