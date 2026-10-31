@@ -8,7 +8,7 @@ const {getAuth}=require('firebase-admin/auth');
 const {getFirestore}=require('firebase-admin/firestore');
 const {createService}=require('./service');
 if(!getApps().length)initializeApp({projectId:process.env.GCLOUD_PROJECT||process.env.GOOGLE_CLOUD_PROJECT,...(staging?{credential:cert(staging.credential)}:{})});
-const config={provider:process.env.AI_PROVIDER||'none',model:process.env.AI_MODEL,apiKey:process.env.AI_API_KEY,ollamaUrl:process.env.OLLAMA_URL,dailyLimit:process.env.AI_DAILY_LIMIT};
+const config={provider:process.env.AI_PROVIDER||'none',model:process.env.AI_MODEL,apiKey:process.env.AI_API_KEY,ollamaUrl:process.env.OLLAMA_URL,dailyLimit:process.env.AI_DAILY_LIMIT,globalAiDailyLimit:process.env.AI_GLOBAL_DAILY_LIMIT};
 const service=createService({db:getFirestore(),verifyToken:t=>getAuth().verifyIdToken(t,true),config});
 const {createHandler}=require('./http');
 const origins=(process.env.ALLOWED_ORIGINS||'').split(',').map(s=>s.trim()).filter(Boolean);
