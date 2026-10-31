@@ -658,3 +658,17 @@ body.role-principal .tabs{justify-content:flex-start}
  #tab-ai-assistant .instructor-ai-actions{display:grid;grid-template-columns:minmax(0,1fr)}
  #tab-ai-assistant .instructor-ai-actions button{width:100%}
 }
+
+/* Student Career Mentor: compact accessible chat, never mixed with official records. */
+.career-chat{margin-top:16px;min-width:0}
+.career-chat-messages{display:flex;flex-direction:column;gap:10px;max-height:440px;overflow-y:auto;padding:12px 2px;min-height:50px}
+.career-chat-line{max-width:min(92%,650px);padding:11px 14px;border:1px solid #d8e4ec;border-radius:14px;background:#f5f8fb;color:#1c3445;overflow-wrap:anywhere}
+.career-chat-user{align-self:flex-end;background:#e5f4ef;border-color:#b9dfd1}
+.career-chat-mentor{align-self:flex-start}
+.career-chat-name{display:block;font-size:.82rem;margin-bottom:5px}
+.career-chat-line p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.55}
+.career-chat #coach-chat-input{box-sizing:border-box;width:100%;max-width:100%;min-width:0;margin:6px 0 10px}
+.career-chat-consent{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;line-height:1.4}
+.career-chat-consent input{flex-shrink:0;margin-top:3px}
+.career-chat #coach-chat-status{overflow-wrap:anywhere}
+@media(max-width:620px){.career-chat-messages{max-height:380px}.career-chat-line{max-width:96%}.career-chat .field-row{display:grid;grid-template-columns:1fr;gap:8px}.career-chat .field-row button{width:100%;min-height:44px;white-space:normal}}
