@@ -4,7 +4,7 @@ const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),cryp
 const {execFileSync}=require('node:child_process');
 const ORIGIN='https://universal-iti-dk-staging.web.app';
 const API='https://universal-iti-staging-api.onrender.com';
-const RELEASE='00dee566bd5c3a3afc703c327f34f5410703d306';
+const RELEASE='2a1a3c11a50c73a91839fd8d0138fc7394e4169d';
 const hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 function entries(manifest){
  if(!manifest||!Array.isArray(manifest.files)||manifest.files.length<1||manifest.files.length>150)throw Error('Invalid public manifest');
