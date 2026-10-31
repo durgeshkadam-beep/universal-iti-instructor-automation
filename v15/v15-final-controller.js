@@ -227,8 +227,10 @@ async function renderGroup(name,requested){
   if(selected==='pilot-impact')await V.renderPilotTimeEvidence?.();else renderLegacyInstructor(selected);
   if(selected==='syllabus-ai'){UniversalSyllabus.init();UniversalSyllabus.renderPreview();UniversalSyllabus.renderCalendar();}
   if(selected==='record-formats'){
-    // Grouped navigation reuses the existing print forms. Their selectors must
-    // reflect the currently loaded workspace, not the roster from initial boot.
+    // Grouped navigation reuses the Reports print handlers and their hidden source
+    // selects. Refresh both the source selects and visible Other Printable Records
+    // selects so an active workspace switch never prints the previous trainee.
+    Reports?.populateSelects?.();
     window.OtherPrintableRecords?.init?.();
     window.OtherPrintableRecords?.refresh?.();
     RecordFormats.populatePlanSelects?.();
