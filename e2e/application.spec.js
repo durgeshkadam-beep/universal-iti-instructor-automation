@@ -687,7 +687,12 @@ test('an older queued plan can be reviewed and recovered without losing other qu
 
 test('Instructor imports a reviewed MCQ file and Student receives a private-key server result',async({page,browser})=>{
  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('exams'));
- const host=page.locator('#exam-import');await host.locator('summary').first().click();
+ const host=page.locator('#exam-import');
+ await expect(host).toBeVisible();
+ await expect(host).toHaveJSProperty('open',true);
+ const advancedFirst=await page.evaluate(()=>{const holder=document.getElementById('tab-exams'),advanced=holder.querySelector('#exam-import'),manual=holder.querySelector('#exam-publisher');return !!advanced&&!!manual&&(advanced.compareDocumentPosition(manual)&Node.DOCUMENT_POSITION_FOLLOWING)!==0;});
+ expect(advancedFirst).toBe(true);
+ await expect(host.getByRole('button',{name:'Download example question file',exact:true})).toBeVisible();
  const downloaded=page.waitForEvent('download');await host.getByRole('button',{name:'Download example question file',exact:true}).click();const download=await downloaded;
  const example=JSON.parse(require('node:fs').readFileSync(await download.path(),'utf8'));expect(download.suggestedFilename()).toBe('ITI-MCQ-example.json');expect(example.questions[0].correctIndex).toBe(1);
  const title='Synthetic imported MCQ '+test.info().project.name+' '+Date.now(),text='<img src=x onerror="window.mcqImportExecuted=true"> Which format preserves layout?';
