@@ -30,8 +30,24 @@ test('V15 does not show or generate legacy PIN credentials for imported trainees
 test('read only role sees no remove or account controls',()=>{
  const w=setup({role:'student'});try{w.T.render();const tbody=w.document.getElementById('traineeTableBody');assert.equal(tbody.querySelectorAll('button').length,0);}finally{w.close();}
 });
-test('existing approved trainee id is retained when the instructor clicks remove but cancels',()=>{
- const w=setup();try{w.T.render();const b=w.document.querySelector('#traineeTableBody button');assert.equal(b.textContent,'Remove');b.click();assert.equal(w.DATA.trainees[0].id,'roll-1');}finally{w.close();}
+test('V15 permanent deletion is hidden and blocked, preserving attendance-linked trainee identity',()=>{
+ const w=setup();try{
+  w.T.render();
+  const body=w.document.querySelector('#traineeTableBody');
+  assert.equal(body.querySelectorAll('button').length,0);
+  let message='';w.alert=x=>message=x;
+  const original=JSON.stringify(w.DATA);
+  w.T.remove('roll-1');
+  assert.match(message,/Permanent trainee deletion is disabled/);
+  assert.equal(JSON.stringify(w.DATA),original);
+ }finally{w.close();}
+});
+test('legacy V14 remove action can still be cancelled',()=>{
+ const w=setup({v15:false});try{
+  w.T.render();const b=w.document.querySelector('#traineeTableBody button');
+  assert.equal(b.textContent,'Remove');b.click();
+  assert.equal(w.DATA.trainees[0].id,'roll-1');
+ }finally{w.close();}
 });
 
 test('manual trainee add on V15 creates no login PIN and announces separate account activation',()=>{
@@ -53,5 +69,18 @@ test('V15 legacy PIN reset is not permitted',()=>{
  const before=JSON.stringify(w.DATA.trainees);
  w.T.resetPin('roll-1');
  assert.match(message,/disabled/);assert.equal(JSON.stringify(w.DATA.trainees),before);
+ }finally{w.close();}
+});
+
+test('manual admission rejects duplicate roll numbers and PRN before changing records',()=>{
+ const w=setup();try{
+  const d=w.document;const form=d.createElement('div');form.id='traineeModal';d.body.appendChild(form);
+  const fields={mRoll:' 00<img src=x> ',mName:'Another name',mPrn:'PRN999',mCategory:'OPEN',mPhone:'',mGuardian:'',mGuardianPhone:''};
+  for(const [id,value] of Object.entries(fields)){const el=d.createElement('input');el.id=id;el.value=value;d.body.appendChild(el);}
+  let saves=0,message='';w.saveData=()=>saves++;w.alert=x=>message=x;
+  w.T.submitForm();assert.match(message,/Roll No/);assert.equal(saves,0);
+  d.getElementById('mRoll').value='999';d.getElementById('mPrn').value='super-secret';
+  w.DATA.trainees[0].prn='SUPER-SECRET';w.T.submitForm();
+  assert.match(message,/PRN/);assert.equal(saves,0);
  }finally{w.close();}
 });
