@@ -735,3 +735,41 @@ test('Instructor free Starter Plan works without AI generation and cannot approv
  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);
  expect(overflow).toBe(false);
 });
+
+test('Student Career Mentor holds a synthetic multi-turn AI chat without persisting or exposing old workspace replies',async({page})=>{
+ await login(page,'student');
+ await page.evaluate(async()=>{
+  window.__careerChatCalls=[];
+  const real=V15Sync.backendRequest.bind(V15Sync);
+  V15Sync.backendRequest=async body=>{
+   if(body.action==='capabilities')return {aiConfigured:true};
+   if(body.action==='careerChat'){
+    window.__careerChatCalls.push(body);
+    return {mode:'ai-chat',text:'Synthetic mentor answer: ask your instructor to verify the skill and check official postings.'};
+   }
+   return real(body);
+  };
+  await V15Sync.finalOpenTab('career-coach');
+ });
+ await expect(page.getByRole('heading',{name:'Career Mentor — AI Chat'})).toBeVisible();
+ const send=page.getByRole('button',{name:'Send to AI Career Mentor',exact:true});
+ await expect(send).toBeEnabled();
+ await page.locator('#coach-chat-input').fill('I learned DTP; what should I learn next?');
+ await send.click();
+ await expect(page.locator('#coach-chat-status')).toContainText('Consent is required');
+ await page.locator('#coach-chat-card input[type=checkbox]').check();
+ await send.click();
+ await expect(page.locator('#coach-chat-messages .career-chat-line')).toHaveCount(2);
+ await page.locator('#coach-chat-input').fill('How can I prepare for an interview?');
+ await send.click();
+ await expect(page.locator('#coach-chat-messages .career-chat-line')).toHaveCount(4);
+ const result=await page.evaluate(()=>({
+  history:window.__careerChatCalls.map(c=>c.history.length),
+  localChatKeys:Object.keys(localStorage).filter(k=>k.includes('career-chat')||k.includes('mentor')),
+  chatScriptCount:document.querySelectorAll('#coach-chat-messages script,#coach-chat-messages [onclick]').length,
+  overflow:document.documentElement.scrollWidth>innerWidth+1,
+ }));
+ expect(result).toEqual({history:[0,2],localChatKeys:[],chatScriptCount:0,overflow:false});
+ await page.getByRole('button',{name:'New chat / Clear'}).click();
+ await expect(page.locator('#coach-chat-messages .career-chat-line')).toHaveCount(0);
+});
