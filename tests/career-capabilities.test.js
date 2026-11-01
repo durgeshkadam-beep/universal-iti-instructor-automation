@@ -144,3 +144,59 @@ test('clearing a pending chat ignores its late reply and enables a new private c
   assert(!w.document.querySelector('#coach-chat-messages').textContent.includes('Old response'));
  }finally{dom.window.close();}
 });
+
+test('Retry AI Connection recovers a Student chat after an initially disabled backend capability',async()=>{
+ let checked=0;
+ const {dom,w,V,ai}=setup(async body=>{
+  if(body.action==='capabilities')return {aiConfigured:++checked>=2};
+  return {mode:'ai-draft',text:'Synthetic approved draft'};
+ });
+ try{
+  V.renderCareerCoach();await settle();
+  const retry=w.document.getElementById('coach-ai-retry'),chat=w.document.getElementById('coach-chat-send');
+  assert(retry);assert.equal(chat.disabled,true);assert.equal(ai(),undefined);
+  assert.match(w.document.getElementById('coach-chat-status').textContent,/reachable, but AI is not configured/);
+  w.document.getElementById('coach-chat-clear').click();
+  assert.match(w.document.getElementById('coach-chat-status').textContent,/reachable, but AI is not configured/);
+  retry.click();await settle();
+  assert.equal(checked,2);assert.equal(chat.disabled,false);
+  assert.match(w.document.getElementById('coach-chat-status').textContent,/Gemini backend configuration confirmed/);
+  assert(ai());assert.equal(w.document.querySelectorAll('#coach-chat-card input[type=checkbox]').length,1);
+  retry.click();await settle();
+  assert.equal(checked,3);assert.equal(w.document.querySelectorAll('#coach-chat-card input[type=checkbox]').length,1);
+  assert.equal([...w.document.querySelectorAll('button')].filter(x=>x.textContent==='Request optional AI draft').length,1);
+ }finally{dom.window.close();}
+});
+test('AI connection errors show a real reason instead of misleading disabled message and are retryable',async()=>{
+ let checked=0;
+ const {dom,w,V}=setup(async body=>{
+  if(body.action!=='capabilities')throw Error('No AI generation expected');
+  if(++checked===1)throw Error('Workspace access denied');
+  return {aiConfigured:true};
+ });
+ try{
+  V.renderCareerCoach();await settle();
+  const message=w.document.getElementById('coach-chat-status');
+  assert.match(message.textContent,/AI connection check failed: Workspace access denied/);
+  w.document.getElementById('coach-chat-clear').click();
+  assert.match(message.textContent,/Workspace access denied/);
+  assert.equal(w.document.getElementById('coach-chat-send').disabled,true);
+  w.document.getElementById('coach-ai-retry').click();await settle();
+  assert.equal(w.document.getElementById('coach-chat-send').disabled,false);
+  assert.equal(checked,2);
+ }finally{dom.window.close();}
+});
+test('latest capabilities check controls chat if a delayed older check resolves out of order',async()=>{
+ let older;let n=0;
+ const {dom,w,V}=setup(async body=>{
+  if(body.action!=='capabilities')throw Error('No provider request expected');
+  if(++n===1)return new Promise(resolve=>older=resolve);
+  return {aiConfigured:true};
+ });
+ try{
+  V.renderCareerCoach();w.document.getElementById('coach-ai-retry').click();await settle();
+  assert.equal(w.document.getElementById('coach-chat-send').disabled,false);
+  older({aiConfigured:false});await settle();
+  assert.equal(w.document.getElementById('coach-chat-send').disabled,false);
+ }finally{dom.window.close();}
+});
