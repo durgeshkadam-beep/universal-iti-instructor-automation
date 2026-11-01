@@ -203,3 +203,22 @@ test('connection retry is disabled while initial status is pending then enabled 
   assert.match(w.document.getElementById('coach-chat-status').textContent,/reachable, but AI is not configured/);
  }finally{dom.window.close();}
 });
+
+test('disconnecting and reconnecting the AI provider preserves exactly one chat consent control',async()=>{
+ let count=0;
+ const {dom,w,V}=setup(async body=>{
+  if(body.action!=='capabilities')throw Error('No text generation expected');
+  return {aiConfigured:++count!==2};
+ });
+ try{
+  V.renderCareerCoach();await settle();
+  const retry=w.document.getElementById('coach-ai-retry'),send=w.document.getElementById('coach-chat-send');
+  const consent=w.document.querySelector('#coach-chat-card input[type=checkbox]');
+  assert(consent);consent.click();assert(consent.checked);
+  retry.click();await settle();
+  assert.equal(send.disabled,true);assert.equal(consent.checked,false);
+  retry.click();await settle();
+  assert.equal(send.disabled,false);
+  assert.equal(w.document.querySelectorAll('#coach-chat-card input[type=checkbox]').length,1);
+ }finally{dom.window.close();}
+});
