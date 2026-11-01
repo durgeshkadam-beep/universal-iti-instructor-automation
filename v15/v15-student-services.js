@@ -255,7 +255,7 @@ V.renderCareerCoach=function(){
    if(cap?.aiConfigured!==true){
     chatEnabled=false;chatInput.disabled=true;sendChat.disabled=true;
     chatStatus.textContent='Staging API is reachable, but AI is not configured for this session. Verify Render AI_PROVIDER, AI_MODEL and AI_API_KEY, then retry.';
-    status.textContent='Backend reports AI not configured. Free guided practice remains available.';
+    status.textContent='AI-generated drafts are not enabled here: the backend reports AI not configured. Free guided practice remains available.';
     return;
    }
    status.textContent='Gemini is configured on the secure backend. Generation still depends on the provider quota and access.';
@@ -290,7 +290,7 @@ V.renderCareerCoach=function(){
    chatEnabled=false;chatInput.disabled=true;sendChat.disabled=true;
    const reason=String(e?.message||'Unknown connection error').slice(0,220);
    chatStatus.textContent='AI connection check failed: '+reason+'. Sign in again if your session expired, confirm your Student workspace, then retry.';
-   status.textContent='Could not confirm AI availability for this login. Free guided practice is ready.';
+   status.textContent='Optional AI configuration could not be checked for this login. Free guided practice is ready.';
   }finally{
    if(current()&&connectionProbe===request)retryChat.disabled=false;
   }
