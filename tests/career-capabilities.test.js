@@ -186,17 +186,20 @@ test('AI connection errors show a real reason instead of misleading disabled mes
   assert.equal(checked,2);
  }finally{dom.window.close();}
 });
-test('latest capabilities check controls chat if a delayed older check resolves out of order',async()=>{
- let older;let n=0;
+test('connection retry is disabled while initial status is pending then enabled after a result',async()=>{
+ let done;let count=0;
  const {dom,w,V}=setup(async body=>{
   if(body.action!=='capabilities')throw Error('No provider request expected');
-  if(++n===1)return new Promise(resolve=>older=resolve);
-  return {aiConfigured:true};
+  count++;
+  return new Promise(resolve=>done=resolve);
  });
  try{
-  V.renderCareerCoach();w.document.getElementById('coach-ai-retry').click();await settle();
-  assert.equal(w.document.getElementById('coach-chat-send').disabled,false);
-  older({aiConfigured:false});await settle();
-  assert.equal(w.document.getElementById('coach-chat-send').disabled,false);
+  V.renderCareerCoach();
+  const retry=w.document.getElementById('coach-ai-retry');
+  assert.equal(retry.disabled,true);
+  retry.click();assert.equal(count,1);
+  done({aiConfigured:false});await settle();
+  assert.equal(retry.disabled,false);
+  assert.match(w.document.getElementById('coach-chat-status').textContent,/reachable, but AI is not configured/);
  }finally{dom.window.close();}
 });
