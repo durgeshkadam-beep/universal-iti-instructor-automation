@@ -232,10 +232,12 @@ V.renderCareerCoach=function(){
  const enableChat=()=>{
   if(chatEnabled)return;
   chatEnabled=true;chatInput.disabled=false;sendChat.disabled=false;
-  const consentLabel=el('label',null,chatCard);consentLabel.className='career-chat-consent';
-  chatConsent=el('input',null,consentLabel);chatConsent.type='checkbox';chatConsent.style.width='auto';
-  consentLabel.append(' I consent to sending my questions and recent chat turns to the configured AI provider. Do not include personal details.');
-  chatCard.insertBefore(consentLabel,chatActions);
+  if(!chatConsent){
+   const consentLabel=el('label',null,chatCard);consentLabel.className='career-chat-consent';
+   chatConsent=el('input',null,consentLabel);chatConsent.type='checkbox';chatConsent.style.width='auto';
+   consentLabel.append(' I consent to sending my questions and recent chat turns to the configured AI provider. Do not include personal details.');
+   chatCard.insertBefore(consentLabel,chatActions);
+  }
   chatStatus.textContent='Secure AI provider is configured (actual quota/availability is checked only when you send). Ask a career question to begin.';
  };
  if(!api){
@@ -253,7 +255,7 @@ V.renderCareerCoach=function(){
    const cap=await V.backendRequest({action:'capabilities'});
    if(!current()||connectionProbe!==request)return;
    if(cap?.aiConfigured!==true){
-    chatEnabled=false;chatInput.disabled=true;sendChat.disabled=true;
+    chatEnabled=false;chatInput.disabled=true;sendChat.disabled=true;if(chatConsent)chatConsent.checked=false;
     chatStatus.textContent='Staging API is reachable, but AI is not configured for this session. Verify Render AI_PROVIDER, AI_MODEL and AI_API_KEY, then retry.';
     status.textContent='AI-generated drafts are not enabled here: the backend reports AI not configured. Free guided practice remains available.';
     return;
@@ -287,7 +289,7 @@ V.renderCareerCoach=function(){
    chatStatus.textContent='Gemini backend configuration confirmed. Consent is required before sending a question; quota and model access are checked on each request.';
   }catch(e){
    if(!current()||connectionProbe!==request)return;
-   chatEnabled=false;chatInput.disabled=true;sendChat.disabled=true;
+   chatEnabled=false;chatInput.disabled=true;sendChat.disabled=true;if(chatConsent)chatConsent.checked=false;
    const reason=String(e?.message||'Unknown connection error').slice(0,220);
    chatStatus.textContent='AI connection check failed: '+reason+'. Sign in again if your session expired, confirm your Student workspace, then retry.';
    status.textContent='Optional AI configuration could not be checked for this login. Free guided practice is ready.';
