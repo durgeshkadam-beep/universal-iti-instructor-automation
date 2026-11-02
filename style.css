@@ -967,3 +967,55 @@ body.role-principal .tabs{justify-content:flex-start}
 
 /* Keep the staging warning visible without an oversized yellow banner. */
 #stagingNotice{background:#edf6f6!important;color:#3d6870!important;border-bottom:1px solid #d6e8e7!important;font:650 11px/1.5 Inter,Arial,sans-serif!important;padding:8px 12px!important;text-align:center!important}
+
+
+/* EduSkill evaluator navigation: real buttons scroll inside <dialog> (no URL hash jumps). */
+.eduskill-guide .eduskill-guide-nav button{
+ flex:none;appearance:none;border:0;background:transparent;cursor:pointer;
+ padding:10px 15px;border-radius:9px;font:760 11px/1.4 Inter,Arial,sans-serif;
+ color:#496676;white-space:nowrap;transition:background .16s,color .16s;
+}
+.eduskill-guide .eduskill-guide-nav button:hover,
+.eduskill-guide .eduskill-guide-nav button[aria-current="location"]{
+ background:#e3f5ef;color:#086d66;
+}
+.eduskill-guide .eduskill-guide-nav button:focus-visible{
+ outline:2px solid #16897d;outline-offset:2px;
+}
+.eduskill-guide [id^="eduskill-"]{scroll-margin-top:76px}
+.eduskill-guide .eduskill-vector{
+ display:block;width:100%;height:auto;max-height:127px;object-fit:contain;
+ margin:7px auto 17px;overflow:visible;
+}
+.eduskill-guide .eduskill-line-icon{display:block;flex:none}
+.eduskill-guide .eduskill-role-icon{
+ width:46px;height:46px;border-radius:13px;background:linear-gradient(145deg,#d8f5e9,#d9edf6);
+ color:#0a7775;display:grid;place-items:center;
+}
+.eduskill-guide .eduskill-role-card:nth-child(2) .eduskill-role-icon{background:#e5efff;color:#315d98}
+.eduskill-guide .eduskill-role-card:nth-child(3) .eduskill-role-icon{background:#e2f5ed;color:#26795e}
+.eduskill-guide .eduskill-role-card:nth-child(4) .eduskill-role-icon{background:#f5eddd;color:#956d2c}
+.eduskill-guide .eduskill-steps>div{position:relative;display:flex;flex-direction:column;gap:12px}
+.eduskill-guide .eduskill-step-top{display:flex;align-items:center;justify-content:space-between;gap:7px}
+.eduskill-guide .eduskill-step-icon{
+ display:grid;place-items:center;height:44px;width:44px;border-radius:12px;
+ background:#def1eb;color:#0b7672;
+}
+.eduskill-guide .eduskill-steps>div:nth-child(even) .eduskill-step-icon{background:#e2eefb;color:#365f91}
+.eduskill-guide .eduskill-step-top b{font-size:11px;letter-spacing:.03em;color:#15837c}
+.eduskill-guide .eduskill-steps>div>span{font-weight:750;line-height:1.55;font-size:12px;color:#274c5d}
+.eduskill-guide .eduskill-roadmap-icon{
+ display:grid;place-items:center;width:42px;height:42px;margin-bottom:14px;
+ background:#e1f3ed;color:#0d7975;border-radius:12px;
+}
+.eduskill-guide .eduskill-roadmap-grid>div:nth-child(2) .eduskill-roadmap-icon{background:#e2eefc;color:#355e94}
+.eduskill-guide .eduskill-roadmap-grid>div:nth-child(3) .eduskill-roadmap-icon{background:#f7eedd;color:#92702b}
+.eduskill-guide .eduskill-compare>div{min-width:0}
+@media(max-width:640px){
+ .eduskill-guide .eduskill-guide-nav button{padding:9px 11px;font-size:11px}
+ .eduskill-guide .eduskill-vector{margin:8px auto 12px;max-height:106px}
+ .eduskill-guide .eduskill-role-icon{width:43px;height:43px}
+ .eduskill-guide .eduskill-steps{gap:10px}
+ .eduskill-guide .eduskill-step-icon{height:39px;width:39px}
+ .eduskill-guide .eduskill-steps>div{padding:12px}
+}
