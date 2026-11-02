@@ -8,6 +8,8 @@ test('EduSkill welcome and innovation tour work without sign-in on desktop and m
  await page.waitForFunction(()=>document.querySelector('#stagingSignIn')&&document.querySelector('#loginScreen .eduskill-explore-btn'));
  await expect(page.locator('#loginScreen .login-title')).toContainText('Universal EduSkill 360');
  await expect(page.locator('#loginScreen .eduskill-explore-btn')).toBeVisible();
+ await page.evaluate(()=>V15Sync.showRoleLogin());
+ await expect(page.locator('#loginScreen .eduskill-explore-btn')).toContainText('Explore the project');
  await page.locator('#loginScreen .eduskill-explore-btn').click();
  const guide=page.locator('#eduskillGuide');
  await expect(guide).toBeVisible();
