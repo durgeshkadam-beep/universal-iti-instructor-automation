@@ -716,3 +716,29 @@ body.role-principal .tabs{justify-content:flex-start}
 #aiModal #aiModalTitle{white-space:normal;overflow-wrap:anywhere;max-width:100%}
 #aiModal #aiModalStatus{white-space:normal;overflow-wrap:anywhere;line-height:1.5}
 @media(max-width:700px){#tab-ai-assistant .instructor-ai-picker-grid{grid-template-columns:minmax(0,1fr)}#tab-ai-assistant .instructor-topic-card{padding:14px}#aiModal .modal,#aiModal .modal-content{max-width:calc(100vw - 16px)}}
+
+
+/* Universal EduSkill 360 — evaluation-facing login presentation (prototype only). */
+.eduskill-mark{display:inline-grid;place-items:center;flex:none;width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,#1e8e91,#12476e);color:white;font:800 14px/1 Inter,Arial,sans-serif;letter-spacing:-.03em;box-shadow:0 4px 16px #071b2c22}
+.eduskill-showcase .showcase-brand{gap:13px;color:white}
+.eduskill-showcase .showcase-brand strong{color:#98e6d9}
+.eduskill-showcase .showcase-copy{max-width:100%;margin-block:30px}
+.eduskill-showcase .showcase-copy h2{font-size:clamp(29px,2.8vw,44px);line-height:1.16;margin:11px 0 14px;color:white}
+.eduskill-showcase .showcase-copy p{line-height:1.65;font-size:14px;color:#e4edf2}
+.eduskill-showcase .showcase-copy .eduskill-lead{font-size:17px;font-weight:700;color:#b9f2e6}
+.eduskill-showcase .eduskill-points{display:grid;gap:10px;margin:19px 0}
+.eduskill-showcase .eduskill-points span{display:block;border:1px solid #ffffff26;border-radius:11px;padding:10px 12px;background:#ffffff0b;font-size:13px;line-height:1.5}
+.eduskill-showcase .eduskill-points b{display:inline-grid;place-items:center;width:25px;height:25px;border-radius:7px;background:#137a88;color:white;font-size:11px;margin-right:6px}
+.eduskill-showcase .eduskill-points strong{color:white}
+.eduskill-showcase .eduskill-scope{font-size:12px!important;color:#c0d5df!important}
+.eduskill-showcase .showcase-footer{font-size:11px;color:#c6d8e1;line-height:1.55}
+.eduskill-login-identity{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:13px;font-size:10px;font-weight:800;letter-spacing:.09em;color:#587287}
+.eduskill-login-identity .eduskill-mark{width:40px;height:40px;font-size:12px}
+#loginScreen .login-title{font-size:clamp(23px,2.1vw,30px);line-height:1.2}
+#loginScreen .login-sub{line-height:1.55}
+.eduskill-login-explainer{font-size:12px;line-height:1.65;color:#53687b;background:#f2f7f9;border-left:3px solid #14828b;border-radius:7px;padding:11px 12px;margin:14px 0 17px}
+#loginScreen .developer-credit-login small{line-height:1.45}
+@media(min-width:961px){.eduskill-showcase{min-height:650px;justify-content:space-between}.login-wrap:has(.eduskill-showcase){align-items:center}}
+@media(max-width:960px){.eduskill-login-explainer{font-size:12px}}
+/* Dropdown options are native and may be clipped by the OS: searchable list and complete topic preview remain authoritative. */
+#tab-ai-assistant .instructor-ai-topic-preview{overflow-wrap:anywhere;white-space:pre-wrap}
