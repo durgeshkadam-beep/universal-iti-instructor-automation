@@ -23,18 +23,23 @@ test('staging preflight requires clean exact-commit checkout and only the isolat
  ])assert.throws(()=>assertRelease(v));
 });
 test('release CI check requires successful full workflow for the exact SHA (not earlier green checks)',async()=>{
- const f=items=>async()=>({ok:true,json:async()=>({workflow_runs:items})});
- const passed={head_sha:sha,path:'.github/workflows/v15-production-tests.yml',status:'completed',conclusion:'success'};
+ const f=items=>async()=>({ok:true,status:200,json:async()=>({workflow_runs:items})});
+ const passed={id:41477866352,head_sha:sha,head_branch:BRANCH,
+  workflow_id:341087220,event:'push',status:'completed',conclusion:'success'};
  assert.equal(await requirePassedCI(sha,f([passed])),true);
- for(const runs of [[],[{...passed,head_sha:'f'.repeat(40)}],[{...passed,path:'.github/workflows/verify-staging-release.yml'}],[{...passed,conclusion:'failure'}],[{...passed,status:'in_progress'}]]){
-  await assert.rejects(requirePassedCI(sha,f(runs)),/Full application CI/);
+ assert.equal(await requirePassedCI(sha,async()=>({ok:true,status:200,json:async()=>({...passed})}),41477866352),true);
+ for(const runs of [[],[{...passed,head_sha:'f'.repeat(40)}],
+  [{...passed,workflow_id:123}], [{...passed,head_branch:'main'}],
+  [{...passed,event:'schedule'}], [{...passed,conclusion:'failure'}],
+  [{...passed,status:'in_progress'}]]){
+  await assert.rejects(requirePassedCI(sha,f(runs)),/No successful full Application CI/);
  }
- await assert.rejects(requirePassedCI(sha,async()=>({ok:false,status:403})),/Unable to verify/);
+ await assert.rejects(requirePassedCI(sha,async()=>({ok:false,status:403})),/GitHub CI verification HTTP 403/);
 });
 test('release helper never invokes production, rules or database deploy',()=>{
  const src=fs.readFileSync('scripts/deploy-staging-hosting.js','utf8');
  assert.match(src,/run\('npx',\['--no-install','firebase','deploy','--only','hosting','--project',PROJECT,'--config','firebase.staging.json','--non-interactive'\]\)/);
  assert.doesNotMatch(src,/firebase deploy --only firestore|--only','functions|--only','firestore/);
  assert.match(src,/if\(!execute\)/);
- assert.match(src,/await requirePassedCI\(sha\)/);
+ assert.match(src,/await requirePassedCI\(sha,fetch,ciRunId\)/);
 });
