@@ -3,13 +3,21 @@ const {createHash}=require('node:crypto');
 class ApiError extends Error {constructor(status,message){super(message);this.status=status;}}
 const requireValue=(ok,msg,status=400)=>{if(!ok)throw new ApiError(status,msg);};
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(x);
+// Workspaces were historically created from the institute/trade/session slug
+// and can contain periods (e.g. "dr.-..."). Firestore document IDs are not
+// restricted to the exam/institute identifier pattern above. Validate a SINGLE
+// document segment before any Firestore reads; never rewrite a stored ID.
+const workspaceDocId=x=>typeof x==='string'&&x.trim().length>0&&
+ Buffer.byteLength(x,'utf8')<=1500&&!/[\/\\\u0000-\u001f\u007f]/.test(x)&&
+ x!=='.'&&x!=='..'&&!/^__.*__$/.test(x);
 const text=(x,n=500)=>String(x||'').trim().slice(0,n);
 const {offlineGuide,QUESTIONS,LANG}=require('../shared/guidance');
 const {schemas:teachingSchemas,parseTeaching,providerSchema}=require('./teaching-json');
 const adminAuthority=require('../shared/admin-authority');
 function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.now()}){
  async function authorize(token,inst,wid){
-  requireValue(id(inst)&&id(wid),'Invalid institute or workspace');
+  requireValue(id(inst),'Invalid institute ID');
+  requireValue(workspaceDocId(wid),'Invalid or missing workspace ID');
   let u;try{u=await verifyToken(token);}catch{throw new ApiError(401,'Sign in again.');}
   requireValue(u?.uid,'Sign in required',401);
   const root=db.doc(`institutes/${inst}`),[i,m]=await Promise.all([root.get(),root.collection('members').doc(u.uid).get()]);
