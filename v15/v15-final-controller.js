@@ -11,9 +11,24 @@ const BUILD='FINAL';
 const NAV={
   admin:[['admin-console','⚙️ Admin Panel']],
   principal:[['dashboard','📊 Principal Dashboard'],['users','👥 Staff & Access'],['notices','📰 Institute Notices'],['record-formats','🖨️ Record Formats'],['inspection','🛡️ Inspection & Compliance'],['reports','📄 Institute Reports']],
-  instructor:[['dashboard','📊 Dashboard'],['ai-assistant','✨ AI Assistant'],['planning','🗓️ Year Planning / Split-up'],['skill-review','✅ Skills & Workplace Use'],['market-editor','💼 Job Sources'],['trainees','👥 Trainees'],['attendance','✅ Attendance'],['practicals','🖥️ Practicals'],['theory','📘 Theory'],['evaluation','📝 Evaluation'],['notices','📰 Notice Board'],['leave','🩺 Leave & Discipline'],['exams','📝 Secure MCQ Exams'],['ojt','🏭 OJT & Projects'],['gallery','🖼️ Gallery'],['activities','🏆 Extra Activities'],['records','📄 Records & Backup']],
+  instructor:[['dashboard','📊 Dashboard'],['ai-assistant','✨ AI Assistant'],['planning','🗓️ Year Planning / Split-up'],['trainees','👥 Trainees'],['attendance','✅ Attendance'],['practicals','🖥️ Practicals'],['theory','📘 Theory'],['skill-review','✅ Skills & Workplace Use'],['market-editor','💼 Job Sources'],['evaluation','📝 Evaluation'],['exams','📝 Secure MCQ Exams'],['ojt','🏭 OJT & Projects'],['notices','📰 Notice Board'],['leave','🩺 Leave & Discipline'],['gallery','🖼️ Gallery'],['activities','🏆 Extra Activities'],['records','📄 Records & Backup']],
   staff:[['dashboard','📊 Staff Dashboard'],['notices','📰 Notices'],['record-formats','🖨️ Record Formats'],['reports','📄 Reports']],
-  student:[['dashboard','🏠 My Dashboard'],['trainees','👤 My Profile'],['attendance','✅ My Attendance'],['practicals','🖥️ My Practicals'],['theory','📘 Theory'],['splitup','🗓️ Training Calendar'],['evaluation','📝 My Marks'],['notices','📰 Notices'],['leave','🩺 My Leave'],['exams','📝 Class Tests'],['ojt','🏭 My OJT / Projects'],['career-coach','💬 Career Coach'],['skills','🧩 My Skills'],['skill-gap','🎯 Skill Gap'],['career-lens','🔎 Skill to Career'],['local-market','📍 Job Market']]
+  student:[['dashboard','🏠 My Dashboard'],['trainees','👤 My Profile'],['attendance','✅ My Attendance'],['practicals','🖥️ My Practicals'],['theory','📘 Theory'],['splitup','🗓️ Training Calendar'],['evaluation','📝 My Marks'],['exams','📝 Class Tests'],['ojt','🏭 My OJT / Projects'],['skills','🧩 My Skills'],['skill-gap','🎯 Skill Gap'],['career-lens','🔎 Skill to Career'],['career-coach','💬 Career Coach'],['local-market','📍 Job Market'],['notices','📰 Notices'],['leave','🩺 My Leave']]
+};
+// Desktop-only visual wayfinding. Access policy and route ownership still use NAV.
+const NAV_GROUPS={
+  instructor:[
+    {title:'Overview',tabs:['dashboard','ai-assistant']},
+    {title:'Teaching & Planning',tabs:['planning','trainees','attendance','practicals','theory']},
+    {title:'Assessment & Career',tabs:['skill-review','market-editor','evaluation','exams','ojt']},
+    {title:'Institute & Records',tabs:['notices','leave','gallery','activities','records']}
+  ],
+  student:[
+    {title:'My Overview',tabs:['dashboard','trainees']},
+    {title:'My Learning',tabs:['attendance','practicals','theory','splitup','evaluation','exams','ojt']},
+    {title:'Skills & Career',tabs:['skills','skill-gap','career-lens','career-coach','local-market']},
+    {title:'Services',tabs:['notices','leave']}
+  ]
 };
 const LABEL={admin:'System Admin',principal:'Principal',instructor:'Instructor',staff:'Staff',student:'Student / Trainee'};
 const START={
@@ -88,7 +103,18 @@ function mount(r){
   for(const [name] of NAV[r]){const p=keepPanel(name);p.classList.add('panel');p.classList.remove('active');p.hidden=false;p.style.display='';panels.appendChild(p);}
   const nav=document.createElement('nav');nav.id='tabs';nav.className=oldNav.className||'tabs';nav.dataset.v15FinalOwned='1';
   const cap=document.createElement('div');cap.className='sidebar-caption';cap.innerHTML='<span>Workspace</span><small></small>';nav.appendChild(cap);
-  for(const [name,label] of NAV[r]){const b=document.createElement('button');b.type='button';b.className='tab';b.dataset.tab=name;b.textContent=label;b.addEventListener('click',e=>{e.preventDefault();V.finalOpenTab(name).catch(console.error);});nav.appendChild(b);}
+  let lastGroup='';
+  const groupFor=Object.fromEntries((NAV_GROUPS[r]||[]).flatMap(group=>group.tabs.map(tab=>[tab,group.title])));
+  for(const [name,label] of NAV[r]){
+    const group=groupFor[name]||'';
+    if(group&&group!==lastGroup){
+      const title=document.createElement('div');title.className='v15-nav-group-title';
+      title.textContent=group;nav.appendChild(title);
+    }
+    lastGroup=group;
+    const b=document.createElement('button');b.type='button';b.className='tab';b.dataset.tab=name;
+    b.textContent=label;b.addEventListener('click',e=>{e.preventDefault();V.finalOpenTab(name).catch(console.error);});nav.appendChild(b);
+  }
   const main=document.createElement('main');main.id='main';main.appendChild(panels);
   oldNav.replaceWith(nav);oldMain.replaceWith(main);mountedRole=r;
   updateVisuals(r);try{App.buildMobileNav?.();}catch(e){}
