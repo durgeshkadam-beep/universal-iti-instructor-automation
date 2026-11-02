@@ -21,11 +21,15 @@ test('EduSkill welcome and innovation tour work without sign-in on desktop and m
  for(const [label,id] of sections){
   const control=guide.locator('.eduskill-guide-nav button[data-tour-target="'+id+'"]');
   await expect(control).toBeVisible();
-  const previous=await guide.evaluate(el=>el.scrollTop);
   await control.click();
   await expect(control).toHaveAttribute('aria-current','location');
   await expect(guide.locator('#'+id)).toBeAttached();
-  if(id!=='eduskill-why')await expect.poll(()=>guide.evaluate(el=>el.scrollTop)).toBeGreaterThan(previous+3);
+  // Check the requested section is visible within the modal viewport (at the
+  // bottom, scrollTop can be maxed out even though the target is visible).
+  await expect.poll(()=>guide.evaluate((dialog,key)=>{
+   const section=dialog.querySelector('#'+key),host=dialog.getBoundingClientRect(),rect=section.getBoundingClientRect();
+   return rect.top<host.bottom-70&&rect.bottom>host.top+50;
+  },id)).toBe(true);
   expect(page.url()).toBe(initialUrl);
   await expect(guide).toBeVisible();
  }
