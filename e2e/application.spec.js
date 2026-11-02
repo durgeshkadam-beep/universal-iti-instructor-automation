@@ -14,6 +14,8 @@ test('EduSkill welcome and innovation tour work without sign-in on desktop and m
  await expect(githubProof).toContainText('See the development journey');
  await expect(githubProof.getByRole('link',{name:/Development progress/})).toHaveAttribute('href','https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/pull/16');
  await expect(githubProof.getByRole('link',{name:/GitHub repository/})).toHaveAttribute('href','https://github.com/durgeshkadam-beep/universal-iti-instructor-automation');
+ await expect(githubProof.getByRole('link',{name:/Jury project brief/})).toHaveAttribute('href',/JURY-SCREENING-BRIEF-2026\.md$/);
+ await expect(githubProof.locator('a')).toHaveCount(3);
  for(const a of await githubProof.locator('a').all()){
   await expect(a).toHaveAttribute('target','_blank');
   await expect(a).toHaveAttribute('rel',/noopener noreferrer/);
