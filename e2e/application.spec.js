@@ -108,6 +108,9 @@ for(const role of ['admin','principal','instructor','staff','student'])test(role
  if(role!=='admin'){
   await page.evaluate(()=>V15Sync.finalOpenTab('dashboard'));
   await expect(page.locator('#v15QuickStart')).toHaveCount(1);
+  await expect(page).toHaveTitle(/Universal EduSkill 360/);
+  await expect(page.locator('#v15QuickStart .v15-start-heading h2')).toHaveText('Quick actions');
+  await expect(page.locator('#v15QuickStart .v15-start-glyph')).toHaveCount(3);
   expect(await page.locator('#v15QuickStart button').evaluateAll(buttons=>buttons.every(button=>{const box=button.getBoundingClientRect();return [...button.children].every(child=>{const text=child.getBoundingClientRect();return text.top>=box.top&&text.bottom<=box.bottom;});}))).toBeTruthy();
   if(role==='student'&&test.info().project.name==='mobile')await page.locator('#v15QuickStart').screenshot({path:'.tmp/simple-student-mobile.png'});
   const targets=await page.locator('#v15QuickStart button').evaluateAll(nodes=>nodes.map(n=>n.dataset.quickTab));
