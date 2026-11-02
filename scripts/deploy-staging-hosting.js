@@ -37,7 +37,7 @@ const CI_WORKFLOW_FILE='v15-production-tests.yml';
 function validatedRun(run,sha){
  return run&&run.head_sha===sha&&run.head_branch===BRANCH&&
   run.workflow_id===CI_WORKFLOW_ID&&
-  ['push','workflow_dispatch'].includes(run.event)&&
+  ['push','workflow_dispatch','pull_request'].includes(run.event)&&
   run.status==='completed'&&run.conclusion==='success';
 }
 async function requirePassedCI(sha,fetcher=fetch,runId=null){
