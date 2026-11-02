@@ -672,3 +672,33 @@ body.role-principal .tabs{justify-content:flex-start}
 .career-chat-consent input{flex-shrink:0;margin-top:3px}
 .career-chat #coach-chat-status{overflow-wrap:anywhere}
 @media(max-width:620px){.career-chat-messages{max-height:380px}.career-chat-line{max-width:96%}.career-chat .field-row{display:grid;grid-template-columns:1fr;gap:8px}.career-chat .field-row button{width:100%;min-height:44px;white-space:normal}}
+
+/* Conversational Student Career Mentor — chat first, responsive, accessible. */
+#tab-career-coach .career-chat{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:min(680px,75vh);padding:16px 20px;border:1px solid #dce5eb;border-radius:18px;background:#fff}
+#tab-career-coach .career-chat>h3{margin:0;font-size:1.06rem;font-weight:750}
+#tab-career-coach .career-chat>.muted{margin:0 0 4px;font-size:.86rem;line-height:1.5}
+#tab-career-coach .career-chat-messages{flex:1 1 auto;min-height:205px;max-height:min(55vh,470px);overflow-y:auto;overscroll-behavior:contain;padding:12px 10px;gap:14px}
+#tab-career-coach .career-chat-messages:empty::before{content:"Hello! 👋 Tell me which ITI trade you study, what you enjoy, and what you want to do next. We can explore your options together.";display:block;max-width:580px;margin:auto;align-self:center;padding:18px 22px;text-align:center;color:#64748b;line-height:1.7}
+#tab-career-coach .career-chat-line{max-width:min(87%,660px);border-radius:16px;padding:12px 16px;box-shadow:none;line-height:1.55}
+#tab-career-coach .career-chat-user{background:#e1f4f1;border-color:#bddfd9;border-bottom-right-radius:5px}
+#tab-career-coach .career-chat-mentor{background:#f2f5f9;border-color:#e2e8f0;border-bottom-left-radius:5px}
+#tab-career-coach .career-chat-composer{display:flex;flex-direction:column;gap:8px;border-top:1px solid #e6ecf2;padding-top:13px}
+#tab-career-coach .career-chat-composer>label:not(.career-chat-consent){font-size:.83rem;font-weight:650;margin:0}
+#tab-career-coach .career-chat #coach-chat-input{min-height:64px;max-height:170px;width:100%;margin:0;resize:vertical;border:1px solid #cbd6e2;border-radius:15px;padding:12px 15px;font:inherit;line-height:1.5;background:#fff;box-sizing:border-box}
+#tab-career-coach .career-chat #coach-chat-input:focus{outline:2px solid #008b86;outline-offset:1px}
+#tab-career-coach .career-chat-composer .field-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:2px 0}
+#tab-career-coach .career-chat-composer .field-row button{min-height:42px}
+#tab-career-coach .career-chat-composer #coach-chat-status{margin:2px 0;color:#52657a;font-size:.85rem;line-height:1.5}
+#tab-career-coach .career-chat-composer #coach-ai-retry{align-self:flex-start;min-height:40px}
+#tab-career-coach .career-chat-consent{margin:4px 0;line-height:1.5;font-size:.86rem}
+#tab-career-coach .career-guided-tools{margin-top:16px;padding:12px 18px;border:1px solid #d9e3ee;border-radius:12px;background:#fafcff;min-width:0}
+#tab-career-coach .career-guided-tools>summary{cursor:pointer;font-weight:700;padding:7px 0}
+#tab-career-coach .career-guided-tools>label{display:block;margin-top:13px}
+#tab-career-coach .career-guided-tools textarea,#tab-career-coach .career-guided-tools select{max-width:100%;box-sizing:border-box}
+@media(max-width:620px){
+ #tab-career-coach .career-chat{min-height:70vh;padding:12px 13px;border-radius:14px}
+ #tab-career-coach .career-chat-messages{max-height:50vh;min-height:175px;padding:8px 3px}
+ #tab-career-coach .career-chat-line{max-width:94%;padding:10px 12px}
+ #tab-career-coach .career-chat-composer .field-row{display:grid;grid-template-columns:minmax(0,1fr)}
+ #tab-career-coach .career-chat-composer .field-row button{width:100%}
+}
