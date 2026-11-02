@@ -742,3 +742,28 @@ body.role-principal .tabs{justify-content:flex-start}
 @media(max-width:960px){.eduskill-login-explainer{font-size:12px}}
 /* Dropdown options are native and may be clipped by the OS: searchable list and complete topic preview remain authoritative. */
 #tab-ai-assistant .instructor-ai-topic-preview{overflow-wrap:anywhere;white-space:pre-wrap}
+
+
+/* Public evaluator guide — pre-login, accessible and scrollable. */
+.eduskill-explore-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;min-height:48px;background:#e8f6f4;color:#0a5d64;border:1.5px solid #7ac9c1;border-radius:10px;font:700 13px/1.4 Inter,Arial,sans-serif;cursor:pointer;margin:7px 0 16px;padding:10px}
+.eduskill-explore-btn:hover,.eduskill-explore-btn:focus-visible{background:#d9f1ec;outline:2px solid #0d797b;outline-offset:2px}
+.eduskill-guide{border:0;border-radius:18px;padding:0;width:min(900px,calc(100% - 24px));max-width:900px;max-height:min(90vh,900px);color:#173149;background:#fff;box-shadow:0 24px 90px #081b3055;overflow:auto}
+.eduskill-guide::backdrop{background:rgba(3,18,32,.7)}
+.eduskill-guide-head{position:relative;background:linear-gradient(135deg,#123a5e,#087d80);color:#fff;padding:26px 58px 22px 28px}
+.eduskill-guide-head h2{font-size:clamp(24px,3.5vw,35px);color:#fff;margin:6px 0}
+.eduskill-guide-head p{margin:0;line-height:1.5;color:#e4f4f4}
+.eduskill-guide-eyebrow{font-size:11px;letter-spacing:.08em;font-weight:800;color:#b9ece5}
+.eduskill-guide-close{position:absolute;right:18px;top:17px;border:1px solid #ffffff55;background:#ffffff1b;color:#fff;border-radius:8px;min-width:35px;min-height:35px;cursor:pointer}
+.eduskill-guide-content{padding:24px 28px;display:grid;gap:14px}
+.eduskill-guide-content section{border:1px solid #dce7ed;border-radius:12px;padding:16px 18px;background:#fff;min-width:0}
+.eduskill-guide-content h3{font-size:16px;color:#103e5a;margin:0 0 10px}
+.eduskill-guide-content p,.eduskill-guide-content li{font-size:13px;line-height:1.65}
+.eduskill-guide-content p{margin:0}
+.eduskill-guide-content ul{margin:0 0 10px;padding-left:20px}
+.eduskill-guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.eduskill-guide-grid section{background:#f6fafc}
+.eduskill-guide-content .eduskill-guide-benefit{font-weight:650;color:#08716e;border-top:1px solid #d7e8e7;padding-top:9px}
+.eduskill-guide-content .eduskill-guide-creator{background:#f1f8f6}
+.eduskill-guide-creator small{display:block;margin-top:9px;color:#62717e;line-height:1.5}
+.eduskill-guide-actions{position:sticky;bottom:0;padding:12px 28px;background:#fff;border-top:1px solid #e1e8ec;display:flex;justify-content:flex-end}
+@media(max-width:650px){.eduskill-guide{max-height:92vh}.eduskill-guide-content{padding:14px;gap:10px}.eduskill-guide-grid{grid-template-columns:minmax(0,1fr);gap:10px}.eduskill-guide-content section{padding:14px}.eduskill-guide-head{padding:22px 50px 20px 18px}.eduskill-guide-actions{padding:10px 14px}.eduskill-guide-actions .btn{white-space:normal}}
