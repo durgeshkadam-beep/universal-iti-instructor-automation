@@ -222,3 +222,30 @@ test('disconnecting and reconnecting the AI provider preserves exactly one chat 
   assert.equal(w.document.querySelectorAll('#coach-chat-card input[type=checkbox]').length,1);
  }finally{dom.window.close();}
 });
+
+test('student sees chat before optional resume/guide forms; Enter sends and Shift+Enter keeps multiline editing',async()=>{
+ const requests=[];const {dom,w,V}=setup(async body=>{
+  if(body.action==='capabilities')return {aiConfigured:true};
+  requests.push(body);return {mode:'ai-chat',text:'Synthetic skills answer'};
+ });
+ try{
+  V.renderCareerCoach();await settle();
+  const chatCard=w.document.getElementById('coach-chat-card'),guided=w.document.getElementById('coach-guided-tools');
+  assert(chatCard&&guided);
+  assert(chatCard.compareDocumentPosition(guided)&w.Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.equal(guided.open,false);
+  assert(chatCard.querySelector('.career-chat-composer'));
+  assert.equal(guided.querySelector('#coach-output')?.id,'coach-output');
+  const send=w.document.getElementById('coach-chat-send'),input=w.document.getElementById('coach-chat-input');
+  assert.equal(input.rows,2);
+  const consent=chatCard.querySelector('input[type=checkbox]');consent.click();
+  input.value='How can DTP help with design work?';
+  const shift=new w.KeyboardEvent('keydown',{key:'Enter',shiftKey:true,bubbles:true,cancelable:true});
+  assert.equal(input.dispatchEvent(shift),true);assert.equal(requests.length,0);
+  const enter=new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});
+  assert.equal(input.dispatchEvent(enter),false);await settle();
+  assert.equal(requests.length,1);assert.equal(requests[0].input,'How can DTP help with design work?');
+  assert.equal(chatCard.querySelectorAll('.career-chat-line').length,2);
+  assert.equal(send.disabled,false);
+ }finally{dom.window.close();}
+});
