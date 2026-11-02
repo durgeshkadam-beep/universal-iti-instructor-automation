@@ -804,3 +804,37 @@ test('Instructor can filter Theory and Practical and see a long full topic title
   await page.evaluate(({no,original})=>{const x=DATA.practicals.find(i=>String(i.no)===no);if(x)x.title=original;},{no:title.no,original:title.original});
  }
 });
+
+test('Instructor Generate AI Plan checks secure backend then produces reviewed Theory lesson without changing real records',async({page})=>{
+ await login(page,'instructor');
+ await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));
+ await page.evaluate(()=>{
+  window.__instructorAiApiCalls=[];
+  window.confirm=()=>true; // A synthetic consent in Playwright, no real provider calls.
+  const original=V15Sync.backendRequest.bind(V15Sync);
+  V15Sync.backendRequest=async payload=>{
+   if(payload.action==='capabilities'){window.__instructorAiApiCalls.push('capabilities');return {aiConfigured:true};}
+   if(payload.action==='ai'){
+    window.__instructorAiApiCalls.push('teaching:'+payload.teachingType);
+    return {mode:'ai-draft',text:JSON.stringify({
+      objective:['Synthetic AI-reviewed objective'],materials:['Demo classroom projector'],
+      review:'Synthetic prerequisite review',motivation:'Synthetic topic relevance',
+      steps:[{topic:'Illustration and layout',information:'Explain reviewed layout tools',spotHint:'Show a synthetic illustration'}],
+      questions:['What is a reviewed layout?'],summary:'Synthetic lesson conclusion',
+      assignment:'Sketch a safe lesson layout',nextLesson:'Next verified theory topic'
+    })};
+   }
+   return original(payload);
+  };
+ });
+ const original=await page.evaluate(()=>JSON.stringify(DATA.theory));
+ await page.locator('#aiTopicTypeFilter').selectOption('theory');
+ await page.locator('#aiTopicSelect').selectOption({index:1});
+ await page.getByRole('button',{name:'Generate AI Plan',exact:true}).click();
+ await expect(page.locator('#aiModal')).toBeVisible();
+ await expect(page.locator('#aiResultText')).toHaveValue(/Synthetic AI-reviewed objective/);
+ await expect(page.locator('#aiPreviewBox')).toBeVisible();
+ const calls=await page.evaluate(()=>window.__instructorAiApiCalls);
+ expect(calls).toEqual(['capabilities','teaching:theory']);
+ expect(await page.evaluate(()=>JSON.stringify(DATA.theory))).toBe(original);
+});
