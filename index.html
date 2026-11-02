@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script>if(!window.__ITI_V15)location.replace(new URL("final/",location.href));</script>
+<script>if(!window.__ITI_V15){const guideIds=['eduskill-why','eduskill-features','eduskill-how','eduskill-roadmap'];const section=location.hash.slice(1);location.replace(new URL(guideIds.includes(section)?'v15/index.html#'+section:'final/',location.href));}</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Universal EduSkill 360 | Learning-to-Career Prototype</title>
 <link rel="manifest" href="manifest.json">
@@ -87,41 +87,97 @@
     <div class="eduskill-guide-journey"><span>Learn</span><b>→</b><span>Verify</span><b>→</b><span>Improve</span><b>→</b><span>Prepare</span></div>
   </div>
   <nav class="eduskill-guide-nav" aria-label="Project overview sections">
-    <a href="#eduskill-why">The Challenge</a><a href="#eduskill-features">Who Benefits?</a><a href="#eduskill-how">How It Works</a><a href="#eduskill-roadmap">Future Vision</a>
+    <button type="button" data-tour-target="eduskill-why" aria-controls="eduskill-why">The Challenge</button><button type="button" data-tour-target="eduskill-features" aria-controls="eduskill-features">Who Benefits?</button><button type="button" data-tour-target="eduskill-how" aria-controls="eduskill-how">How It Works</button><button type="button" data-tour-target="eduskill-roadmap" aria-controls="eduskill-roadmap">Future Vision</button>
   </nav>
   <div class="eduskill-guide-content">
     <section class="eduskill-guide-problem" id="eduskill-why">
       <span class="eduskill-section-label">01 / WHY THIS PROJECT?</span>
       <h3>Great training deserves a clearer pathway to opportunity.</h3>
       <div class="eduskill-compare">
-        <div><small>THE CHALLENGE</small><p>Training records, skill evidence and career preparation often live in separate places. Learners may not know which skills need improvement.</p></div>
-        <div><small>THE APPROACH</small><p>One connected, role-based workflow links teaching, instructor verification, skill gaps, learning actions and career preparation.</p></div>
+        <div><small>THE CHALLENGE</small><svg class="eduskill-vector eduskill-vector-fragmented" viewBox="0 0 330 117" role="img" aria-label="Separate training records, skills and careers not linked">
+<rect x="9" y="15" width="90" height="77" rx="12" fill="#e2eaf0" stroke="#b6cbd5"/>
+<path d="M31 38h47M31 51h34M31 64h42" stroke="#7896a9" stroke-width="4" stroke-linecap="round"/>
+<rect x="120" y="4" width="90" height="77" rx="12" fill="#e7eff0" stroke="#b4cdd0"/>
+<circle cx="164" cy="28" r="10" fill="#9bbbb9"/><path d="M144 55q20-26 40 0M145 65h40" fill="none" stroke="#81a6a7" stroke-width="4" stroke-linecap="round"/>
+<rect x="231" y="29" width="90" height="77" rx="12" fill="#e5eaf5" stroke="#b8c6dc"/>
+<rect x="257" y="47" width="38" height="26" rx="4" fill="#a1b2d1"/><path d="M267 47v-6h18v6" fill="none" stroke="#8b9ebc" stroke-width="4"/>
+<path d="M100 47h18M211 47h17" stroke="#a9b6c8" stroke-width="2" stroke-dasharray="4 7"/>
+<path d="m108 42 5 5-5 5m110-10 5 5-5 5" fill="none" stroke="#afc0cf" stroke-width="2"/>
+</svg><p>Training records, skill evidence and career preparation often live in separate places. Learners may not know which skills need improvement.</p></div>
+        <div><small>THE APPROACH</small><svg class="eduskill-vector eduskill-vector-connected" viewBox="0 0 330 117" role="img" aria-label="Skills verification connects learning records with improvement and career preparation">
+<path d="M63 59h65M202 59h65" fill="none" stroke="#63adac" stroke-width="4" stroke-linecap="round"/>
+<path d="m116 52 12 7-12 7m139-14 12 7-12 7" fill="none" stroke="#63adac" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="6" y="20" width="91" height="78" rx="17" fill="#d9f2e9" stroke="#9bd2bf"/><path d="M29 49h44M29 61h31M29 73h37" stroke="#408d7d" stroke-width="4" stroke-linecap="round"/>
+<rect x="119" y="4" width="92" height="106" rx="21" fill="#0e797b" stroke="#0b6c6a"/>
+<circle cx="165" cy="39" r="18" stroke="#d6f5ed" stroke-width="3" fill="none"/>
+<path d="m157 39 6 6 12-13" fill="none" stroke="#d6f5ed" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M143 77h44" stroke="#b6f0dd" stroke-width="4" stroke-linecap="round"/><path d="M149 87h32" stroke="#b6f0dd" stroke-width="4" stroke-linecap="round"/>
+<rect x="233" y="20" width="91" height="78" rx="17" fill="#dff0fb" stroke="#b2d2e9"/>
+<rect x="260" y="45" width="38" height="27" rx="4" stroke="#5289ab" stroke-width="3" fill="none"/><path d="M269 45v-6h20v6M260 58h38" stroke="#5289ab" stroke-width="3" fill="none"/>
+</svg><p>One connected, role-based workflow links teaching, instructor verification, skill gaps, learning actions and career preparation.</p></div>
       </div>
     </section>
     <section class="eduskill-guide-features" id="eduskill-features">
       <span class="eduskill-section-label">02 / MADE FOR EVERY ROLE</span>
       <h3>Different users. One connected ecosystem.</h3>
       <div class="eduskill-guide-grid">
-        <article class="eduskill-role-card"><span class="eduskill-role-icon" aria-hidden="true">01</span><h4>Students &amp; Trainees</h4><p>Know your skills. See what's missing. Prepare confidently.</p><ul><li>Instructor-verified Skill Passport</li><li>Skill Gap &amp; Personal Learning Plan</li><li>Career, résumé and interview practice</li></ul><div class="eduskill-role-result">Goal: clearer next learning steps</div></article>
-        <article class="eduskill-role-card"><span class="eduskill-role-icon" aria-hidden="true">02</span><h4>Craft Instructors</h4><p>Spend less time repeating paperwork and more time teaching.</p><ul><li>Year plan, Theory &amp; Practical schedule</li><li>Reviewable AI Lesson &amp; Demonstration Plans</li><li>Attendance, assessments &amp; printable records</li></ul><div class="eduskill-role-result">Goal: simpler, traceable workflows</div></article>
-        <article class="eduskill-role-card"><span class="eduskill-role-icon" aria-hidden="true">03</span><h4>Principal &amp; Admin</h4><p>See institute workflows with permission-controlled oversight.</p><ul><li>Role-based institute access</li><li>Training and progress visibility</li><li>Structured reports and governance</li></ul><div class="eduskill-role-result">Goal: better coordination</div></article>
-        <article class="eduskill-role-card"><span class="eduskill-role-icon" aria-hidden="true">04</span><h4>Institute Staff</h4><p>Keep supporting administrative work organised.</p><ul><li>Assigned administrative workflows</li><li>Access based on responsibilities</li><li>Consistent institute records</li></ul><div class="eduskill-role-result">Goal: reduce duplicated effort</div></article>
+        <article class="eduskill-role-card"><span class="eduskill-role-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 9 9-5 9 5-9 5-9-5Z"/><path d="M7 12v5c3 2 7 2 10 0v-5M21 9v6"/></svg></span><h4>Students &amp; Trainees</h4><p>Know your skills. See what's missing. Prepare confidently.</p><ul><li>Instructor-verified Skill Passport</li><li>Skill Gap &amp; Personal Learning Plan</li><li>Career, résumé and interview practice</li></ul><div class="eduskill-role-result">Goal: clearer next learning steps</div></article>
+        <article class="eduskill-role-card"><span class="eduskill-role-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="m8 9 2 2 4-4M12 16v4m-4 0h8"/></svg></span><h4>Craft Instructors</h4><p>Spend less time repeating paperwork and more time teaching.</p><ul><li>Year plan, Theory &amp; Practical schedule</li><li>Reviewable AI Lesson &amp; Demonstration Plans</li><li>Attendance, assessments &amp; printable records</li></ul><div class="eduskill-role-result">Goal: simpler, traceable workflows</div></article>
+        <article class="eduskill-role-card"><span class="eduskill-role-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m3 10 9-6 9 6M5 10v10h14V10M9 20v-6h6v6M8 10h.01M16 10h.01"/></svg></span><h4>Principal &amp; Admin</h4><p>See institute workflows with permission-controlled oversight.</p><ul><li>Role-based institute access</li><li>Training and progress visibility</li><li>Structured reports and governance</li></ul><div class="eduskill-role-result">Goal: better coordination</div></article>
+        <article class="eduskill-role-card"><span class="eduskill-role-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 5h6l2 2h8v12H4z"/><path d="M8 12h8M8 16h5"/></svg></span><h4>Institute Staff</h4><p>Keep supporting administrative work organised.</p><ul><li>Assigned administrative workflows</li><li>Access based on responsibilities</li><li>Consistent institute records</li></ul><div class="eduskill-role-result">Goal: reduce duplicated effort</div></article>
       </div>
     </section>
     <section class="eduskill-guide-process" id="eduskill-how">
       <span class="eduskill-section-label">03 / HOW IT WORKS</span>
       <h3>From daily teaching to meaningful student progress.</h3>
-      <div class="eduskill-steps"><div><b>01</b><span>Instructor plans &amp; teaches</span></div><div><b>02</b><span>Learner practices</span></div><div><b>03</b><span>Instructor verifies skills</span></div><div><b>04</b><span>Skill gaps &amp; next steps appear</span></div><div><b>05</b><span>Learner prepares for careers</span></div></div>
+      <div class="eduskill-steps"><div><div class="eduskill-step-top"><span class="eduskill-step-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M8 2v4M16 2v4M4 9h16M8 13h3M8 17h5"/></svg></span><b>01</b></div><span>Instructor plans &amp; teaches</span></div><div><div class="eduskill-step-top"><span class="eduskill-step-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 18 3 9l9-5 9 5-1 9-8 4-8-4Z"/><path d="m8 12 3 3 5-5"/></svg></span><b>02</b></div><span>Learner practices</span></div><div><div class="eduskill-step-top"><span class="eduskill-step-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2 4 6v6c0 5 3 8 8 10 5-2 8-5 8-10V6l-8-4Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></span><b>03</b></div><span>Instructor verifies skills</span></div><div><div class="eduskill-step-top"><span class="eduskill-step-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 19V7M10 19V12M16 19V4M22 19V9"/><path d="m4 9 5 2 6-6 6 1"/></svg></span><b>04</b></div><span>Skill gaps &amp; next steps appear</span></div><div><div class="eduskill-step-top"><span class="eduskill-step-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2M3 13c6 4 12 4 18 0M12 13v3"/></svg></span><b>05</b></div><span>Learner prepares for careers</span></div></div>
     </section>
     <section class="eduskill-guide-roadmap" id="eduskill-roadmap">
       <span class="eduskill-section-label">04 / PILOT &amp; FUTURE VISION</span><h3>Designed to grow, validated one step at a time.</h3>
-      <div class="eduskill-roadmap-grid"><div><small>NOW · PILOT</small><p>DTP / DTPO-oriented staging prototype at Government ITI Mumbai-01. Modules are at different stages of acceptance testing.</p></div><div><small>NEXT · VALIDATION</small><p>Test with authorised learners and instructors; measure usefulness, accuracy and workflow improvements.</p></div><div><small>FUTURE · SCALE</small><p>Potential expansion to other trades, vocational institutes and broader youth skilling, subject to validation and approvals.</p></div></div>
+      <div class="eduskill-roadmap-grid"><div><span class="eduskill-roadmap-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 20V5h12v15M3 20h18M9 9h6M9 13h6"/></svg></span><small>NOW · PILOT</small><p>DTP / DTPO-oriented staging prototype at Government ITI Mumbai-01. Modules are at different stages of acceptance testing.</p></div><div><span class="eduskill-roadmap-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="3" width="16" height="19" rx="2"/><path d="M8 8h8M8 12h5m-5 5 2 2 5-5"/></svg></span><small>NEXT · VALIDATION</small><p>Test with authorised learners and instructors; measure usefulness, accuracy and workflow improvements.</p></div><div><span class="eduskill-roadmap-icon"><svg class="eduskill-line-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="m7 12 3 3 7-7M12 3v4M12 17v4"/></svg></span><small>FUTURE · SCALE</small><p>Potential expansion to other trades, vocational institutes and broader youth skilling, subject to validation and approvals.</p></div></div>
       <p class="eduskill-guide-disclaimer">AI drafts are optional and require secure service availability and instructor review. This prototype does not claim guaranteed placements, verified adoption numbers or measured impact.</p>
     </section>
     <section class="eduskill-guide-creator"><span class="eduskill-section-label">THE INNOVATOR</span><h3>Concept &amp; Developed By</h3><p><strong>Durgesh Dnyandev Kadam</strong><br>Craft Instructor (DTP / DTPO) · Government ITI Mumbai-01</p><small>Maharashtra Seva Innovation Challenge 2026 · Public project information only</small></section>
   </div>
   <div class="eduskill-guide-actions"><span>Want to explore the live workflow? Use the assigned demo account.</span><form method="dialog"><button type="submit" class="btn primary">Continue to secure login →</button></form></div>
 </dialog>
+<script>
+/* Public evaluator tour: navigate inside the dialog, never change the site's hash.
+   Keep old shared #eduskill-... deep links functional without needing sign-in. */
+(function(){
+  const guide=document.getElementById('eduskillGuide');
+  if(!guide)return;
+  const keys=['eduskill-why','eduskill-features','eduskill-how','eduskill-roadmap'];
+  const buttons=Array.from(guide.querySelectorAll('[data-tour-target]'));
+  function go(id,initial){
+    if(!keys.includes(id))return false;
+    if(!guide.open)guide.showModal();
+    const target=guide.querySelector('#'+id);
+    if(!target)return false;
+    const selected=buttons.find(button=>button.dataset.tourTarget===id);
+    for(const button of buttons){
+      if(button===selected)button.setAttribute('aria-current','location');
+      else button.removeAttribute('aria-current');
+    }
+    const nav=guide.querySelector('.eduskill-guide-nav');
+    const offset=(nav?nav.getBoundingClientRect().height:0)+14;
+    const top=guide.scrollTop+target.getBoundingClientRect().top-guide.getBoundingClientRect().top-offset;
+    guide.scrollTo({top:Math.max(0,top),behavior:initial||matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+    return true;
+  }
+  guide.querySelector('.eduskill-guide-nav').addEventListener('click',event=>{
+    const button=event.target.closest('button[data-tour-target]');
+    if(button&&guide.contains(button)){event.preventDefault();go(button.dataset.tourTarget,false);}
+  });
+  guide.addEventListener('close',()=>buttons.forEach(button=>button.removeAttribute('aria-current')));
+  const hash=decodeURIComponent(location.hash.slice(1));
+  if(keys.includes(hash)){
+    const show=()=>requestAnimationFrame(()=>go(hash,true));
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show,{once:true});
+    else show();
+  }
+})();
+</script>
 
 <!-- ============ APP SHELL ============ -->
 <div id="appShell" style="display:none">
