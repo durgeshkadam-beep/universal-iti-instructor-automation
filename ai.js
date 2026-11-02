@@ -25,10 +25,10 @@ const InstructorAI = {
     const help=document.getElementById('aiConnectionHelp');if(help)help.textContent=this.getKey()?'The authenticated backend reports a configured AI provider. Provider availability and remaining quota are only tested by an actual generation request.':checked?'The backend is reachable but generative AI is disabled. Use manual plans, guided assistance or copy/paste JSON.':'Check availability after signing in. Manual plans and copy/paste JSON work without an AI API key.';
   },
   async testConnection(){
-    const scope=this.connectionScope(),button=document.getElementById('aiCheckConnection');if(!scope){this.refreshStatus();return;}
+    const scope=this.connectionScope(),button=document.getElementById('aiCheckConnection');if(!scope){this.refreshStatus();return false;}
     if(button)button.disabled=true;
-    try{const out=await window.V15Sync.backendRequest({action:'capabilities'});if(scope!==this.connectionScope())return;if(typeof out?.aiConfigured!=='boolean')throw Error('The backend returned an invalid availability response.');this.state.connection={scope,configured:out.aiConfigured,checkedAt:Date.now()};this.refreshStatus();}
-    catch(e){if(scope!==this.connectionScope())return;this.state.connection=null;this.refreshStatus();const help=document.getElementById('aiConnectionHelp');if(help)help.textContent='AI availability check failed. '+(e.message||'Reconnect and retry.')+' Manual plans and JSON remain available.';}
+    try{const out=await window.V15Sync.backendRequest({action:'capabilities'});if(scope!==this.connectionScope())return false;if(typeof out?.aiConfigured!=='boolean')throw Error('The backend returned an invalid availability response.');this.state.connection={scope,configured:out.aiConfigured,checkedAt:Date.now()};this.refreshStatus();return out.aiConfigured===true;}
+    catch(e){if(scope!==this.connectionScope())return false;this.state.connection=null;this.refreshStatus();const help=document.getElementById('aiConnectionHelp');if(help)help.textContent='AI availability check failed. '+(e.message||'Reconnect and retry.')+' Manual plans and JSON remain available.';return false;}
     finally{if(button)button.disabled=false;}
   },
   currentModel(){return 'backend-configured';},
@@ -73,7 +73,16 @@ const InstructorAI = {
       document.getElementById('aiResultText').value=JSON.stringify(this.keylessPlan(type,item),null,2);
       this.previewResult();
       this.setAIStatus('Free starter created locally. Replace every [FILL BEFORE SAVE] field with actual teaching content before saving. No AI request or record change occurred.');
-    }else if(this.getKey())this.generatePending();
+    }else if(this.getKey())void this.generatePending();
+    else if(this.connectionScope()&&window.V15Sync?.backendRequest){
+      const pending=this.state.pending;
+      this.setAIStatus('Checking secure Instructor AI connection before generating your draft…');
+      void this.testConnection().then(ready=>{
+        if(this.state.pending!==pending||document.getElementById('aiModal')?.style.display==='none')return;
+        if(ready)void this.generatePending();
+        else this.setAIStatus('Secure AI could not be confirmed. Use Generate AI draft to retry or review the manual prompt.','error');
+      });
+    }else this.setAIStatus('Secure Instructor login or Trade workspace is not ready. Check the selected workspace before generating.','error');
   },
   keylessPlan(type,item){
     // Local form scaffold only. Never claim factual syllabus steps/tools or AI generation.
@@ -123,11 +132,18 @@ const InstructorAI = {
     if(!seen.size){const p=document.createElement('p');p.className='muted';p.textContent=`No topic is specifically planned for ${today}. Use the topic picker below.`;el.append(p);}
   },
   openManual(kind,prompt,schema,extra={}){this.state.pending={kind,schema,...extra,context:syllabusContext(),institute:window.V15Sync?.INSTITUTE_ID};this.state.lastPrompt=prompt;this.state.lastResult=null;this.openModal(kind==='syllabus'?'Manual AI — Syllabus Analysis':'AI Assistant',prompt,'');},
-  openModal(title,prompt,result){document.getElementById('aiModalTitle').textContent=title;document.getElementById('aiPromptText').value=prompt||'';document.getElementById('aiResultText').value=result||'';document.getElementById('aiPreviewBox').style.display='none';document.getElementById('aiModal').style.display='flex';const gen=document.getElementById('aiGenerateBtn');if(gen)gen.style.display=this.getKey()?'':'none';this.setAIStatus(this.getKey()?'Backend AI is configured. Review the prompt and consent before requesting a draft.':'Manual mode: copy prompt → use an external AI → paste returned JSON → Preview → explicitly Save or Approve.');},
+  openModal(title,prompt,result){document.getElementById('aiModalTitle').textContent=title;document.getElementById('aiPromptText').value=prompt||'';document.getElementById('aiResultText').value=result||'';document.getElementById('aiPreviewBox').style.display='none';document.getElementById('aiModal').style.display='flex';const gen=document.getElementById('aiGenerateBtn');if(gen)gen.style.display='';this.setAIStatus(this.getKey()?'Backend AI is configured. Review the prompt and consent before requesting a draft.':'The secure AI connection will be checked automatically for the draft, or you may request it using Generate AI draft.');},
   closeModal(){document.getElementById('aiModal').style.display='none';},
   copyPrompt(){const el=document.getElementById('aiPromptText');el.select();if(navigator.clipboard)navigator.clipboard.writeText(el.value).then(()=>this.setAIStatus('Prompt copied.')).catch(()=>document.execCommand('copy'));else document.execCommand('copy');},
   setAIStatus(msg,type='info'){const el=document.getElementById('aiModalStatus');if(!el)return;el.textContent=msg;el.style.borderLeft=`4px solid ${type==='error'?'#b42318':'#1769aa'}`;},
-  async generatePending(){const p=this.state.pending;if(!p)return;const prompt=document.getElementById('aiPromptText').value,schema=p.kind==='plan'?this.planSchema(p.type):p.schema||this.syllabusSchema();const btn=document.getElementById('aiGenerateBtn');if(btn)btn.disabled=true;this.state.lastResult=null;document.getElementById('aiPreviewBox').style.display='none';this.setAIStatus('Requesting a draft from the configured provider…');try{this.requireCurrentPlan(p);const result=await this.geminiJSON(prompt,schema);if(this.state.pending!==p)throw new Error('A different plan is open. Reopen the intended plan.');this.requireCurrentPlan(p);this.state.lastResult=result;document.getElementById('aiResultText').value=JSON.stringify(result,null,2);this.setAIStatus('AI draft ready. Review it before saving.');this.previewResult();}catch(e){document.getElementById('aiPreviewBox').style.display='none';this.setAIStatus((e.message||String(e))+' No new draft was generated. Any previous text is retained for manual review.','error');}finally{if(btn)btn.disabled=false;}},
+  async generatePending(){const p=this.state.pending;if(!p)return;
+    if(p.source==='keyless-starter'){this.setAIStatus('This is a no-key starter, not a generated AI draft. Reopen with Generate AI Plan to request Gemini.','error');return;}
+    if(!this.getKey()){
+      const ready=await this.testConnection();
+      if(!ready){this.setAIStatus('Backend AI is not available: '+(document.getElementById('aiConnectionHelp')?.textContent||'Check signed-in Instructor and workspace.'),'error');return;}
+      if(this.state.pending!==p)return;
+    }
+    const prompt=document.getElementById('aiPromptText').value,schema=p.kind==='plan'?this.planSchema(p.type):p.schema||this.syllabusSchema();const btn=document.getElementById('aiGenerateBtn');if(btn)btn.disabled=true;this.state.lastResult=null;document.getElementById('aiPreviewBox').style.display='none';this.setAIStatus('Requesting a draft from the configured provider…');try{this.requireCurrentPlan(p);const result=await this.geminiJSON(prompt,schema);if(this.state.pending!==p)throw new Error('A different plan is open. Reopen the intended plan.');this.requireCurrentPlan(p);this.state.lastResult=result;document.getElementById('aiResultText').value=JSON.stringify(result,null,2);this.setAIStatus('AI draft ready. Review it before saving.');this.previewResult();}catch(e){document.getElementById('aiPreviewBox').style.display='none';this.setAIStatus((e.message||String(e))+' No new draft was generated. Any previous text is retained for manual review.','error');}finally{if(btn)btn.disabled=false;}},
   parseResult(){const raw=document.getElementById('aiResultText').value.trim();if(!raw)throw new Error('Paste or generate AI JSON first.');const parsed=JSON.parse(raw.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('JSON must be one object with the required fields.');return parsed;},
   normalizePlan(type,r){if(type==='practical')return {objective:(r.objective||[]).map(String),tools:(r.tools||[]).map(String),steps:(r.steps||[]).map(s=>[String(s.procedure||s[0]||''),String(s.keyPoint||s.key_point||s[1]||''),String(s.spotHint||s.spot_hint||s[2]||'')]),questions:(r.questions||[]).map(String),nextDemo:String(r.nextDemo||r.next_demo||'')};return {objective:(r.objective||[]).map(String),materials:(r.materials||[]).map(String),review:String(r.review||''),motivation:String(r.motivation||''),steps:(r.steps||[]).map(s=>[String(s.topic||s[0]||''),String(s.information||s.informationPoint||s[1]||''),String(s.spotHint||s.spot_hint||s[2]||'')]),questions:(r.questions||[]).map(String),summary:String(r.summary||''),assignment:String(r.assignment||''),nextLesson:String(r.nextLesson||r.next_lesson||'')};},
   previewResult(){document.getElementById('aiPreviewBox').style.display='none';try{const r=this.parseResult(),p=this.state.pending;if(!p)return;this.requireCurrentPlan(p);const box=document.getElementById('aiPreviewBox');box.style.display='block';if(p.kind==='plan'){const norm=this.normalizePlan(p.type,r);this.state.lastResult=norm;if(typeof RecordFormats==='undefined')throw new Error('Full plan template is not loaded. Reload the application.');
