@@ -1,6 +1,27 @@
 const {test,expect}=require('@playwright/test');
 const testPassword=process.env.ITI_EMULATOR_TEST_PASSWORD;
 if(!testPassword)throw Error('Run browser tests through the emulator test runner.');
+test('EduSkill welcome and innovation tour work without sign-in on desktop and mobile',async({page})=>{
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.route(/https:\/\/.*/,r=>r.abort());
+ await page.goto('/v15/index.html');
+ await page.waitForFunction(()=>document.querySelector('#stagingSignIn')&&document.querySelector('#loginScreen .eduskill-explore-btn'));
+ await expect(page.locator('#loginScreen .login-title')).toContainText('Universal EduSkill 360');
+ await expect(page.locator('#loginScreen .eduskill-explore-btn')).toBeVisible();
+ await page.locator('#loginScreen .eduskill-explore-btn').click();
+ const guide=page.locator('#eduskillGuide');
+ await expect(guide).toBeVisible();
+ await expect(guide.locator('.eduskill-role-card')).toHaveCount(4);
+ await expect(guide.getByText('The Challenge')).toBeVisible();
+ await expect(guide.getByText('Future Vision')).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
+ await guide.getByRole('button',{name:/Continue to secure login/}).click();
+ await expect(guide).not.toBeVisible();
+ await expect(page.locator('#loginRole')).toBeVisible();
+ await expect(page.locator('#v15ExpectedEmail')).toBeVisible();
+ await expect(page.locator('#stagingPassword')).toBeVisible();
+ expect(errors).toEqual([]);
+});
 for(const desired of ['admin','principal'])test('verified Google delegate opens '+desired+' view using the same Instructor UID without replacing root',async({page})=>{
  await page.route(/https:\/\/.*/,r=>r.abort());await page.goto('/v15/index.html');await page.waitForFunction(()=>window.V15Sync?.resolveAdminMembership);await page.addScriptTag({url:'/.tmp/test-sdk.js'});
  const actual=await page.evaluate(async desired=>{
