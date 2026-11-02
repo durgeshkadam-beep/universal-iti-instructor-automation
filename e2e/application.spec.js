@@ -87,6 +87,7 @@ test('student guided practice stays usable offline without an online assistance 
  await expect(page.getByRole('button',{name:'Request optional AI draft'})).toHaveCount(0);
  await expect(page.getByLabel('I consent')).toHaveCount(0);
  await context.setOffline(true);
+ await page.locator('#coach-guided-tools summary').click();
  for(const lang of ['mr','hi','en']){await page.locator('#coach-language').selectOption(lang);await page.getByRole('button',{name:'Start free guided practice'}).click();await expect(page.locator('#coach-output')).not.toBeEmpty();}
  await context.setOffline(false);
  await page.evaluate(()=>V15Sync.finalOpenTab('exams'));
@@ -103,6 +104,7 @@ test('student private skill plan, multilingual assistance and protected exam thr
  await page.getByRole('button',{name:'Save personal learning plan'}).click();
  await expect(page.locator('#tab-skill-gap')).toContainText('Private learning plan synced');
  await page.evaluate(()=>V15Sync.finalOpenTab('career-coach'));
+ await page.locator('#coach-guided-tools summary').click();
  for(const lang of ['mr','hi','en']){await page.locator('#coach-language').selectOption(lang);await page.getByRole('button',{name:'Start free guided practice'}).click();await expect(page.locator('#coach-output')).not.toBeEmpty();}
  await expect(page.locator('#coach-ai-status')).toContainText('AI-generated drafts are not enabled');
  await expect(page.getByLabel('I consent')).toHaveCount(0);await expect(page.getByRole('button',{name:'Request optional AI draft'})).toHaveCount(0);
@@ -752,6 +754,8 @@ test('Student Career Mentor holds a synthetic multi-turn AI chat without persist
   await V15Sync.finalOpenTab('career-coach');
  });
  await expect(page.getByRole('heading',{name:'Career Mentor — AI Chat'})).toBeVisible();
+ await expect(page.locator('#coach-guided-tools')).not.toHaveAttribute('open');
+ await expect(page.locator('.career-chat-composer')).toBeVisible();
  const send=page.getByRole('button',{name:'Send to AI Career Mentor',exact:true});
  await expect(send).toBeEnabled();
  await page.locator('#coach-chat-input').fill('I learned DTP; what should I learn next?');
