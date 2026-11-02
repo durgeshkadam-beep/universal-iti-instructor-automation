@@ -1019,3 +1019,58 @@ body.role-principal .tabs{justify-content:flex-start}
  .eduskill-guide .eduskill-step-icon{height:39px;width:39px}
  .eduskill-guide .eduskill-steps>div{padding:12px}
 }
+
+
+/* Featured no-sign-in project tour action: distinct from authenticated sign-in.
+   No animation loop, fixed heights or changes to login / role behavior. */
+#loginScreen .eduskill-login-card .eduskill-explore-btn{
+ position:relative;isolation:isolate;overflow:hidden;
+ display:flex;gap:14px;align-items:center;width:100%;min-height:98px;
+ border:1px solid #0a656b;border-radius:16px;
+ background:linear-gradient(110deg,#103b54 0%,#096e73 72%,#0d8d82 100%);
+ box-shadow:0 10px 24px rgba(8,83,94,.18),inset 0 1px rgba(255,255,255,.14);
+ padding:16px 17px;text-align:left;color:#ffffff;
+ transition:background .16s,border-color .16s,box-shadow .16s,transform .16s;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn::after{
+ content:"";position:absolute;z-index:-1;right:-35px;top:-57px;width:158px;height:158px;
+ border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 65%);
+ pointer-events:none;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-icon{
+ flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:14px;
+ color:#103e51;background:#c0f4dd;box-shadow:0 3px 10px rgba(0,0,0,.10);
+ font-size:24px;line-height:1;font-weight:800;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-label{
+ display:block;width:fit-content;margin-bottom:5px;padding:3px 7px;border-radius:6px;
+ font:800 9px/1.3 Inter,Arial,sans-serif;letter-spacing:.07em;
+ color:#d4ffee;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.17);
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn strong{
+ display:block;color:#fff;font:800 16px/1.35 Inter,Arial,sans-serif;letter-spacing:-.025em;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn small{
+ display:block;margin-top:3px;color:#e0f5f3;font:550 11px/1.5 Inter,Arial,sans-serif;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-arrow{
+ flex:none;color:#fff;font-size:23px;font-weight:700;transition:transform .16s;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn:hover{
+ border-color:#07746c;background:linear-gradient(115deg,#0b354c,#087b7a 72%,#138a78);
+ box-shadow:0 14px 29px rgba(8,83,94,.23);transform:translateY(-2px);
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn:hover .eduskill-explore-arrow{transform:translateX(3px)}
+#loginScreen .eduskill-login-card .eduskill-explore-btn:focus-visible{
+ outline:3px solid #2fabb4;outline-offset:3px;
+}
+@media(max-width:640px){
+ #loginScreen .eduskill-login-card .eduskill-explore-btn{min-height:94px;padding:14px 13px;gap:11px}
+ #loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-icon{width:44px;height:44px}
+ #loginScreen .eduskill-login-card .eduskill-explore-btn strong{font-size:15px}
+ #loginScreen .eduskill-login-card .eduskill-explore-btn small{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+ #loginScreen .eduskill-login-card .eduskill-explore-btn,
+ #loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-arrow{transition:none!important}
+}
