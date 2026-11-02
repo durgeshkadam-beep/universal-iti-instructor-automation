@@ -12,8 +12,8 @@ test('EduSkill welcome and innovation tour work without sign-in on desktop and m
  const guide=page.locator('#eduskillGuide');
  await expect(guide).toBeVisible();
  await expect(guide.locator('.eduskill-role-card')).toHaveCount(4);
- await expect(guide.getByText('The Challenge')).toBeVisible();
- await expect(guide.getByText('Future Vision')).toBeVisible();
+ await expect(guide.locator('.eduskill-guide-nav a[href="#eduskill-why"]')).toBeVisible();
+ await expect(guide.locator('.eduskill-guide-nav a[href="#eduskill-roadmap"]')).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
  await guide.getByRole('button',{name:/Continue to secure login/}).click();
  await expect(guide).not.toBeVisible();
