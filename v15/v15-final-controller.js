@@ -22,7 +22,7 @@ const START={
   staff:[['notices','Read Notices','View institute announcements.'],['record-formats','Record Formats','Open the available record formats.'],['reports','View Reports','Review the available reports.']],
   student:[['attendance','My Attendance','Check your attendance record.'],['skills','My Skills','View your skills and instructor verification.'],['career-lens','See Your Skill’s Future','Link verified practicals to reviewed career examples.']]
 };
-const FOOTER={admin:'Technical administration • V15 FINAL',principal:'Principal oversight • V15 FINAL',instructor:'Instructor workspace • V15 FINAL',staff:'Staff read-only • V15 FINAL',student:'Student workspace • V15 FINAL'};
+const FOOTER={admin:'System administration · EduSkill 360',principal:'Institute oversight · EduSkill 360',instructor:'Instructor workspace · EduSkill 360',staff:'Staff workspace · EduSkill 360',student:'Student workspace · EduSkill 360'};
 const preserved=new Map();
 let mountedRole='';
 let legacySwitch=App.switchTab?.bind(App);
@@ -63,12 +63,12 @@ function updateVisuals(r){
   ensureStyle();
   document.documentElement.dataset.v15FinalRole=r;
   const t=document.getElementById('tabs');
-  if(t){t.dataset.v15FinalFooter=FOOTER[r]||'V15 FINAL';t.dataset.v15FinalBrand='Universal ITI • V15 FINAL';}
+  if(t){t.dataset.v15FinalFooter=FOOTER[r]||'V15 FINAL';t.dataset.v15FinalBrand='Universal EduSkill 360';}
   const cap=document.querySelector('.sidebar-caption small');if(cap)cap.textContent=FOOTER[r]||'V15 FINAL';
   const who=document.getElementById('whoName'),s=session();
   if(who)who.textContent=`${s?.name||V.member?.displayName||V.fb?.user?.displayName||''} • ${LABEL[r]||r}${V.member?.owner&&r!=='admin'?' • Creator':''}`;
   const pin=document.getElementById('changePinBtn');if(pin)pin.style.display='none';
-  document.title=`Universal ITI FINAL — ${LABEL[r]||'Workspace'}`;
+  document.title=`Universal EduSkill 360 — ${LABEL[r]||'Workspace'}`;
 }
 
 function keepPanel(name){
@@ -267,12 +267,23 @@ function renderQuickStart(r){
   const host=panel('dashboard');if(!host||!START[r])return;
   host.querySelector('#v15QuickStart')?.remove();
   const card=document.createElement('section');card.id='v15QuickStart';card.className='card';card.setAttribute('aria-label','Main tasks');
-  card.innerHTML='<h2>Start here</h2><p class="muted">Choose a main task below. All other tools remain in the menu.</p><div class="v15-start-grid"></div>';
+  const lead={
+    instructor:['YOUR TEACHING DESK','Start with today’s essential teaching tasks.'],
+    student:['YOUR LEARNING DESK','Build your skills and take the next step towards work.'],
+    principal:['INSTITUTE OVERVIEW','Find the areas that need your attention.'],
+    staff:['STAFF WORKSPACE','Open the tools for your assigned work.']
+  }[r]||['YOUR WORKSPACE','Choose a task to continue.'];
+  card.innerHTML='<div class="v15-start-heading"><div><span class="v15-start-eyebrow"></span><h2>Quick actions</h2><p class="muted"></p></div><span class="v15-start-help">Select a card to open a tool</span></div><div class="v15-start-grid"></div>';
+  card.querySelector('.v15-start-eyebrow').textContent=lead[0];
+  card.querySelector('.v15-start-heading p').textContent=lead[1];
+  const symbols={attendance:'✓', 'skill-review':'✦', planning:'▦',skills:'◇','career-lens':'↗',users:'♙',inspection:'◎',reports:'▤',notices:'▣','record-formats':'▤'};
   for(const [target,title,description] of START[r]){
     if(!allowed(r,target))continue;
-    const button=document.createElement('button');button.type='button';button.className='btn secondary';button.dataset.quickTab=target;
+    const button=document.createElement('button');button.type='button';button.className='v15-start-action';button.dataset.quickTab=target;
+    const glyph=document.createElement('span');glyph.className='v15-start-glyph';glyph.setAttribute('aria-hidden','true');glyph.textContent=symbols[target]||'→';button.appendChild(glyph);
     const heading=document.createElement('strong');heading.textContent=title;button.appendChild(heading);
     const detail=document.createElement('span');detail.textContent=description;button.appendChild(detail);
+    const arrow=document.createElement('span');arrow.className='v15-start-cta';arrow.setAttribute('aria-hidden','true');arrow.textContent='Open tool  →';button.appendChild(arrow);
     button.addEventListener('click',()=>V.finalOpenTab(target).catch(console.error));card.querySelector('.v15-start-grid').appendChild(button);
   }
   host.prepend(card);
