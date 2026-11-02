@@ -116,8 +116,38 @@ const InstructorAI = {
   },
   openQuickPlan(keyless=false){const sel=document.getElementById('aiTopicSelect');if(!sel?.value){alert('Select a theory/practical topic.');return;}let pair;try{pair=JSON.parse(sel.value);}catch{const cut=sel.value.indexOf(':');pair=[sel.value.slice(0,cut),sel.value.slice(cut+1)];}if(Array.isArray(pair)&&['theory','practical'].includes(pair[0])){if(keyless)this.openPlanDraft(pair[0],pair[1],true);else this.openPlanDraft(pair[0],pair[1]);}},
   refreshTopicPicker(){
-    const el=document.getElementById('aiTopicSelect');if(!el||typeof DATA==='undefined')return;const selected=el.value;el.replaceChildren();const blank=document.createElement('option');blank.value='';blank.textContent='Select a topic…';el.append(blank);
-    for(const type of ['theory','practical']){const group=document.createElement('optgroup');group.label=type==='theory'?'Theory':'Practical';for(const item of (type==='theory'?DATA.theory:DATA.practicals)||[]){const option=document.createElement('option');option.value=JSON.stringify([type,String(item.no)]);option.textContent=`${type==='theory'?'Theory':'Practical'} ${item.sourceNo||item.no}: ${item.title}`;group.append(option);}el.append(group);}if([...el.options].some(x=>x.value===selected))el.value=selected;
+    const el=document.getElementById('aiTopicSelect');if(!el||typeof DATA==='undefined')return;
+    const selected=el.value,filter=document.getElementById('aiTopicTypeFilter')?.value||'all',
+      query=(document.getElementById('aiTopicSearch')?.value||'').trim().toLocaleLowerCase();
+    el.replaceChildren();
+    const blank=document.createElement('option');blank.value='';blank.textContent='Select a Theory / Practical topic…';el.append(blank);
+    let visible=0;
+    for(const type of ['theory','practical']){
+      if(filter!=='all'&&filter!==type)continue;
+      const group=document.createElement('optgroup');group.label=type==='theory'?'Theory · Lesson':'Practical · Demonstration';
+      for(const item of (type==='theory'?DATA.theory:DATA.practicals)||[]){
+        const no=String(item.sourceNo??item.no??''),title=String(item.title||'').trim();
+        if(query&&!([no,title,item.unit||item.module||''].join(' ').toLocaleLowerCase().includes(query)))continue;
+        const option=document.createElement('option');option.value=JSON.stringify([type,String(item.no)]);
+        option.textContent=(type==='theory'?'Theory':'Practical')+' '+no+': '+title;
+        option.title=option.textContent;group.append(option);visible++;
+      }
+      if(group.children.length)el.append(group);
+    }
+    if([...el.options].some(x=>x.value===selected))el.value=selected;
+    const preview=document.getElementById('aiTopicFullTitle');
+    if(preview&&!el.value){preview.textContent=visible?'Select a topic to see its complete title and plan type.':'No matching topics in this Trade workspace. Change the filters or check the saved Theory/Practical register.';}
+    this.showSelectedTopic();
+  },
+  showSelectedTopic(){
+    const sel=document.getElementById('aiTopicSelect'),preview=document.getElementById('aiTopicFullTitle');
+    if(!sel?.value||!preview)return;
+    let type,no;try{[type,no]=JSON.parse(sel.value);}catch{return;}
+    if(!['theory','practical'].includes(type))return;
+    const item=((type==='practical'?DATA.practicals:DATA.theory)||[]).find(x=>String(x.no)===String(no));
+    if(!item)return;
+    const label=type==='practical'?'Practical Demonstration':'Theory Lesson';
+    preview.textContent=label+' · No. '+(item.sourceNo||item.no)+'\n'+(item.title||'Untitled topic')+(item.unit||item.module?'\nUnit: '+(item.unit||item.module):'')+(item.hours?' · '+item.hours+' hours':'');
   },
   renderToday(){
     const el=document.getElementById('aiToday');if(!el||typeof DATA==='undefined')return;el.replaceChildren();const today=typeof todayISO==='function'?todayISO():new Date().toISOString().slice(0,10),plan=DATA.meta?.trainingPlan,day=(plan?.dayPlan||[]).find(r=>r.date===today&&!r.holiday),cards=[];
