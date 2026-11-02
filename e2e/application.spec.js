@@ -9,13 +9,26 @@ test('EduSkill welcome and innovation tour work without sign-in on desktop and m
  await expect(page.locator('#loginScreen .login-title')).toContainText('Universal EduSkill 360');
  await expect(page.locator('#loginScreen .eduskill-explore-btn')).toBeVisible();
  await expect(page.locator('#loginScreen .eduskill-explore-label')).toContainText('NO LOGIN REQUIRED');
+ const githubProof=page.locator('#loginScreen .eduskill-github-proof');
+ await expect(githubProof).toBeVisible();
+ await expect(githubProof).toContainText('See the development journey');
+ await expect(githubProof.getByRole('link',{name:/Development progress/})).toHaveAttribute('href','https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/pull/16');
+ await expect(githubProof.getByRole('link',{name:/GitHub repository/})).toHaveAttribute('href','https://github.com/durgeshkadam-beep/universal-iti-instructor-automation');
+ for(const a of await githubProof.locator('a').all()){
+  await expect(a).toHaveAttribute('target','_blank');
+  await expect(a).toHaveAttribute('rel',/noopener noreferrer/);
+ }
+ expect(await githubProof.evaluate(el=>getComputedStyle(el).order)).toBe('6');
  expect(await page.locator('#loginScreen .eduskill-explore-btn strong').evaluate(el=>getComputedStyle(el).color)).toBe('rgb(255, 255, 255)');
  await page.evaluate(()=>V15Sync.showRoleLogin());
  await expect(page.locator('#loginScreen .eduskill-explore-btn')).toContainText('Explore the project');
+ await expect(page.locator('#loginScreen .eduskill-github-proof')).toBeVisible();
  await page.locator('#loginScreen .eduskill-explore-btn').click();
  const guide=page.locator('#eduskillGuide');
  await expect(guide).toBeVisible();
  await expect(guide.locator('.eduskill-role-card')).toHaveCount(4);
+ await expect(guide.locator('.eduskill-guide-github a')).toHaveCount(2);
+ await expect(guide.locator('.eduskill-guide-github')).toContainText('not estimated work hours');
  // Project navigation scrolls inside the open dialog, never changes the URL or exits the demo.
  const sections=[['The Challenge','eduskill-why'],['Who Benefits?','eduskill-features'],
    ['How It Works','eduskill-how'],['Future Vision','eduskill-roadmap']];
