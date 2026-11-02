@@ -163,7 +163,7 @@ V.renderCareerCoach=function(){
  const host=document.getElementById('tab-career-coach');if(!host)return;
  const generation=V._coachRenderGeneration=(V._coachRenderGeneration||0)+1,workspace=V.workspaceId,uid=V.fb?.user?.uid,api=window.ITI_RUNTIME?.apiUrl;
  const current=()=>V._coachRenderGeneration===generation&&role()==='student'&&V.workspaceId===workspace&&V.fb?.user?.uid===uid&&window.ITI_RUNTIME?.apiUrl===api;
- host.replaceChildren();el('h2','Career Guidance, Resume & Mock Interview',host);
+ host.replaceChildren();el('h2','Student Career Mentor',host);
  const note=el('p','Career, Resume and Mock Interview help in Marathi / Hindi / English. Free guided practice always works; real AI drafts appear only if the institute backend has an active free-eligible provider. Free Tier quotas can run out and provider policies may permit product-improvement use. Never enter Aadhaar, phone numbers, email addresses, or student/private records.',host);note.className='callout';
  const label=el('label','Language',host),language=el('select',null,host);language.id='coach-language';label.htmlFor=language.id;
  for(const [value,title] of [['mr','मराठी'],['hi','हिन्दी'],['en','English']]){const o=el('option',title,language);o.value=value;}
@@ -177,13 +177,20 @@ V.renderCareerCoach=function(){
  // in localStorage, Firestore, URLs or analytics. Only recent turns are sent.
  const chatCard=el('section',null,host);chatCard.id='coach-chat-card';chatCard.className='card career-chat';
  el('h3','Career Mentor — AI Chat',chatCard);
- const chatIntro=el('p','Ask follow-up questions like a conversation. Only the latest few turns are sent for context; nothing is saved after leaving this page. No verified vacancy or placement is promised.',chatCard);
+ const chatIntro=el('p','Ask anything about skills, career paths, resume preparation or interviews. Continue the conversation in Marathi, Hindi or English. AI suggestions are not verified job openings.',chatCard);
  chatIntro.className='muted';
  const chatMessages=el('div',null,chatCard);chatMessages.id='coach-chat-messages';
  chatMessages.className='career-chat-messages';chatMessages.setAttribute('role','log');chatMessages.setAttribute('aria-live','polite');
+ // The conversation is the primary student experience. Older single-shot
+ // templates belong in optional tools below, rather than occupying the top of
+ // the page before the chat composer.
+ host.insertBefore(chatCard,taskLabel);
+ const guidedPanel=el('details',null,host);guidedPanel.id='coach-guided-tools';guidedPanel.className='career-guided-tools';
+ el('summary','Resume, Mock Interview & Free Guided Practice Tools',guidedPanel);
+ guidedPanel.append(taskLabel,task,inputLabel,input,output,guide,status);
  const chatLabel=el('label','Your next career question',chatCard);
- const chatInput=el('textarea',null,chatCard);chatInput.id='coach-chat-input';chatInput.maxLength=1200;chatInput.rows=3;
- chatInput.placeholder='e.g. I learned DTP. Ask me about my skills and suggest what to learn next.';
+ const chatInput=el('textarea',null,chatCard);chatInput.id='coach-chat-input';chatInput.maxLength=1200;chatInput.rows=2;
+ chatInput.placeholder='Message Career Mentor… (Enter to send · Shift+Enter for a new line)';
  chatLabel.htmlFor=chatInput.id;chatInput.disabled=true;
  const chatActions=el('div',null,chatCard);chatActions.className='field-row';
  const sendChat=el('button','Send to AI Career Mentor',chatActions);sendChat.id='coach-chat-send';sendChat.type='button';sendChat.className='btn primary';sendChat.disabled=true;
@@ -196,7 +203,8 @@ V.renderCareerCoach=function(){
  const addChatLine=(who,body)=>{
   const line=el('div',null,chatMessages);line.className='career-chat-line '+(who==='user'?'career-chat-user':'career-chat-mentor');
   const name=el('strong',who==='user'?'You':'AI Career Mentor',line);name.className='career-chat-name';
-  const content=el('p',null,line);content.textContent=body;return line;
+  const content=el('p',null,line);content.textContent=body;
+  chatMessages.scrollTop=chatMessages.scrollHeight;return line;
  };
  const clearChat=()=>{
   chatVersion++;history=[];chatBusy=false;sendChat.disabled=!chatEnabled;chatMessages.replaceChildren();chatInput.value='';
@@ -228,7 +236,7 @@ V.renderCareerCoach=function(){
    chatStatus.textContent='AI chat unavailable: '+(e.message||'Try again later.')+' Your question is retained. Use free guided practice above without an AI request.';
   }finally{if(current()&&chatVersion===turn){chatBusy=false;sendChat.disabled=!chatEnabled;}}
  };
- chatInput.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'&&!sendChat.disabled){e.preventDefault();sendChat.click();}});
+ chatInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&!sendChat.disabled){e.preventDefault();sendChat.click();}});
  const enableChat=()=>{
   if(chatEnabled)return;
   chatEnabled=true;chatInput.disabled=false;sendChat.disabled=false;
@@ -264,10 +272,9 @@ V.renderCareerCoach=function(){
    enableChat();
    if(!aiDraftReady){
     aiDraftReady=true;
- const consentLabel=el('label',null,host);consentLabel.style.display='block';const consent=el('input',null,consentLabel);consent.type='checkbox';consent.style.width='auto';consentLabel.append(' I consent to sending only the text above to the configured AI provider.');
- const ai=el('button','Request optional AI draft',host);ai.className='btn';ai.disabled=!window.ITI_RUNTIME?.apiUrl;
- // Keep original one-shot AI consent/actions before the distinct Chat consent.
- host.appendChild(chatCard);
+ const consentLabel=el('label',null,guidedPanel);consentLabel.style.display='block';const consent=el('input',null,consentLabel);consent.type='checkbox';consent.style.width='auto';consentLabel.append(' I consent to sending only the text above to the configured AI provider.');
+ const ai=el('button','Request optional AI draft',guidedPanel);ai.className='btn';ai.disabled=!window.ITI_RUNTIME?.apiUrl;
+ // Separate optional AI draft tools from the primary conversational Mentor.
  ai.onclick=async()=>{
   if(!consent.checked){output.textContent='Consent is required for external AI.';return;}
   const selected={task:task.value,language:language.value,input:input.value};
