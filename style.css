@@ -1167,3 +1167,48 @@ html[data-v15-final-role] #v15QuickStart{
  }
  #tabs[data-v15-final-owned="1"] .tab{min-height:42px}
 }
+
+
+/* Jury-friendly open-source development proof on public login, no secret or live API fetch. */
+#loginScreen .eduskill-login-card .eduskill-github-proof{
+ order:6;display:flex;align-items:flex-start;gap:11px;min-width:0;
+ margin:-7px 0 19px;padding:12px 13px;
+ border:1px solid #d7e4e8;border-left:3px solid #1c8a83;border-radius:12px;
+ background:#f7fafb;color:#233e4f;
+}
+#loginScreen .eduskill-github-symbol{
+ width:33px;height:33px;flex:none;display:grid;place-items:center;
+ color:#24536a;background:#e6f0f4;border-radius:9px;
+}
+#loginScreen .eduskill-github-copy{flex:1;min-width:0}
+#loginScreen .eduskill-github-copy>strong{
+ display:block;color:#244558;font:780 12px/1.45 Inter,Arial,sans-serif;
+}
+#loginScreen .eduskill-github-copy>span{
+ display:block;margin-top:3px;color:#617987;font:500 10px/1.45 Inter,Arial,sans-serif;
+}
+#loginScreen .eduskill-github-links{
+ display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:8px;
+}
+#loginScreen .eduskill-github-links>a,
+.eduskill-guide-github>a{
+ color:#0b696b;font:750 10px/1.5 Inter,Arial,sans-serif;text-decoration:underline;
+ text-underline-offset:3px;overflow-wrap:anywhere;
+}
+#loginScreen .eduskill-github-links>a:hover,
+.eduskill-guide-github>a:hover{color:#05494f}
+#loginScreen .eduskill-github-links>a:focus-visible,
+.eduskill-guide-github>a:focus-visible{outline:2px solid #0c8983;outline-offset:3px;border-radius:2px}
+.eduskill-guide-github{
+ display:flex;gap:7px 17px;flex-wrap:wrap;margin:16px 0 0;
+ padding:13px 15px;border:1px solid #d7e6ea;border-radius:12px;
+ background:#f5fafb;align-items:center;
+}
+.eduskill-guide-github strong{width:100%;color:#163e55;font-size:12px}
+.eduskill-guide-github p{width:100%;margin:0 0 2px;color:#52717e;font-size:11px;line-height:1.55}
+@media(max-width:640px){
+ #loginScreen .eduskill-login-card .eduskill-github-proof{
+  margin-top:-8px;padding:10px;gap:9px
+ }
+ #loginScreen .eduskill-github-links{gap:7px 12px}
+}
