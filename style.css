@@ -1074,3 +1074,80 @@ body.role-principal .tabs{justify-content:flex-start}
  #loginScreen .eduskill-login-card .eduskill-explore-btn,
  #loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-arrow{transition:none!important}
 }
+
+
+/* Universal EduSkill 360 — authenticated workspace task shortcuts.
+   Pure presentation: routes, stored records and permissions stay unchanged. */
+html[data-v15-final-role] #v15QuickStart{
+ background:linear-gradient(135deg,#f8fbfd 0%,#f0f8f7 100%);
+ border:1px solid #dce8ec;border-radius:21px;
+ box-shadow:0 8px 28px rgba(13,61,78,.055);padding:23px;
+}
+#v15QuickStart .v15-start-heading{
+ display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:19px;
+}
+#v15QuickStart .v15-start-eyebrow{
+ display:block;margin:0 0 6px;color:#0d7977;font:800 10px/1.5 Inter,Arial,sans-serif;
+ letter-spacing:.10em;
+}
+#v15QuickStart .v15-start-heading h2{
+ margin:0 0 6px;font:800 clamp(19px,2.1vw,24px)/1.25 Inter,Arial,sans-serif;
+ color:#123b52;letter-spacing:-.035em;
+}
+#v15QuickStart .v15-start-heading p{
+ margin:0;color:#526e7c;font-size:13px;line-height:1.55;
+}
+#v15QuickStart .v15-start-help{
+ font:700 11px/1.4 Inter,Arial,sans-serif;color:#53727a;
+ background:#fff;border:1px solid #dbe8e7;border-radius:999px;padding:8px 11px;
+}
+#v15QuickStart .v15-start-grid{gap:14px}
+#v15QuickStart .v15-start-grid .v15-start-action{
+ appearance:none;display:flex;align-items:flex-start;flex-direction:column;
+ gap:9px;justify-content:flex-start;
+ min-width:0;min-height:160px!important;height:auto;padding:18px!important;
+ background:#fff;color:#133b53;border:1px solid #dce7eb;border-radius:16px;
+ text-align:left;box-shadow:0 3px 13px rgba(25,70,85,.045);
+ cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;
+}
+#v15QuickStart .v15-start-grid .v15-start-action:hover{
+ border-color:#7cbbb6;box-shadow:0 10px 22px rgba(23,86,99,.11);
+ transform:translateY(-2px);
+}
+#v15QuickStart .v15-start-grid .v15-start-action:focus-visible{
+ outline:3px solid #118982;outline-offset:3px;
+}
+#v15QuickStart .v15-start-grid .v15-start-action .v15-start-glyph{
+ width:42px;height:42px;display:grid;place-items:center;flex:none;
+ background:#e4f5f0;color:#117d75;border-radius:12px;
+ font:850 23px/1 Inter,Arial,sans-serif;
+}
+#v15QuickStart .v15-start-grid .v15-start-action:nth-child(2) .v15-start-glyph{
+ background:#e4eef9;color:#295b91;
+}
+#v15QuickStart .v15-start-grid .v15-start-action:nth-child(3) .v15-start-glyph{
+ background:#fff1de;color:#9a6724;
+}
+#v15QuickStart .v15-start-grid .v15-start-action strong{
+ font:800 15px/1.35 Inter,Arial,sans-serif;color:#153b52;
+}
+#v15QuickStart .v15-start-grid .v15-start-action>span:not(.v15-start-glyph):not(.v15-start-cta){
+ font:500 12px/1.55 Inter,Arial,sans-serif;color:#5e7481;
+}
+#v15QuickStart .v15-start-grid .v15-start-action .v15-start-cta{
+ margin-top:auto;font:800 10px/1.4 Inter,Arial,sans-serif;color:#0b7573;
+ letter-spacing:.018em;
+}
+@media(max-width:900px){
+ html[data-v15-final-role] #v15QuickStart{padding:16px;border-radius:17px}
+ #v15QuickStart .v15-start-help{display:none}
+ #v15QuickStart .v15-start-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:11px}
+ #v15QuickStart .v15-start-grid .v15-start-action{min-height:146px!important}
+}
+@media(max-width:650px){
+ #v15QuickStart .v15-start-grid{grid-template-columns:minmax(0,1fr)}
+ #v15QuickStart .v15-start-grid .v15-start-action{min-height:132px!important;padding:15px!important}
+}
+@media(prefers-reduced-motion:reduce){
+ #v15QuickStart .v15-start-grid .v15-start-action{transition:none!important}
+}
