@@ -199,6 +199,8 @@ V.renderCareerCoach=function(){
  chatStatus.id='coach-chat-status';chatStatus.className='muted';chatStatus.setAttribute('role','status');
  const retryChat=el('button','Retry AI Connection',chatCard);
  retryChat.id='coach-ai-retry';retryChat.type='button';retryChat.className='btn secondary';
+ const composer=el('div',null,chatCard);composer.className='career-chat-composer';
+ composer.append(chatLabel,chatInput,chatActions,chatStatus,retryChat);
  let history=[],chatVersion=0,chatConsent=null,chatBusy=false,chatEnabled=false,connectionProbe=0,aiDraftReady=false;
  const addChatLine=(who,body)=>{
   const line=el('div',null,chatMessages);line.className='career-chat-line '+(who==='user'?'career-chat-user':'career-chat-mentor');
@@ -244,7 +246,7 @@ V.renderCareerCoach=function(){
    const consentLabel=el('label',null,chatCard);consentLabel.className='career-chat-consent';
    chatConsent=el('input',null,consentLabel);chatConsent.type='checkbox';chatConsent.style.width='auto';
    consentLabel.append(' I consent to sending my questions and recent chat turns to the configured AI provider. Do not include personal details.');
-   chatCard.insertBefore(consentLabel,chatActions);
+   composer.insertBefore(consentLabel,chatActions);
   }
   chatStatus.textContent='Secure AI provider is configured (actual quota/availability is checked only when you send). Ask a career question to begin.';
  };
