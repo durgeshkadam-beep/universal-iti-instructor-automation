@@ -862,7 +862,7 @@ body.role-principal .tabs{justify-content:flex-start}
 #loginScreen .eduskill-login-card>#v15ExpectedEmailField{order:11}
 #loginScreen .eduskill-login-card>.field:has(#stagingPassword){order:12}
 #loginScreen .eduskill-login-card>#v15InstitutePasswordForm{order:13}
-#loginScreen .eduskill-login-card>.btn.primary.full{order:14}
+#loginScreen .eduskill-login-card>.btn.full{order:14}
 #loginScreen .eduskill-login-card>#v15AuthHelp{order:15}
 #loginScreen .eduskill-login-card>.login-note{order:16}
 #loginScreen .eduskill-login-card>.developer-credit-login{order:20}
@@ -876,7 +876,7 @@ body.role-principal .tabs{justify-content:flex-start}
 #loginScreen .eduskill-login-card .btn.primary.full{width:100%;min-height:46px;border-radius:11px;background:#0e7776;color:#fff;font-size:12px;font-weight:750;box-shadow:none!important;margin-top:7px}
 #loginScreen .eduskill-login-card #stagingSignIn:hover,
 #loginScreen .eduskill-login-card .btn.primary.full:hover{background:#0b6567;transform:none}
-#loginScreen .eduskill-login-card .btn.primary.full:not(.primary){background:#edf3f6;color:#1d5663;border:1px solid #dae6eb}
+#loginScreen .eduskill-login-card>.btn.full:not(.primary){background:#edf3f6;color:#1d5663;border:1px solid #dae6eb;border-radius:11px;min-height:44px;font-size:11px;font-weight:700;margin-top:9px}
 #loginScreen .eduskill-login-card #v15AuthHelp{padding:12px 13px;border:1px solid #e3edf1;background:#f6f9fb;border-radius:11px;color:#617781;line-height:1.55;font-size:11px;margin-top:11px!important}
 #loginScreen .eduskill-login-card .login-note{font-size:10px;line-height:1.55;color:#7d9098;margin:11px 0 0;text-align:left}
 #loginScreen .eduskill-login-card .developer-credit-login{margin-top:21px;border:0;border-top:1px solid #e7edef;padding:18px 0 0;background:transparent;box-shadow:none;text-align:left}
@@ -964,3 +964,6 @@ body.role-principal .tabs{justify-content:flex-start}
 @media(prefers-reduced-motion:reduce){
  #loginScreen .eduskill-explore-btn,.eduskill-guide{transition:none!important;scroll-behavior:auto}
 }
+
+/* Keep the staging warning visible without an oversized yellow banner. */
+#stagingNotice{background:#edf6f6!important;color:#3d6870!important;border-bottom:1px solid #d6e8e7!important;font:650 11px/1.5 Inter,Arial,sans-serif!important;padding:8px 12px!important;text-align:center!important}
