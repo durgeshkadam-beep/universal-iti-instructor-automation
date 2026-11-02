@@ -33,7 +33,7 @@ const esbuild=require('esbuild'),{randomBytes}=require('node:crypto');
  const api=spawn(process.execPath,['server/index.js'],{stdio:'inherit',env:{...process.env,GCLOUD_PROJECT:'demo-universal-iti',AI_PROVIDER:'none',ALLOWED_ORIGINS:'http://127.0.0.1:4173',PORT:'8787'}});
  const webRoot=path.resolve('dist/web');require('./build-web').buildWeb({outputDir:webRoot});
  const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml'};
- const server=http.createServer((req,res)=>{const pathname=new URL(req.url,'http://localhost').pathname;const file=pathname==='/.tmp/test-sdk.js'?path.resolve('.tmp/test-sdk.js'):path.resolve(webRoot,'.'+pathname);if((!file.startsWith(webRoot+path.sep)&&pathname!=='/.tmp/test-sdk.js')||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',mime[path.extname(file)]||'text/plain');res.end(fs.readFileSync(file));});
+ const server=http.createServer((req,res)=>{const pathname=new URL(req.url,'http://localhost').pathname;const requestPath=pathname==='/'?'/index.html':pathname;const file=pathname==='/.tmp/test-sdk.js'?path.resolve('.tmp/test-sdk.js'):path.resolve(webRoot,'.'+requestPath);if((!file.startsWith(webRoot+path.sep)&&pathname!=='/.tmp/test-sdk.js')||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',mime[path.extname(file)]||'text/plain');res.end(fs.readFileSync(file));});
  await new Promise(r=>server.listen(4173,'127.0.0.1',r));
  try{
   const {createService}=require('../server/service');const service=createService({db,verifyToken:t=>auth.verifyIdToken(t)});
