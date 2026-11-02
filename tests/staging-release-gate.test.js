@@ -8,8 +8,9 @@ const okRun=(overrides={})=>({id:41477866352,head_sha:SHA,head_branch:BRANCH,
 function response(data){return {ok:true,status:200,json:async()=>data};}
 test('exact successful staging CI workflow and commit are required',async()=>{
  assert(validatedRun(okRun(),SHA));
+ assert(validatedRun(okRun({event:'pull_request'}),SHA));
  for(const change of [{head_sha:'b'.repeat(40)},{head_branch:'main'},{workflow_id:1234},
-   {event:'pull_request'},{status:'in_progress',conclusion:null},{conclusion:'failure'}]){
+   {event:'schedule'},{status:'in_progress',conclusion:null},{conclusion:'failure'}]){
   assert.equal(validatedRun(okRun(change),SHA),false);
  }
 });
