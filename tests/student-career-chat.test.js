@@ -2,11 +2,11 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {createService}=require('../server/service');
 const {validateCareerChat}=require('../server/career-chat');
-function fixture(config={}){
+function fixture(config={},workspace='w'){
  const rows=new Map([
- ['institutes/i',{ownerUid:'root'}],['institutes/i/workspaces/w',{status:'active'}],
- ['institutes/i/members/s',{active:true,role:'student',traineeId:'t1',workspaceIds:['w']}],
- ['institutes/i/members/i',{active:true,role:'instructor',workspaceIds:['w']}]
+ ['institutes/i',{ownerUid:'root'}],[`institutes/i/workspaces/${workspace}`,{status:'active'}],
+ ['institutes/i/members/s',{active:true,role:'student',traineeId:'t1',workspaceIds:[workspace]}],
+ ['institutes/i/members/i',{active:true,role:'instructor',workspaceIds:[workspace]}]
  ]);
  const counters=new Map(),calls=[];
  const ref=p=>({path:p,doc:x=>ref(p+'/'+x),collection:x=>ref(p+'/'+x),get:async()=>({exists:rows.has(p),data:()=>rows.get(p)})});
@@ -53,4 +53,26 @@ test('chat history is bounded, validated and does not use paid AI when provider 
  assert.throws(()=>validateCareerChat({...base,history:Array.from({length:8},(_,i)=>({role:i%2?'assistant':'user',text:'X'.repeat(1600)}))}),/too long|context/);
  const f=fixture({provider:'none'});const result=await f.service.execute('s',base);
  assert.equal(result.mode,'guided');assert.equal(f.calls.length,0);
+});
+
+test('legacy real ITI workspace document IDs with dots remain accessible to assigned Student and Instructor',async()=>{
+ const workspace='bharat-ratna-dr.-babasaheb-ambedkar-government-iti-mumbai-01-desktop-publishing-operator-dtpo-10-08-2026-to-31-05-2027';
+ const f=fixture({},workspace);
+ const request={...base,workspaceId:workspace};
+ const caps=await f.service.execute('s',{...request,action:'capabilities'});
+ assert.equal(caps.aiConfigured,true);
+ const chat=await f.service.execute('s',request);
+ assert.equal(chat.mode,'ai-chat');
+ const instructorCaps=await f.service.execute('i',{...request,action:'capabilities'});
+ assert.equal(instructorCaps.aiConfigured,true);
+ assert.equal(f.calls.length,1);
+});
+test('invalid path segments and unassigned workspaces never bypass Student authorization',async()=>{
+ const f=fixture();
+ for(const workspaceId of [null,'','.','..','abc/def','abc\\\\def','bad\nworkspace','__bad__','a'.repeat(1501)]){
+  await assert.rejects(f.service.execute('s',{...base,workspaceId}),e=>e.status===400&&/workspace ID/.test(e.message));
+ }
+ await assert.rejects(f.service.execute('s',{...base,workspaceId:'different.dr.-workspace'}),e=>e.status===403&&/Workspace access denied/.test(e.message));
+ await assert.rejects(f.service.execute('s',{...base,instituteId:'wrong.institute'}),e=>e.status===400&&/institute ID/.test(e.message));
+ assert.equal(f.calls.length,0);
 });
