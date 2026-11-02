@@ -26,7 +26,8 @@ async function build(r){
     const {w,V,calls}=await build(r);await V.applyRolePortal();
     const tabs=[...w.document.querySelectorAll('#tabs .tab')];
     ok(tabs.length===EXPECTED[r],`${r}: exact role menu count ${EXPECTED[r]}`);
-    ok((w.document.getElementById('tabs').dataset.v15FinalFooter||'').includes('V15 FINAL'),`${r}: V13 footer replaced`);
+    ok((w.document.getElementById('tabs').dataset.v15FinalFooter||'').includes('EduSkill 360'),`${r}: legacy footer replaced with EduSkill 360`);
+    ok((w.document.getElementById('tabs').dataset.v15FinalBrand||'').includes('Universal EduSkill 360'),`${r}: EduSkill 360 sidebar branding`);
     ok(!/V13/.test(w.document.getElementById('tabs').dataset.v15FinalFooter||''),`${r}: no V13 role footer`);
     for(const b of tabs){await V.finalOpenTab(b.dataset.tab);ok(w.document.getElementById('tab-'+b.dataset.tab)?.classList.contains('active'),`${r}: ${b.dataset.tab} opens active panel`);ok(!w.document.getElementById('tab-'+b.dataset.tab)?.textContent.includes('Page could not load'),`${r}: ${b.dataset.tab} renderer succeeds`);}
     if(r==='principal'){await V.finalOpenTab('users');ok(calls.principalStaff>0,'principal: Staff & Access renderer executed');ok(/Staff & Access/.test(w.document.getElementById('tab-users').textContent),'principal: Staff & Access visible');}
