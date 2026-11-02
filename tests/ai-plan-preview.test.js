@@ -94,3 +94,51 @@ test('free theory starter also requires completion before approval, preserving s
   f.ai.saveResult(true);assert.equal(writes,1);
  }finally{f.close();}
 });
+
+test('real Instructor plan automatically checks Gemini and starts one reviewed generation after capability success',async()=>{
+ const f=setup();try{
+  const w=f.w;w.V15Sync.ready=true;w.ITI_RUNTIME={apiUrl:'https://synthetic.example/api'};
+  let checks=0,generated=0;w.V15Sync.backendRequest=async body=>{
+   assert.equal(body.action,'capabilities');checks++;return {aiConfigured:true};
+  };
+  f.ai.generatePending=async()=>{generated++;};
+  f.ai.openPlanDraft('practical','002');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(checks,1);assert.equal(generated,1);
+  assert.equal(f.ai.getKey(),true);
+  assert.equal(w.document.getElementById('aiGenerateBtn').style.display,'');
+  assert.equal(f.saves(),0);
+ }finally{f.close();}
+});
+test('real Instructor remains able to request a Gemini draft manually when a capabilities check is unavailable',async()=>{
+ const f=setup();try{
+  const w=f.w;let attempts=0;
+  f.ai.geminiJSON=async()=>{attempts++;return practical;};
+  const previous=JSON.stringify(w.DATA);
+  await f.ai.generatePending();
+  assert.equal(attempts,1);
+  assert.match(w.document.getElementById('aiModalStatus').textContent,/AI draft ready/);
+  assert.equal(JSON.stringify(w.DATA),previous);
+ }finally{f.close();}
+});
+test('Instructor plan selector filters Theory and Practical and displays long full topic titles without HTML injection',()=>{
+ const f=setup();try{
+  const w=f.w;
+  const filter=w.document.createElement('select');filter.id='aiTopicTypeFilter';filter.innerHTML='<option value="all">All</option><option value="theory">Theory</option><option value="practical">Practical</option>';filter.value='practical';
+  const search=w.document.createElement('input');search.id='aiTopicSearch';
+  const sel=w.document.createElement('select');sel.id='aiTopicSelect';
+  const preview=w.document.createElement('div');preview.id='aiTopicFullTitle';
+  w.document.body.append(filter,search,sel,preview);
+  const full='Create a multi-page advertising publication and prepare a long production-ready print export with accurate colour management and verified typography <svg onload=alert(1)>';
+  w.DATA.practicals[0].title=full;search.value='colour management';
+  f.ai.refreshTopicPicker();
+  assert.equal(sel.options.length,2);
+  assert.equal(sel.querySelector('optgroup').label,'Practical · Demonstration');
+  sel.value=JSON.stringify(['practical','002']);f.ai.showSelectedTopic();
+  assert(preview.textContent.includes(full));assert(preview.textContent.includes('Practical Demonstration'));
+  assert.equal(preview.querySelector('svg'),null);
+  filter.value='theory';f.ai.refreshTopicPicker();assert.equal(sel.options.length,1);
+  search.value='';f.ai.refreshTopicPicker();assert.equal(sel.options.length,2);
+  assert.equal(sel.querySelector('optgroup').label,'Theory · Lesson');
+ }finally{f.close();}
+});
