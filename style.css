@@ -702,3 +702,17 @@ body.role-principal .tabs{justify-content:flex-start}
  #tab-career-coach .career-chat-composer .field-row{display:grid;grid-template-columns:minmax(0,1fr)}
  #tab-career-coach .career-chat-composer .field-row button{width:100%}
 }
+
+/* Instructor AI: full topic names, readable plan types, and usable mobile modal. */
+#tab-ai-assistant .instructor-ai-picker-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,2fr);gap:12px}
+#tab-ai-assistant .instructor-ai-picker-grid .field{min-width:0;margin:0}
+#tab-ai-assistant .instructor-topic-card select,#tab-ai-assistant .instructor-topic-card input{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;min-height:44px;font-size:.92rem}
+#tab-ai-assistant .instructor-ai-topic-preview{white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;line-height:1.6;font-size:.92rem;color:#183b56;background:#f2f8fb;border:1px solid #d4e5ee;border-radius:10px;padding:13px 15px;margin:12px 0 15px;min-height:48px}
+#tab-ai-assistant #aiToday .callout{overflow-wrap:anywhere;min-width:0}
+#tab-ai-assistant #aiToday .callout b{white-space:normal;overflow-wrap:anywhere;display:block;line-height:1.55}
+#tab-ai-assistant #aiToday .field-row{flex-wrap:wrap;gap:8px}
+#tab-ai-assistant #aiToday button{white-space:normal;min-height:40px}
+#aiModal .modal,#aiModal .modal-content{max-width:calc(100vw - 28px);box-sizing:border-box;min-width:0;overflow-x:auto}
+#aiModal #aiModalTitle{white-space:normal;overflow-wrap:anywhere;max-width:100%}
+#aiModal #aiModalStatus{white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+@media(max-width:700px){#tab-ai-assistant .instructor-ai-picker-grid{grid-template-columns:minmax(0,1fr)}#tab-ai-assistant .instructor-topic-card{padding:14px}#aiModal .modal,#aiModal .modal-content{max-width:calc(100vw - 16px)}}
