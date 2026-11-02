@@ -1151,3 +1151,19 @@ html[data-v15-final-role] #v15QuickStart{
 @media(prefers-reduced-motion:reduce){
  #v15QuickStart .v15-start-grid .v15-start-action{transition:none!important}
 }
+
+
+/* Role-based menu wayfinding. Group labels are desktop-only and never interactive. */
+#tabs .v15-nav-group-title{display:none}
+@media screen and (min-width:961px){
+ #tabs[data-v15-final-owned="1"] .v15-nav-group-title{
+  display:block;padding:14px 12px 5px;margin:8px 0 2px;
+  color:#94b5c5;font:800 10px/1.4 Inter,Arial,sans-serif;
+  letter-spacing:.085em;text-transform:uppercase;
+  border-top:1px solid rgba(174,216,221,.10);
+ }
+ #tabs[data-v15-final-owned="1"] .v15-nav-group-title:first-of-type{
+  border-top:0;margin-top:0;
+ }
+ #tabs[data-v15-final-owned="1"] .tab{min-height:42px}
+}
