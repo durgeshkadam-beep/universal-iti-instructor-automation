@@ -26,6 +26,12 @@ async function build(r){
     const {w,V,calls}=await build(r);await V.applyRolePortal();
     const tabs=[...w.document.querySelectorAll('#tabs .tab')];
     ok(tabs.length===EXPECTED[r],`${r}: exact role menu count ${EXPECTED[r]}`);
+    const groups=[...w.document.querySelectorAll('#tabs .v15-nav-group-title')];
+    ok(groups.length===(r==='instructor'||r==='student'?4:0),`${r}: role menu sections without extra navigation actions`);
+    if(r==='instructor'||r==='student'){
+      ok(groups.every(group=>group.textContent.trim().length>0),`${r}: grouped section headings are meaningful`);
+      ok(new Set(tabs.map(tab=>tab.dataset.tab)).size===EXPECTED[r],`${r}: existing route identifiers stay unique`);
+    }
     ok((w.document.getElementById('tabs').dataset.v15FinalFooter||'').includes('EduSkill 360'),`${r}: legacy footer replaced with EduSkill 360`);
     ok((w.document.getElementById('tabs').dataset.v15FinalBrand||'').includes('Universal EduSkill 360'),`${r}: EduSkill 360 sidebar branding`);
     ok(!/V13/.test(w.document.getElementById('tabs').dataset.v15FinalFooter||''),`${r}: no V13 role footer`);
