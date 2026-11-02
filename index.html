@@ -12,7 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Universal ITI">
+<meta name="apple-mobile-web-app-title" content="EduSkill 360">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -20,27 +20,33 @@
 <!-- ============ LOGIN SCREEN ============ -->
 <div id="loginScreen" class="login-wrap">
   <div class="login-showcase eduskill-showcase">
-    <div class="showcase-brand"><span class="eduskill-mark" aria-hidden="true">E360</span><span>UNIVERSAL <strong>EDUSKILL 360</strong></span></div>
-    <div class="showcase-copy">
-      <span class="showcase-kicker">MAHARASHTRA SEVA INNOVATION CHALLENGE 2026 · WORKING PROTOTYPE</span>
-      <h2>From Learning to Skills to Career.</h2>
-      <p class="eduskill-lead">Career clarity for every learner. More time to teach for every educator.</p>
-      <p>Universal EduSkill 360 connects vocational learning, instructor-verified skills, learning gaps, guided next steps and career preparation in one digital workflow.</p>
-      <div class="showcase-points eduskill-points">
-        <span><b>01</b> <strong>For learners</strong> — Skill Passport, gap analysis and career guidance</span>
-        <span><b>02</b> <strong>For instructors</strong> — Teaching plans, attendance, assessment and records</span>
-        <span><b>03</b> <strong>For institutions</strong> — Role-based oversight and structured workflows</span>
-      </div>
-      <p class="eduskill-scope">Starting with a DTP / DTPO working prototype at Government ITI Mumbai-01. Designed for possible expansion to other trades and education sectors after validation.</p>
+    <div class="showcase-brand">
+      <span class="eduskill-mark" aria-hidden="true">E<span>360</span></span>
+      <span class="eduskill-wordmark">UNIVERSAL <strong>EDUSKILL 360</strong><small>VOCATIONAL INNOVATION PLATFORM</small></span>
+      <span class="eduskill-brand-dot" aria-hidden="true"></span>
     </div>
-    <div class="showcase-footer">Prototype demonstration · Features vary by role · Not a claim of verified placements or measured outcomes</div>
+    <div class="showcase-copy">
+      <span class="showcase-kicker"><span class="eduskill-kicker-dot" aria-hidden="true"></span> MAHARASHTRA SEVA INNOVATION CHALLENGE 2026</span>
+      <h2>Learn with purpose.<br><span>Grow with skills.</span></h2>
+      <p class="eduskill-lead">One connected journey from classroom learning to career readiness.</p>
+      <div class="eduskill-journey" aria-label="Learning to career journey">
+        <span>Learn</span><i aria-hidden="true">→</i><span>Verify skills</span><i aria-hidden="true">→</i><span>Close gaps</span><i aria-hidden="true">→</i><span>Prepare for careers</span>
+      </div>
+      <div class="showcase-points eduskill-points">
+        <div class="eduskill-benefit"><span class="eduskill-benefit-number">01</span><div><strong>For Students</strong><small>Skill Passport · Learning Plan · Career Guidance</small></div></div>
+        <div class="eduskill-benefit"><span class="eduskill-benefit-number">02</span><div><strong>For Instructors</strong><small>AI-assisted teaching plans · Attendance · Records</small></div></div>
+        <div class="eduskill-benefit"><span class="eduskill-benefit-number">03</span><div><strong>For Institutes</strong><small>Role-based oversight · Reports · Better coordination</small></div></div>
+      </div>
+    </div>
+    <div class="showcase-footer"><span class="eduskill-prototype-tag">WORKING PROTOTYPE</span><span>DTP / DTPO pilot · Government ITI Mumbai-01</span></div>
   </div>
-  <div class="login-card">
-    <div class="eduskill-login-identity"><span class="eduskill-mark" aria-hidden="true">E360</span><span>INNOVATION PROTOTYPE · 2026</span></div>
+  <div class="login-card eduskill-login-card">
+    <div class="eduskill-login-identity"><span class="eduskill-mark" aria-hidden="true">E<span>360</span></span><span class="eduskill-login-eyebrow">WELCOME TO THE INNOVATION DEMO<small>SECURE STAGING WORKSPACE</small></span></div>
     <h1 class="login-title">Universal EduSkill 360</h1>
-    <p class="login-sub"><strong>Learning-to-Career &amp; Educator Workflow Automation</strong><br><span>Secure role-based demonstration workspace</span></p>
-    <p class="eduskill-login-explainer">Explore how trainees can understand their skills and next learning steps, while instructors plan teaching and manage training records more efficiently.</p>
-    <button class="eduskill-explore-btn" type="button" onclick="document.getElementById('eduskillGuide').showModal()">ⓘ Explore the App / प्रकल्पाची माहिती <span aria-hidden="true">→</span></button>
+    <p class="login-sub">Learning-to-Career &amp; Educator Workflow Automation</p>
+    <p class="eduskill-login-explainer">See how learners build verified skills and instructors simplify everyday teaching workflows.</p>
+    <button class="eduskill-explore-btn" type="button" onclick="document.getElementById('eduskillGuide').showModal()"><span class="eduskill-explore-icon" aria-hidden="true">↗</span><span><strong>Explore the project</strong><small>Features, impact and future vision · प्रकल्पाची माहिती</small></span><span class="eduskill-explore-arrow" aria-hidden="true">→</span></button>
+    <div class="eduskill-access-heading"><span>SECURE DEMO LOGIN</span><span aria-hidden="true">● ROLE-BASED</span></div>
     <div class="field">
       <label>I am logging in as</label>
       <select id="loginRole">
@@ -71,26 +77,50 @@
   </div>
 </div>
 
-<!-- Public, pre-login innovation overview; no private institute records are read. -->
+<!-- Public, pre-login evaluation walkthrough. No authentication or learner records required. -->
 <dialog id="eduskillGuide" class="eduskill-guide" aria-labelledby="eduskillGuideTitle">
   <div class="eduskill-guide-head">
-    <div><span class="eduskill-guide-eyebrow">PROJECT WALKTHROUGH · INNOVATION CHALLENGE 2026</span><h2 id="eduskillGuideTitle">Universal EduSkill 360</h2><p>Learning → Skills → Career | शिक्षणापासून कौशल्य आणि करिअरपर्यंत</p></div>
+    <div class="eduskill-guide-topline"><span class="eduskill-guide-eyebrow">UNIVERSAL EDUSKILL 360 / PROJECT OVERVIEW</span><span class="eduskill-guide-demo">2026 INNOVATION PROTOTYPE</span></div>
     <form method="dialog"><button type="submit" class="eduskill-guide-close" aria-label="Close project overview">✕</button></form>
+    <h2 id="eduskillGuideTitle">Connecting learning, skills <span>&amp; future opportunities.</span></h2>
+    <p>A visual introduction for first-time visitors and district-level evaluators.</p>
+    <div class="eduskill-guide-journey"><span>Learn</span><b>→</b><span>Verify</span><b>→</b><span>Improve</span><b>→</b><span>Prepare</span></div>
   </div>
+  <nav class="eduskill-guide-nav" aria-label="Project overview sections">
+    <a href="#eduskill-why">The Challenge</a><a href="#eduskill-features">Who Benefits?</a><a href="#eduskill-how">How It Works</a><a href="#eduskill-roadmap">Future Vision</a>
+  </nav>
   <div class="eduskill-guide-content">
-    <section><h3>01 · The problem / समस्या</h3><p>Training records, individual skill evidence, learning gaps and career preparation are often scattered across different processes. Learners need a clearer picture of what they can do, what to improve and what comes next. Instructors also spend time preparing plans and maintaining registers.</p></section>
-    <section><h3>02 · Our solution / उपाय</h3><p>A role-based digital workflow that connects teaching plans, attendance, evaluation, verified skills, skill gaps, suggested learning actions and career preparation. The pilot begins with a DTP / DTPO workspace; broader use across trades is a future goal, not an already proven outcome.</p></section>
-    <div class="eduskill-guide-grid">
-      <section><h3>🎓 Student / Trainee</h3><ul><li>Skill Passport with instructor verification</li><li>Skill Gap Analysis and Personal Learning Plan</li><li>Career guidance, résumé and mock interview practice</li><li>Trade progress and authorised learning information</li></ul><p class="eduskill-guide-benefit">Benefit: understand strengths, identify missing skills and prepare for next steps.</p></section>
-      <section><h3>👨‍🏫 Instructor</h3><ul><li>Trade syllabus, yearly and day-wise planning</li><li>Theory Lesson and Practical Demonstration Plans</li><li>Attendance, evaluations, MCQ and training records</li><li>Reviewable optional AI drafts and PDF-ready records</li></ul><p class="eduskill-guide-benefit">Benefit: reduce repetitive paperwork and support better follow-up.</p></section>
-      <section><h3>🏫 Principal / Admin</h3><ul><li>Role-based access and institute workflow oversight</li><li>Training and progress visibility where authorised</li><li>Structured reporting and governance support</li></ul><p class="eduskill-guide-benefit">Benefit: organise and review institute-level processes.</p></section>
-      <section><h3>🗂️ Staff</h3><ul><li>Role-appropriate administrative workflows</li><li>Limited access based on assigned permissions</li><li>Support for consistent institute records</li></ul><p class="eduskill-guide-benefit">Benefit: clearer responsibility and less duplication.</p></section>
-    </div>
-    <section><h3>03 · How it works / कार्यपद्धती</h3><p><strong>Instructor plans and teaches → student practices → instructor verifies skills → system identifies gaps → learner follows an improvement plan → learner prepares for career opportunities.</strong> AI is optional and requires a configured secure backend; it does not replace instructor approval or promise employment.</p></section>
-    <section><h3>04 · Prototype, vision and evidence</h3><p><strong>Current:</strong> Working DTP / DTPO-oriented staging prototype with modules at different levels of testing. <strong>Next:</strong> validate functionality and measurable outcomes before scaling across trades, institutes and broader youth skilling. This demo does not claim independently verified placement results or nationwide adoption.</p></section>
-    <section class="eduskill-guide-creator"><h3>Concept &amp; Developed By</h3><p><strong>Durgesh Dnyandev Kadam</strong><br>Craft Instructor (DTP / DTPO), Government ITI Mumbai-01</p><small>Maharashtra Seva Innovation Challenge 2026 · Evaluation overview · Public project information only</small></section>
+    <section class="eduskill-guide-problem" id="eduskill-why">
+      <span class="eduskill-section-label">01 / WHY THIS PROJECT?</span>
+      <h3>Great training deserves a clearer pathway to opportunity.</h3>
+      <div class="eduskill-compare">
+        <div><small>THE CHALLENGE</small><p>Training records, skill evidence and career preparation often live in separate places. Learners may not know which skills need improvement.</p></div>
+        <div><small>THE APPROACH</small><p>One connected, role-based workflow links teaching, instructor verification, skill gaps, learning actions and career preparation.</p></div>
+      </div>
+    </section>
+    <section class="eduskill-guide-features" id="eduskill-features">
+      <span class="eduskill-section-label">02 / MADE FOR EVERY ROLE</span>
+      <h3>Different users. One connected ecosystem.</h3>
+      <div class="eduskill-guide-grid">
+        <article class="eduskill-role-card"><span class="eduskill-role-icon" aria-hidden="true">01</span><h4>Students &amp; Trainees</h4><p>Know your skills. See what's missing. Prepare confidently.</p><ul><li>Instructor-verified Skill Passport</li><li>Skill Gap &amp; Personal Learning Plan</li><li>Career, résumé and interview practice</li></ul><div class="eduskill-role-result">Goal: clearer next learning steps</div></article>
+        <article class="eduskill-role-card"><span class="eduskill-role-icon" aria-hidden="true">02</span><h4>Craft Instructors</h4><p>Spend less time repeating paperwork and more time teaching.</p><ul><li>Year plan, Theory &amp; Practical schedule</li><li>Reviewable AI Lesson &amp; Demonstration Plans</li><li>Attendance, assessments &amp; printable records</li></ul><div class="eduskill-role-result">Goal: simpler, traceable workflows</div></article>
+        <article class="eduskill-role-card"><span class="eduskill-role-icon" aria-hidden="true">03</span><h4>Principal &amp; Admin</h4><p>See institute workflows with permission-controlled oversight.</p><ul><li>Role-based institute access</li><li>Training and progress visibility</li><li>Structured reports and governance</li></ul><div class="eduskill-role-result">Goal: better coordination</div></article>
+        <article class="eduskill-role-card"><span class="eduskill-role-icon" aria-hidden="true">04</span><h4>Institute Staff</h4><p>Keep supporting administrative work organised.</p><ul><li>Assigned administrative workflows</li><li>Access based on responsibilities</li><li>Consistent institute records</li></ul><div class="eduskill-role-result">Goal: reduce duplicated effort</div></article>
+      </div>
+    </section>
+    <section class="eduskill-guide-process" id="eduskill-how">
+      <span class="eduskill-section-label">03 / HOW IT WORKS</span>
+      <h3>From daily teaching to meaningful student progress.</h3>
+      <div class="eduskill-steps"><div><b>01</b><span>Instructor plans &amp; teaches</span></div><div><b>02</b><span>Learner practices</span></div><div><b>03</b><span>Instructor verifies skills</span></div><div><b>04</b><span>Skill gaps &amp; next steps appear</span></div><div><b>05</b><span>Learner prepares for careers</span></div></div>
+    </section>
+    <section class="eduskill-guide-roadmap" id="eduskill-roadmap">
+      <span class="eduskill-section-label">04 / PILOT &amp; FUTURE VISION</span><h3>Designed to grow, validated one step at a time.</h3>
+      <div class="eduskill-roadmap-grid"><div><small>NOW · PILOT</small><p>DTP / DTPO-oriented staging prototype at Government ITI Mumbai-01. Modules are at different stages of acceptance testing.</p></div><div><small>NEXT · VALIDATION</small><p>Test with authorised learners and instructors; measure usefulness, accuracy and workflow improvements.</p></div><div><small>FUTURE · SCALE</small><p>Potential expansion to other trades, vocational institutes and broader youth skilling, subject to validation and approvals.</p></div></div>
+      <p class="eduskill-guide-disclaimer">AI drafts are optional and require secure service availability and instructor review. This prototype does not claim guaranteed placements, verified adoption numbers or measured impact.</p>
+    </section>
+    <section class="eduskill-guide-creator"><span class="eduskill-section-label">THE INNOVATOR</span><h3>Concept &amp; Developed By</h3><p><strong>Durgesh Dnyandev Kadam</strong><br>Craft Instructor (DTP / DTPO) · Government ITI Mumbai-01</p><small>Maharashtra Seva Innovation Challenge 2026 · Public project information only</small></section>
   </div>
-  <div class="eduskill-guide-actions"><form method="dialog"><button type="submit" class="btn primary">Close Overview · Login / लॉगिन</button></form></div>
+  <div class="eduskill-guide-actions"><span>Want to explore the live workflow? Use the assigned demo account.</span><form method="dialog"><button type="submit" class="btn primary">Continue to secure login →</button></form></div>
 </dialog>
 
 <!-- ============ APP SHELL ============ -->
@@ -100,7 +130,7 @@
     <div class="brand">
       <img src="logo.png" alt="logo" style="width:34px;height:auto">
       <div class="brand-text">
-        <strong id="brandTitle">Universal ITI Training Register</strong>
+        <strong id="brandTitle">Universal EduSkill 360</strong>
         <small id="brandSub">Institute workspace</small>
       </div>
     </div>
