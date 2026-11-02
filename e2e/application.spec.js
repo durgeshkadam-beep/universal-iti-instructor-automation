@@ -565,7 +565,7 @@ test('Instructor grouped menus retain legacy forms and move impact evidence unde
 
 test('Instructor checks authenticated AI availability and retains invalid pasted JSON for manual correction',async({page})=>{
  await login(page,'instructor');await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));await expect(page.locator('#aiConnectionBadge')).toContainText('not checked');await expect(page.locator('#aiApiKey')).toHaveCount(0);await page.getByRole('button',{name:'Check AI availability',exact:true}).click();await expect(page.locator('#aiConnectionHelp')).toContainText('generative AI is disabled');
- await page.evaluate(()=>{const p=DATA.practicals[0];InstructorAI.openPlanDraft('practical',p.no);});await expect(page.locator('#aiGenerateBtn')).toBeHidden();await page.getByText('ⓘ How to copy a prompt and paste JSON',{exact:true}).click();await expect(page.locator('#aiModal')).toContainText('including the opening { and closing }');const invalid='{ "objective": [';await page.locator('#aiResultText').fill(invalid);await page.getByRole('button',{name:'Preview Result',exact:true}).click();await expect(page.locator('#aiResultText')).toHaveValue(invalid);await expect(page.locator('#aiModalStatus')).toContainText('JSON error');await expect(page.locator('#aiPreviewBox')).toBeHidden();
+ await page.evaluate(()=>{const p=DATA.practicals[0];InstructorAI.openPlanDraft('practical',p.no);});await expect(page.locator('#aiGenerateBtn')).toBeVisible();await page.getByText('ⓘ How to copy a prompt and paste JSON',{exact:true}).click();await expect(page.locator('#aiModal')).toContainText('including the opening { and closing }');const invalid='{ "objective": [';await page.locator('#aiResultText').fill(invalid);await page.getByRole('button',{name:'Preview Result',exact:true}).click();await expect(page.locator('#aiResultText')).toHaveValue(invalid);await expect(page.locator('#aiModalStatus')).toContainText('JSON error');await expect(page.locator('#aiPreviewBox')).toBeHidden();
 });
 
 test('Instructor imports the real Excel template with explicit numbers, reviews 5+3 allocation and rejects stale previews',async({page})=>{
@@ -719,13 +719,13 @@ test('Instructor free Starter Plan works without AI generation and cannot approv
  await login(page,'instructor');
  await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));
  await expect(page.getByRole('heading',{name:'Instructor Teaching Assistant'})).toBeVisible();
- await expect(page.getByRole('button',{name:'Create Free Starter Plan',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Create Free Starter (No AI)',exact:true})).toBeVisible();
  const before=await page.evaluate(()=>JSON.stringify({practicals:DATA.practicals,theory:DATA.theory}));
  const options=await page.locator('#aiTopicSelect option').count();expect(options).toBeGreaterThan(1);
  await page.locator('#aiTopicSelect').selectOption({index:1});
  let aiRequests=0;
  page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/api')&&r.postDataJSON()?.action==='ai')aiRequests++;});
- await page.getByRole('button',{name:'Create Free Starter Plan',exact:true}).click();
+ await page.getByRole('button',{name:'Create Free Starter (No AI)',exact:true}).click();
  await expect(page.locator('#aiModal')).toBeVisible();
  await expect(page.locator('#aiResultText')).toHaveValue(/\[FILL BEFORE SAVE\]/);
  await expect(page.locator('#aiPreviewBox')).toBeVisible();
@@ -776,4 +776,31 @@ test('Student Career Mentor holds a synthetic multi-turn AI chat without persist
  expect(result).toEqual({history:[0,2],localChatKeys:[],chatScriptCount:0,overflow:false});
  await page.getByRole('button',{name:'New chat / Clear'}).click();
  await expect(page.locator('#coach-chat-messages .career-chat-line')).toHaveCount(0);
+});
+
+test('Instructor can filter Theory and Practical and see a long full topic title without clipping before AI',async({page})=>{
+ await login(page,'instructor');
+ await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));
+ await expect(page.getByRole('button',{name:'Generate AI Plan',exact:true})).toBeVisible();
+ const title=await page.evaluate(()=>{
+  const item=DATA.practicals[0],original=item.title;
+  item.title='Review and configure professional desktop publishing layouts, multi-page artwork, colour-managed print proofs and detailed graphic design export requirements for workshop practice — '+original;
+  InstructorAI.refreshTopicPicker();
+  return {no:String(item.no),value:item.title,original};
+ });
+ try{
+  await page.locator('#aiTopicTypeFilter').selectOption('practical');
+  await page.locator('#aiTopicSearch').fill('colour-managed print proofs');
+  await page.locator('#aiTopicSelect').selectOption(JSON.stringify(['practical',title.no]));
+  await expect(page.locator('#aiTopicFullTitle')).toContainText(title.value);
+  await expect(page.locator('#aiTopicFullTitle')).toContainText('Practical Demonstration');
+  const clipped=await page.locator('#aiTopicFullTitle').evaluate(el=>el.scrollWidth>el.clientWidth+1);
+  expect(clipped).toBe(false);
+  await page.locator('#aiTopicTypeFilter').selectOption('theory');
+  await expect(page.locator('#aiTopicSelect option')).toHaveCount(1);
+  await page.locator('#aiTopicSearch').fill('');
+  expect(await page.locator('#aiTopicSelect option').count()).toBeGreaterThan(1);
+ }finally{
+  await page.evaluate(({no,original})=>{const x=DATA.practicals.find(i=>String(i.no)===no);if(x)x.title=original;},{no:title.no,original:title.original});
+ }
 });
