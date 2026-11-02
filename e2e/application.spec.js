@@ -123,6 +123,13 @@ for(const role of ['admin','principal','instructor','staff','student'])test(role
   }
  }
  const tabs=await page.locator('#tabs .tab').evaluateAll(nodes=>nodes.map(n=>n.dataset.tab));
+ if(role==='instructor'||role==='student'){
+  const headings=page.locator('#tabs .v15-nav-group-title');
+  await expect(headings).toHaveCount(4);
+  const texts=await headings.allTextContents();
+  expect(texts.every(label=>label.trim().length>0)).toBeTruthy();
+  if(test.info().project.name==='desktop')await expect(headings.first()).toBeVisible();
+ }
  for(const tab of tabs){
   await page.evaluate(tab=>V15Sync.finalOpenTab(tab),tab);
   await expect(page.locator('#tab-'+tab)).toHaveClass(/active/);
