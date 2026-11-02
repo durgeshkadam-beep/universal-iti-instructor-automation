@@ -14,14 +14,34 @@ test('EduSkill welcome and innovation tour work without sign-in on desktop and m
  const guide=page.locator('#eduskillGuide');
  await expect(guide).toBeVisible();
  await expect(guide.locator('.eduskill-role-card')).toHaveCount(4);
- await expect(guide.locator('.eduskill-guide-nav a[href="#eduskill-why"]')).toBeVisible();
- await expect(guide.locator('.eduskill-guide-nav a[href="#eduskill-roadmap"]')).toBeVisible();
+ // Project navigation scrolls inside the open dialog, never changes the URL or exits the demo.
+ const sections=[['The Challenge','eduskill-why'],['Who Benefits?','eduskill-features'],
+   ['How It Works','eduskill-how'],['Future Vision','eduskill-roadmap']];
+ const initialUrl=page.url();
+ for(const [label,id] of sections){
+  const control=guide.locator('.eduskill-guide-nav button[data-tour-target="'+id+'"]');
+  await expect(control).toBeVisible();
+  const previous=await guide.evaluate(el=>el.scrollTop);
+  await control.click();
+  await expect(control).toHaveAttribute('aria-current','location');
+  await expect(guide.locator('#'+id)).toBeAttached();
+  if(id!=='eduskill-why')await expect.poll(()=>guide.evaluate(el=>el.scrollTop)).toBeGreaterThan(previous+3);
+  expect(page.url()).toBe(initialUrl);
+  await expect(guide).toBeVisible();
+ }
+ await expect(guide.locator('svg.eduskill-vector')).toHaveCount(2);
+ await expect(guide.locator('svg.eduskill-line-icon')).toHaveCount(12);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBeTruthy();
  await guide.getByRole('button',{name:/Continue to secure login/}).click();
  await expect(guide).not.toBeVisible();
  await expect(page.locator('#loginRole')).toBeVisible();
  await expect(page.locator('#v15ExpectedEmail')).toBeVisible();
  await expect(page.locator('#loginScreen .btn.full')).toBeVisible();
+ // Existing shared root/#section links should open the V15 tour automatically.
+ await page.goto('/#eduskill-features');
+ await expect(page.locator('#eduskillGuide')).toBeVisible();
+ await expect(page.locator('#eduskillGuide .eduskill-guide-nav button[data-tour-target="eduskill-features"]')).toHaveAttribute('aria-current','location');
+ expect(page.url()).toContain('/v15/index.html#eduskill-features');
  // A staging password button is optional in emulator / non-staging contexts.
  // Dedicated authenticated staging-password tests validate that flow separately.
  expect(errors).toEqual([]);
