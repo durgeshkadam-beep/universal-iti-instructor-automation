@@ -1260,3 +1260,66 @@ html[data-v15-final-role] #v15QuickStart{
  .instructor-chat-bubble{max-width:97%}
  .instructor-chat-actions .btn{flex:1 1 100%}
 }
+
+
+/* Staging login: clearly separate the primary demo account from optional Google. */
+#loginScreen .eduskill-login-card>#stagingGoogleOption{
+ order:14;display:block;margin:10px 0 13px;border:1px solid #d6e4e9;
+ background:#f8fbfc;border-radius:12px;min-width:0;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary{
+ display:flex;flex-direction:column;gap:3px;position:relative;cursor:pointer;
+ list-style:none;padding:12px 35px 12px 14px;
+ font:750 12px/1.4 Inter,Arial,sans-serif;color:#1e5966;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary::-webkit-details-marker{display:none}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary::after{
+ content:"+";position:absolute;right:14px;top:15px;font:750 19px/1 sans-serif;color:#247c80;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption[open] summary::after{content:"−"}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary span{
+ font:500 10px/1.5 Inter,Arial,sans-serif;color:#617d89;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary:focus-visible{
+ outline:3px solid #1d8a86;outline-offset:3px;border-radius:11px;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields{
+ display:flex;flex-direction:column;padding:0 14px 10px;gap:5px;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields label{
+ font:750 11px/1.5 Inter,Arial,sans-serif;color:#3d5e6e;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields input{
+ width:100%;box-sizing:border-box;min-height:44px;
+ padding:10px 12px;border:1px solid #cadce4;border-radius:10px;
+ background:white;color:#173b4c;font:500 13px/1.5 Inter,Arial,sans-serif;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields input:focus-visible{
+ border-color:#15847e;outline:3px solid #b6e7df;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields small{
+ color:#637a86;font-size:10px;line-height:1.55;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .btn.full{
+ display:block;width:calc(100% - 28px);min-height:42px;margin:0 14px 14px;
+ border:1px solid #bad7dc;background:#e5f1f3;color:#205967;
+ border-radius:10px;font:750 11px/1.5 Inter,Arial,sans-serif;white-space:normal;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .btn.full:hover{background:#d7e9ec}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .btn.full:focus-visible{
+ outline:3px solid #15847e;outline-offset:3px;
+}
+#loginScreen .eduskill-login-card #stagingTestPasswordField .staging-test-help{
+ margin-top:10px;color:#5d7681;font:500 10px/1.5 Inter,Arial,sans-serif;
+ background:#f3f8f9;border-radius:8px;padding:9px 10px;
+}
+#loginScreen .eduskill-login-card #stagingSignIn{
+ background:#0c7775!important;color:#fff!important;
+ font-size:13px!important;min-height:48px!important;
+}
+#loginScreen .eduskill-login-card #stagingSignIn:hover{background:#08625f!important}
+@media(max-width:650px){
+ #loginScreen .eduskill-login-card>#stagingGoogleOption summary{padding:12px 33px 12px 12px}
+ #loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields{padding:0 12px 10px}
+ #loginScreen .eduskill-login-card>#stagingGoogleOption .btn.full{width:calc(100% - 24px);margin:0 12px 12px}
+}
