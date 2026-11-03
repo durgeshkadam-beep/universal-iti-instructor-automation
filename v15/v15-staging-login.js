@@ -46,7 +46,7 @@ V.showRoleLogin=function(){
   other.innerHTML='<summary>Other sign-in method: Approved Google account <span>Optional · separately authorised</span></summary><div class="staging-google-fields"><label for="stagingGoogleEmail">Approved Google / Gmail email</label><input id="stagingGoogleEmail" type="email" autocomplete="email" placeholder="name@gmail.com"><small>Only for an account separately approved for the selected institute role. Do not use the test password here.</small></div>';
   const googleEmail=other.querySelector('#stagingGoogleEmail');
   const oldValue=idInput?.value?.trim()||'';
-  if(V.validEmail(oldValue)&&!/\\.(?:test|invalid)$/i.test(oldValue.split('@')[1]||''))googleEmail.value=oldValue;
+  if(V.validEmail(oldValue)&&!/\.(?:test|invalid)$/i.test(oldValue.split('@')[1]||''))googleEmail.value=oldValue;
   google.classList.remove('primary');google.textContent='Continue with approved Google';
   google.addEventListener('click',event=>{
    const chosen=googleEmail.value.trim().toLowerCase();
