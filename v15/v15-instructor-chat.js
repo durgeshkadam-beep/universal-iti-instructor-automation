@@ -101,7 +101,7 @@ function render(){
 }
 const base=V.finalOpenTab?.bind(V);
 if(base)V.finalOpenTab=async function(name){
- if(name!=='ai-assistant'&&S.busy){++S.serial;S.busy=false;}
+ if(name!=='ai-assistant'&&S.busy){++S.serial;S.busy=false;status('The earlier request was cancelled when you changed tools. Ask again to continue.');}
  const result=await base(name);
  if(name==='ai-assistant'&&role()==='instructor')render();
  return result;
