@@ -1212,3 +1212,51 @@ html[data-v15-final-role] #v15QuickStart{
  }
  #loginScreen .eduskill-github-links{gap:7px 12px}
 }
+
+
+/* EduSkill 360 Instructor teaching chat — accessible, scoped, privacy-first. */
+#tab-ai-assistant .instructor-conversation{
+ padding:23px;border:1px solid #d6e5ec;border-radius:19px;
+ background:linear-gradient(150deg,#fbfefd,#f2f9f8);
+ box-shadow:0 7px 20px rgba(21,66,78,.055);
+ margin-bottom:16px;min-width:0;
+}
+.instructor-chat-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.instructor-chat-head h3{margin:4px 0 8px;color:#163e55;font-size:22px;line-height:1.25}
+.instructor-chat-head p{color:#57717e;font-size:12px;line-height:1.55;max-width:690px;margin:0}
+.instructor-chat-eyebrow{font:800 10px/1.5 Inter,Arial,sans-serif;letter-spacing:.1em;color:#117d78}
+.instructor-chat-mode{font:750 10px/1.45 Inter,Arial,sans-serif;color:#115e69;background:#e2f3f1;border:1px solid #b9dfd9;border-radius:999px;padding:7px 11px;max-width:100%}
+.instructor-chat-suggestions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 13px}
+.instructor-chat-suggestions button{border:1px solid #c7e0e2;border-radius:999px;background:#fff;color:#236478;font:700 11px/1.4 Inter,Arial,sans-serif;cursor:pointer;padding:8px 12px}
+.instructor-chat-suggestions button:hover{background:#e7f5f4}
+.instructor-chat-suggestions button:focus-visible,.instructor-chat-actions button:focus-visible{outline:3px solid #0a8784;outline-offset:2px}
+#instructorChatMessages{
+ display:flex;flex-direction:column;align-items:stretch;gap:12px;
+ min-height:185px;max-height:390px;overflow-y:auto;overflow-x:hidden;
+ background:#fff;border:1px solid #dde8ee;border-radius:15px;
+ padding:16px;margin-bottom:13px;
+}
+.instructor-chat-empty{margin:auto;text-align:center;font-size:12px;line-height:1.6;color:#647d89;max-width:410px}
+.instructor-chat-bubble{display:flex;flex-direction:column;gap:4px;padding:11px 14px;border:1px solid #e0e8ef;border-radius:15px;max-width:min(90%,720px);min-width:0}
+.instructor-chat-bubble.from-instructor{background:#0b5a67;color:#fff;border-color:#0b5a67;align-self:flex-end;border-bottom-right-radius:4px}
+.instructor-chat-bubble.from-assistant{background:#f0f7f7;color:#25495d;align-self:flex-start;border-bottom-left-radius:4px}
+.instructor-chat-bubble strong{font-size:10px;letter-spacing:.025em}
+.instructor-chat-bubble p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;font-size:13px;line-height:1.65;color:inherit}
+#tab-ai-assistant .instructor-conversation>label:not(.instructor-chat-consent){display:block;font-size:11px;font-weight:750;color:#3c5c6d;margin:9px 0 6px}
+#instructorChatLanguage{display:block;width:min(200px,100%);max-width:100%;border-radius:9px;padding:8px;font-size:13px}
+#instructorChatQuestion{display:block;width:100%;min-height:92px;max-width:100%;resize:vertical;border:1px solid #b7cfd7;background:#fff;border-radius:11px;padding:12px;font-size:13px;line-height:1.55;box-sizing:border-box}
+#instructorChatQuestion:focus-visible{outline:3px solid #90d0c9;outline-offset:2px}
+#tab-ai-assistant .instructor-chat-consent{display:flex;align-items:flex-start;gap:8px;color:#425e6b;font-size:11px;line-height:1.55;margin:10px 0}
+#tab-ai-assistant .instructor-chat-consent[hidden]{display:none!important}
+#tab-ai-assistant .instructor-chat-consent input{flex:none;accent-color:#0d7874;width:16px;height:16px;margin-top:1px}
+.instructor-chat-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:11px}
+#tab-ai-assistant .instructor-chat-actions .btn{height:auto;min-height:42px;white-space:normal;padding:10px 14px}
+.instructor-chat-status{margin:11px 0 0;color:#3a6070;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.instructor-chat-disclaimer{margin:10px 0 0;color:#657d87;font-size:11px;line-height:1.5}
+@media(max-width:760px){
+ #tab-ai-assistant .instructor-conversation{padding:15px;border-radius:15px}
+ .instructor-chat-head h3{font-size:18px}
+ #instructorChatMessages{padding:10px;max-height:310px}
+ .instructor-chat-bubble{max-width:97%}
+ .instructor-chat-actions .btn{flex:1 1 100%}
+}
