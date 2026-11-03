@@ -157,6 +157,35 @@ for(const role of ['admin','principal','instructor','staff','student'])test(role
  // Visiting an unauthorized route returns the role's dashboard.
  if(role!=='admin'){await page.evaluate(()=>V15Sync.finalOpenTab('admin-console'));await expect(page.locator('#tab-dashboard')).toHaveClass(/active/);}
 });
+test('Instructor teaching chat stays usable in no-key mode and preserves reviewed plan UI',async({page})=>{
+ await login(page,'instructor');
+ await page.evaluate(()=>{window.ITI_RUNTIME.apiUrl='';return V15Sync.finalOpenTab('ai-assistant');});
+ await expect(page.locator('#instructorChatCard')).toBeVisible();
+ await expect(page.locator('#instructorChatMode')).toContainText('Free guidance');
+ await expect(page.locator('#instructorChatQuestion')).toBeEnabled();
+ await expect(page.locator('#instructorChatConsentWrap')).toBeHidden();
+ await expect(page.locator('#instructorChatSend')).toHaveText('Get free guidance');
+ await page.locator('#instructorChatQuestion').fill('Explain practical learning to a new DTP class.');
+ await page.locator('#instructorChatSend').click();
+ await expect(page.locator('#instructorChatMessages .instructor-chat-bubble')).toHaveCount(2);
+ await expect(page.locator('#instructorChatMessages')).toContainText('AI-निर्मित नाही');
+ await page.locator('#instructorChatClear').click();
+ await expect(page.locator('#instructorChatMessages .instructor-chat-bubble')).toHaveCount(0);
+ await page.locator('#instructorChatLanguage').selectOption('hi');
+ await page.locator('#instructorChatQuestion').fill('Suggest a teaching activity.');
+ await page.locator('#instructorChatSend').click();
+ await expect(page.locator('#instructorChatMessages')).toContainText('AI द्वारा निर्मित नहीं');
+ await page.locator('#instructorChatLanguage').selectOption('en');
+ await page.locator('#instructorChatQuestion').fill('Explain a practical safely.');
+ await page.locator('#instructorChatSend').click();
+ await expect(page.locator('#instructorChatMessages')).toContainText('not AI-generated');
+ await expect(page.locator('#tab-ai-assistant .instructor-topic-card')).toBeVisible();
+ await page.evaluate(()=>V15Sync.finalOpenTab('practicals'));
+ await expect(page.locator('#tab-practicals')).toHaveClass(/active/);
+ await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));
+ await expect(page.locator('#instructorChatCard')).toHaveCount(1);
+ await expect(page.locator('#tab-ai-assistant .instructor-topic-card')).toBeVisible();
+});
 test('student guided practice stays usable offline without an online assistance service',async({page,context})=>{
  await login(page,'student');
  await page.evaluate(()=>{window.ITI_RUNTIME.apiUrl='';return V15Sync.finalOpenTab('career-coach');});
