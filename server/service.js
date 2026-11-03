@@ -66,6 +66,32 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
    // This is configuration status, not provider health, a quota check or an AI call.
    return {aiConfigured};
   }
+  if(action==='instructorChat'){
+   requireValue(member?.active===true&&member?.role==='instructor','An active assigned Instructor account is required for Teaching Chat.',403);
+   const {validateInstructorChat,systemFor}=require('./instructor-chat');
+   let chat;try{chat=validateInstructorChat(body);}catch(e){throw new ApiError(400,e.message);}
+   if(!config.provider||config.provider==='none')return {mode:'guided',text:offlineGuide('teaching',chat.language,chat.input)};
+   requireValue(body.consent===true,'Consent required before sharing teaching chat with an AI provider.');
+   await limit(u.uid,'ai',Number(config.dailyLimit)||20,Number(config.globalAiDailyLimit)||100);
+   const system=systemFor(chat.language);
+   let response;
+   try{
+    if(config.provider==='gemini'){
+     requireValue(config.apiKey&&config.model,'Server AI provider is not configured',503);
+     response=await require('./gemini-request').requestGeminiChat(config,system,chat.input,chat.history,fetchImpl);
+    }else if(config.provider==='ollama'){
+     requireValue(config.ollamaUrl&&config.model,'Server model is not configured',503);
+     response=await fetchImpl(new URL('/api/chat',config.ollamaUrl),{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(45000),
+      body:JSON.stringify({model:config.model,stream:false,messages:[{role:'system',content:system},...chat.history.map(x=>({role:x.role==='assistant'?'assistant':'user',content:x.text})),{role:'user',content:chat.input}]})});
+    }else throw new ApiError(503,'Unsupported AI provider');
+    if(!response.ok){const {providerError}=require('./ai-provider-error');throw new ApiError(503,await providerError(response));}
+    const out=await response.json(),reason=out.candidates?.[0]?.finishReason;
+    requireValue(!reason||reason==='STOP','The teaching chat response was incomplete. Ask a shorter question.',503);
+    const answer=config.provider==='ollama'?out.message?.content:out.candidates?.[0]?.content?.parts?.filter(x=>x.thought!==true).map(x=>x.text||'').join('');
+    requireValue(typeof answer==='string'&&answer.trim()&&answer.length<=1800,'Teaching chat answer was unavailable or too long. Try a shorter question.',503);
+    return {mode:'ai-chat',text:answer.trim()};
+   }catch(e){if(e instanceof ApiError)throw e;throw new ApiError(503,'Instructor AI chat temporarily unavailable. Use the free teaching guide.');}
+  }
   if(action==='careerChat'){
    requireValue(member?.active===true&&member?.role==='student'&&typeof member.traineeId==='string'&&member.traineeId.length>0,'An activated Student account is required for Career Chat.',403);
    const {validateCareerChat,systemFor}=require('./career-chat');
