@@ -68,9 +68,9 @@ function createService({db,verifyToken,config={},fetchImpl=fetch,now=()=>Date.no
   }
   if(action==='instructorChat'){
    requireValue(member?.active===true&&member?.role==='instructor','An active assigned Instructor account is required for Teaching Chat.',403);
-   const {validateInstructorChat,systemFor}=require('./instructor-chat');
+   const {validateInstructorChat,systemFor,guidedFor}=require('./instructor-chat');
    let chat;try{chat=validateInstructorChat(body);}catch(e){throw new ApiError(400,e.message);}
-   if(!config.provider||config.provider==='none')return {mode:'guided',text:offlineGuide('teaching',chat.language,chat.input)};
+   if(!config.provider||config.provider==='none')return {mode:'guided',text:guidedFor(chat.language)};
    requireValue(body.consent===true,'Consent required before sharing teaching chat with an AI provider.');
    await limit(u.uid,'ai',Number(config.dailyLimit)||20,Number(config.globalAiDailyLimit)||100);
    const system=systemFor(chat.language);
