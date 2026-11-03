@@ -297,8 +297,13 @@ test('staging password form rejects bad credentials and authenticates assigned s
   const app=M.initializeApp(cfg,'iti-v15'),auth=M.getAuth(app),db=M.getFirestore(app);
   M.connectAuthEmulator(auth,'http://127.0.0.1:9099',{disableWarnings:true});M.connectFirestoreEmulator(db,'127.0.0.1',8080);
   window.ITI_RUNTIME={staging:true,instituteLoginDomain:'example.test',firebaseConfig:{projectId:'demo-iti-staging'},apiUrl:''};
+  localStorage.setItem('iti-v15-email-v2','remembered.approved@gmail.com');
+  localStorage.removeItem('iti-v15-password-session');
+  const emailInput=document.getElementById('v15ExpectedEmail');if(emailInput)emailInput.value='remembered.approved@gmail.com';
  });
  await page.addScriptTag({url:'/v15/v15-staging-login.js'});
+ await expect(page.locator('#stagingGoogleEmail')).toHaveValue('remembered.approved@gmail.com');
+ await expect(page.locator('#v15ExpectedEmail')).toBeEmpty();
  await expect(page.locator('#stagingNotice')).toContainText('Institute records — authorised access only.');
  // Demo credentials and approved Google must be separate and unambiguous.
  await expect(page.locator('#v15ExpectedEmailField label')).toHaveText('Test account ID or email');
