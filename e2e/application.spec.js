@@ -330,7 +330,14 @@ test('staging password form rejects bad credentials and authenticates assigned s
  await googleOption.locator('summary').click();
  await expect(page.locator('#stagingGoogleEmail')).toBeHidden();
  await page.evaluate(()=>V15Sync.showRoleLogin());
- await expect(googleOption.getByRole('button',{name:'Continue with approved Google'})).toHaveCount(1);
+ // Playwright role queries exclude buttons hidden inside a closed <details>.
+ // Assert the real DOM button remains once, then expand and verify visibility.
+ await expect(googleOption.locator('button.btn.full')).toHaveCount(1);
+ await expect(googleOption.locator('button.btn.full')).toHaveText('Continue with approved Google');
+ await expect(googleOption.locator('button.btn.full')).toBeHidden();
+ await googleOption.locator('summary').click();
+ await expect(googleOption.getByRole('button',{name:'Continue with approved Google'})).toBeVisible();
+ await googleOption.locator('summary').click();
  await expect(page.locator('#stagingGoogleOption')).toHaveCount(1);
  await expect(page.locator('#stagingSignIn')).toHaveText('Sign in to demo');
  await page.locator('#loginRole').selectOption('student');await page.locator('#v15ExpectedEmail').fill('student@example.test');
