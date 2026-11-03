@@ -123,7 +123,9 @@ V.renderStudentSkillGap=async function(){
     const line=node('label');line.style.cssText='display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #e2e8f0;font-weight:normal;cursor:pointer';
     const check=node('input');check.type='checkbox';check.value=t.id;check.checked=selected.includes(t.id);
     check.style.width='auto';check.setAttribute('aria-label','Include '+t.name);
-    line.append(check,node('span',t.name));chooser.append(line);boxes.push(check);rows.push({line,text:t.name.toLowerCase()});
+    const title=node('span',t.name,'skill-gap-practical-title');
+    const state=node('span','Checking verification…','skill-gap-topic-verification');
+    line.append(check,title,state);chooser.append(line);boxes.push(check);rows.push({line,id:t.id,text:t.name.toLowerCase(),state});
   });
   form.append(chooser);
   const refreshSelection=()=>{
@@ -149,11 +151,17 @@ V.renderStudentSkillGap=async function(){
     profile=await this.getStudentSkillProfile(id.uid,id.wid);
   }catch(e){
     if(active()){
+      rows.forEach(x=>{x.state.textContent='Verification unavailable';});
       resultHost.replaceChildren(node('p','Cannot load verified skills. No percentage is shown because verification data is unavailable. Please retry later.','muted'));
     }
     return;
   }
   if(!active())return;
+  for(const item of rows){
+    const verified=profile?.skills?.[item.id]?.status==='verified';
+    item.state.textContent=verified?'✓ Instructor verified':'Not yet Instructor-verified';
+    item.state.classList.toggle('is-verified',verified);
+  }
   const topicMap=new Map(topics.map(t=>[t.id,t.name]));
   const redraw=()=>{
     if(!active())return;
