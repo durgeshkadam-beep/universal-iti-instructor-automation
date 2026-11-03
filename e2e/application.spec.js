@@ -205,6 +205,18 @@ test('student private skill plan, multilingual assistance and protected exam thr
  await page.evaluate(()=>V15Sync.finalOpenTab('skills'));
  await page.getByLabel('Self assessment for practical 1').selectOption('learning');
  await page.evaluate(()=>V15Sync.finalOpenTab('skill-gap'));
+ await expect(page.locator('.skill-gap-howto')).toContainText('How it works');
+ await expect(page.locator('#skillGapSelectedCount')).toContainText('practicals selected');
+ await expect(page.locator('.skill-gap-score-note')).toContainText('NOT an overall skills score');
+ await page.locator('#skillGapPracticalSearch').fill('Typography');
+ await expect(page.getByLabel('Include Practical 1: Layout basics',{exact:true})).toBeHidden();
+ await page.locator('#skillGapPracticalSearch').fill('');
+ await page.getByRole('button',{name:'Clear selection',exact:true}).click();
+ await expect(page.locator('#skillGapSelectedCount')).toContainText('0 of ');
+ await expect(page.locator('#tab-skill-gap')).toContainText('No practicals selected');
+ await expect(page.locator('#tab-skill-gap .skill-gap-summary')).toHaveCount(0);
+ await page.getByRole('button',{name:'Select full Trade syllabus',exact:true}).click();
+ await expect(page.locator('#tab-skill-gap .skill-gap-summary')).toBeVisible();
  await page.locator('#v15CareerRole').fill('Synthetic Layout Operator');
  await page.getByRole('button',{name:'Save personal learning plan'}).click();
  await expect(page.locator('#tab-skill-gap')).toContainText('Private learning plan synced');
