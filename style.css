@@ -1385,3 +1385,18 @@ html[data-v15-final-role] #v15QuickStart{
  #tab-skill-gap .skill-gap-step-list li:before{display:inline-grid;margin:0 10px 0 0;vertical-align:middle}
  #tab-skill-gap .skill-gap-summary strong{flex:1 1 130px}
 }
+
+
+#tab-skill-gap .skill-gap-practical-title{flex:1 1 240px;min-width:0;overflow-wrap:anywhere}
+#tab-skill-gap .skill-gap-topic-verification{
+ flex:none;display:inline-flex;align-items:center;justify-content:center;
+ border:1px solid #d9e2e8;border-radius:999px;padding:5px 9px;
+ font:700 10px/1.4 Inter,Arial,sans-serif;background:#f4f7f9;color:#526e7c;
+ max-width:100%;text-align:center;
+}
+#tab-skill-gap .skill-gap-topic-verification.is-verified{
+ color:#0d6860;background:#e6f5ed;border-color:#b9ddce;
+}
+@media(max-width:600px){
+ #tab-skill-gap .skill-gap-topic-verification{flex:0 1 auto}
+}
