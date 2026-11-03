@@ -30,13 +30,36 @@ V.showRoleLogin=function(){
  show.call(this);
  const card=document.querySelector('#loginScreen .login-card');
  if(!card||document.getElementById('stagingPassword'))return;
- const field=document.createElement('div');field.className='field';
- field.innerHTML='<label for="stagingPassword">Staging account password</label><input id="stagingPassword" type="password" autocomplete="current-password"><button type="button" class="btn primary" style="width:100%" id="stagingSignIn">Sign in with test account</button><small class="muted">Use the synthetic account credentials supplied privately. Select its assigned role above.</small>';
+ const field=document.createElement('div');field.className='field staging-test-password-field';field.id='stagingTestPasswordField';
+ field.innerHTML='<label for="stagingPassword">Test account password</label><input id="stagingPassword" type="password" autocomplete="current-password"><button type="button" class="btn primary" id="stagingSignIn">Sign in to demo</button><small class="muted">Use your assigned demo ID and private test password, not a personal Google password.</small>';
  card.appendChild(field);
- const label=document.querySelector('#v15ExpectedEmailField label');if(label)label.textContent='Staging test Institute ID or email';
- const idInput=document.getElementById('v15ExpectedEmail');if(idInput){idInput.type='text';idInput.placeholder='e.g. student or student@iti-staging.example.test';idInput.autocomplete='username';}
- const help=document.getElementById('v15AuthHelp');if(help)help.textContent='Select a role, enter the synthetic Institute ID (e.g. student) or complete email and the privately supplied password. Google requires the full approved Gmail.';
- const google=card.querySelector('button.btn.primary.full:not(#stagingSignIn)');if(google){google.classList.remove('primary');google.textContent='Use a separately approved Google account';}
+ const label=document.querySelector('#v15ExpectedEmailField label');if(label)label.textContent='Test account ID or email';
+ const idInput=document.getElementById('v15ExpectedEmail');
+ if(idInput){idInput.type='text';idInput.placeholder='e.g. instructor or instructor@iti-staging.example.test';idInput.autocomplete='username';}
+ const idHelp=document.querySelector('#v15ExpectedEmailField small');
+ if(idHelp)idHelp.textContent='Demo credentials only. Google sign-in is a separate option below.';
+ const help=document.getElementById('v15AuthHelp');
+ if(help){help.textContent='The selected role must match the approved test account. Firebase still verifies role and workspace permissions.';help.className='staging-test-help';field.appendChild(help);}
+ const google=card.querySelector('button.btn.primary.full:not(#stagingSignIn)');
+ if(google){
+  const other=document.createElement('details');other.id='stagingGoogleOption';other.className='staging-google-option';
+  other.innerHTML='<summary>Other sign-in method: Approved Google account <span>Optional · separately authorised</span></summary><div class="staging-google-fields"><label for="stagingGoogleEmail">Approved Google / Gmail email</label><input id="stagingGoogleEmail" type="email" autocomplete="email" placeholder="name@gmail.com"><small>Only for an account separately approved for the selected institute role. Do not use the test password here.</small></div>';
+  const googleEmail=other.querySelector('#stagingGoogleEmail');
+  const oldValue=idInput?.value?.trim()||'';
+  if(V.validEmail(oldValue)&&!/\\.(?:test|invalid)$/i.test(oldValue.split('@')[1]||''))googleEmail.value=oldValue;
+  google.classList.remove('primary');google.textContent='Continue with approved Google';
+  google.addEventListener('click',event=>{
+   const chosen=googleEmail.value.trim().toLowerCase();
+   if(!V.validEmail(chosen)){
+    event.preventDefault();event.stopImmediatePropagation();
+    V.loginMsg('Enter the full, separately approved Google / Gmail address.',true);googleEmail.focus();return;
+   }
+   // The original verified-Google handler still owns authentication. Set the
+   // email it validates before it starts; never reuse an unrelated demo ID.
+   if(idInput)idInput.value=chosen;
+  },true);
+  other.appendChild(google);card.appendChild(other);
+ }
  document.getElementById('stagingSignIn').onclick=async()=>{
   const button=document.getElementById('stagingSignIn'),email=stageEmail(document.getElementById('v15ExpectedEmail')?.value),password=document.getElementById('stagingPassword').value,role=document.getElementById('loginRole')?.value;
   if(!email||!password)return V.loginMsg('Enter your approved synthetic Institute ID/email and password.',true);
