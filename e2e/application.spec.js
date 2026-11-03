@@ -324,6 +324,10 @@ test('staging password form rejects bad credentials and authenticates assigned s
  expect(await page.evaluate(()=>window.__googleUiTestClicks)).toBe(1);
  await googleOption.locator('summary').click();
  await expect(page.locator('#stagingGoogleEmail')).toBeHidden();
+ await page.evaluate(()=>V15Sync.showRoleLogin());
+ await expect(googleOption.getByRole('button',{name:'Continue with approved Google'})).toHaveCount(1);
+ await expect(page.locator('#stagingGoogleOption')).toHaveCount(1);
+ await expect(page.locator('#stagingSignIn')).toHaveText('Sign in to demo');
  await page.locator('#loginRole').selectOption('student');await page.locator('#v15ExpectedEmail').fill('student@example.test');
  await page.locator('#stagingPassword').fill(testPassword+'invalid');await page.locator('#stagingSignIn').click();
  await expect(page.locator('#v15LoginStatus')).toContainText('Staging sign-in failed');
