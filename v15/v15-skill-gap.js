@@ -45,16 +45,17 @@ V.calculateSkillGap=function(requiredIds,profile,self){
 function renderStats(host,requested,profile,self,topicMap,roleName){
   host.replaceChildren();
   const result=V.calculateSkillGap(requested,profile,self);
-  const heading=node('h3','Learning gaps for '+(roleName||'My Trade Learning Plan'));
+  const heading=node('h3','3. My verified progress / माझी पडताळलेली प्रगती');
   host.append(heading);
-  const caution=node('p','These are self-selected learning requirements, not employer-approved job requirements. Completion means instructor verification, NOT a job guarantee.','muted');
-  host.append(caution);
-  if(!result.total){host.append(node('p','Select at least one practical to calculate your learning gap.','muted'));return;}
-  const stats=node('div',null,'field-row');
-  stats.style.cssText='display:flex;gap:14px;flex-wrap:wrap;align-items:center';
+  host.append(node('p','Skill Gap = selected practicals the Instructor has NOT yet verified. A self-rating does not count as Instructor verification.','muted'));
+  host.append(node('p','Your goal: '+(roleName||'Trade practical learning (no role entered)'),'skill-gap-goal-summary'));
+  if(!result.total){host.append(node('p','No practicals selected. Search and tick a few useful practicals above to see your learning steps. No percentage is calculated until you select at least one.','muted'));return;}
+  const stats=node('div',null,'skill-gap-summary');
   stats.append(node('strong',result.completed+' / '+result.total+' verified'));
   stats.append(node('strong',result.percent+'% learning coverage'));
+  stats.append(node('strong',result.missing.length+' not yet verified'));
   host.append(stats);
+  host.append(node('p','This percentage is only Instructor-verified coverage of YOUR selected practicals. It is NOT an overall skills score, job eligibility score or placement chance.','skill-gap-score-note'));
   const bar=node('div');bar.style.cssText='height:11px;border-radius:9px;background:#e7eef2;overflow:hidden;margin:12px 0';
   bar.setAttribute('role','progressbar');bar.setAttribute('aria-valuemin','0');
   bar.setAttribute('aria-valuemax','100');bar.setAttribute('aria-valuenow',String(result.percent));
@@ -67,7 +68,8 @@ function renderStats(host,requested,profile,self,topicMap,roleName){
     const row=node('div',null,'field-row');
     row.style.cssText='padding:10px 0;border-bottom:1px solid #e4e9ed';
     row.append(node('strong',(i+1)+'. '+(topicMap.get(step.id)||step.id)));
-    row.append(node('p',step.action+' • Self-rated: '+step.rating,'muted'));
+    const label={'not-started':'Not started','learning':'Learning','can-demonstrate':'I can demonstrate'}[step.rating]||'Not started';
+    row.append(node('p','Next action: '+step.action+' · My self-rating: '+label+' · Instructor verification pending','muted'));
     host.append(row);
   });
 }
@@ -77,12 +79,26 @@ V.renderStudentSkillGap=async function(){
   const generation=++renderGeneration, institute=V.INSTITUTE_ID;
   host.replaceChildren();
   const h=node('div',null,'hero'),head=node('div',null,'hero-content');
-  head.append(node('h2','🎯 Skill Gap & Learning Plan'));
-  head.append(node('p','Compare your selected practicals with Instructor-verified achievements. Choose a personal career goal and plan your next learning steps.'));
+  head.append(node('h2','🎯 My Learning Plan (Skill Gap)'));
+  head.append(node('p','मी काय शिकलो? अजून कोणत्या practicals चा सराव किंवा Instructor assessment हवा? Choose a few Trade practicals, then see your next learning actions.'));
   h.append(head);host.append(h);
   const id=identity();
   if(!id){host.append(node('div','An activated Student account linked to a trainee and Trade is required.','callout'));return;}
   const active=()=>generation===renderGeneration&&V.ready&&currentRole()==='student'&&V.INSTITUTE_ID===institute&&identity()?.key===id.key&&host.isConnected;
+  const help=node('section',null,'card skill-gap-howto');
+  help.append(node('h3','How it works / कसे वापरायचे?'));
+  const steps=node('ol',null,'skill-gap-step-list');
+  for(const step of [
+    '1. My Skills: mark your own level for each practical. Instructor verification is separate.',
+    '2. Choose: enter an optional study goal, select the practicals you want to work on and Save.',
+    '3. Improve: see which selected practicals are not yet Instructor-verified, practise them and request assessment.'
+  ])steps.append(node('li',step.replace(/^\\d+\\. /,'')));
+  help.append(steps);
+  const openSkills=node('button','Open My Skills / माझी कौशल्ये','btn secondary');openSkills.type='button';
+  openSkills.addEventListener('click',()=>{if(active())V.finalOpenTab?.('skills')?.catch?.(console.error);});
+  help.append(openSkills);
+  help.append(node('p','Example: If you choose 5 practicals and the Instructor has verified 2, your gap is 3. The 40% describes only those 5 selected tasks, not your employability.','skill-gap-example'));
+  host.append(help);
   const topics=skills();
   if(!topics.length){host.append(node('div','Your instructor has not published practical topics for this Trade.','callout'));return;}
   const legacyNotice=V.studentStorageNotice?.();if(legacyNotice)host.append(node('p',legacyNotice,'callout'));
@@ -91,11 +107,10 @@ V.renderStudentSkillGap=async function(){
   const selected=stored&&Array.isArray(stored.requiredIds)
     ?stored.requiredIds.filter(x=>keys.has(x)) :topics.map(t=>t.id);
   const form=node('section',null,'card');host.append(form);
-  form.append(node('h3','Personal target role / माझे करिअर उद्दिष्ट'));
-  const disclaimer=node('p','Role name and required practicals are chosen by you. They are NOT verified against employer job descriptions, NSQF standards or live vacancies.','muted');
-  form.append(disclaimer);
-  const label=node('label','Target role (personal goal)');label.htmlFor='v15CareerRole';form.append(label);
-  const goal=node('input');goal.id='v15CareerRole';goal.maxLength=80;goal.placeholder='e.g. DTP Operator';
+  form.append(node('h3','2. Choose your goal and practicals / माझे उद्दिष्ट'));
+  form.append(node('p','Your personal study list — you choose which practicals to focus on. This is NOT an employer-approved job requirement, NSQF assessment or live vacancy match.','muted'));
+  const label=node('label','My study / career goal (optional)');label.htmlFor='v15CareerRole';form.append(label);
+  const goal=node('input');goal.id='v15CareerRole';goal.maxLength=80;goal.placeholder='Example: DTP Operator — layout and print skills';
   goal.value=typeof stored?.roleName==='string'?stored.roleName:'';
   form.append(goal);
   const chooser=node('div');chooser.style.cssText='max-height:310px;overflow-y:auto;margin:12px 0;border-top:1px solid #e2e8f0';
