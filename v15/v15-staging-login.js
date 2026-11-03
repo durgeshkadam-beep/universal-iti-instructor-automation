@@ -35,6 +35,8 @@ V.showRoleLogin=function(){
   // Keep the two sign-in methods visually distinct after a role/menu refresh.
   const existingGoogle=card.querySelector('#stagingGoogleOption button.btn.full');
   if(existingGoogle){existingGoogle.classList.remove('primary');existingGoogle.textContent='Continue with approved Google';}
+  const demo=document.getElementById('v15ExpectedEmail'),googleEmail=document.getElementById('stagingGoogleEmail');
+  try{if(demo&&googleEmail?.value&&demo.value===googleEmail.value&&localStorage.getItem('iti-v15-password-session')!=='1')demo.value='';}catch(e){}
   return;
  }
  const field=document.createElement('div');field.className='field staging-test-password-field';field.id='stagingTestPasswordField';
@@ -53,7 +55,12 @@ V.showRoleLogin=function(){
   other.innerHTML='<summary>Other sign-in method: Approved Google account <span>Optional · separately authorised</span></summary><div class="staging-google-fields"><label for="stagingGoogleEmail">Approved Google / Gmail email</label><input id="stagingGoogleEmail" type="email" autocomplete="email" placeholder="name@gmail.com"><small>Only for an account separately approved for the selected institute role. Do not use the test password here.</small></div>';
   const googleEmail=other.querySelector('#stagingGoogleEmail');
   const oldValue=idInput?.value?.trim()||'';
-  if(V.validEmail(oldValue)&&!/\.(?:test|invalid)$/i.test(oldValue.split('@')[1]||''))googleEmail.value=oldValue;
+  if(V.validEmail(oldValue)&&!/\.(?:test|invalid)$/i.test(oldValue.split('@')[1]||'')){
+   googleEmail.value=oldValue;
+   // A remembered Google address is not automatically a demo-password account.
+   // Leave the primary demo input empty unless the last login used a password.
+   try{if(localStorage.getItem('iti-v15-password-session')!=='1'&&idInput)idInput.value='';}catch(e){}
+  }
   google.classList.remove('primary');google.textContent='Continue with approved Google';
   google.addEventListener('click',event=>{
    const chosen=googleEmail.value.trim().toLowerCase();
