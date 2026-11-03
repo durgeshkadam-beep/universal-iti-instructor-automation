@@ -29,7 +29,14 @@ V.stagingFailureMessage=function(error,stage){
 V.showRoleLogin=function(){
  show.call(this);
  const card=document.querySelector('#loginScreen .login-card');
- if(!card||document.getElementById('stagingPassword'))return;
+ if(!card)return;
+ if(document.getElementById('stagingPassword')){
+  // The underlying role-login renderer also resets the legacy Google label.
+  // Keep the two sign-in methods visually distinct after a role/menu refresh.
+  const existingGoogle=card.querySelector('#stagingGoogleOption button.btn.full');
+  if(existingGoogle){existingGoogle.classList.remove('primary');existingGoogle.textContent='Continue with approved Google';}
+  return;
+ }
  const field=document.createElement('div');field.className='field staging-test-password-field';field.id='stagingTestPasswordField';
  field.innerHTML='<label for="stagingPassword">Test account password</label><input id="stagingPassword" type="password" autocomplete="current-password"><button type="button" class="btn primary" id="stagingSignIn">Sign in to demo</button><small class="muted">Use your assigned demo ID and private test password, not a personal Google password.</small>';
  card.appendChild(field);
