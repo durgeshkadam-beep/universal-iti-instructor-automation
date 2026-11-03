@@ -1323,3 +1323,65 @@ html[data-v15-final-role] #v15QuickStart{
  #loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields{padding:0 12px 10px}
  #loginScreen .eduskill-login-card>#stagingGoogleOption .btn.full{width:calc(100% - 24px);margin:0 12px 12px}
 }
+
+
+/* Student Skill Gap: three-step guidance and focused personal practicals selection. */
+#tab-skill-gap .skill-gap-howto{
+ border:1px solid #d5e5e8;background:linear-gradient(135deg,#f8fcfd,#eff8f6);
+ border-radius:17px;padding:19px 21px;margin:14px 0 17px;
+}
+#tab-skill-gap .skill-gap-howto h3{color:#17465b;margin:0 0 13px;font-size:17px}
+#tab-skill-gap .skill-gap-step-list{
+ list-style:none;counter-reset:student-step;padding:0;margin:0 0 14px;
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+}
+#tab-skill-gap .skill-gap-step-list li{
+ counter-increment:student-step;min-width:0;
+ border:1px solid #dbe9eb;border-radius:12px;padding:13px;
+ background:#fff;color:#3a606e;font-size:12px;line-height:1.6;
+}
+#tab-skill-gap .skill-gap-step-list li:before{
+ content:counter(student-step);display:grid;place-items:center;
+ width:27px;height:27px;margin-bottom:8px;background:#dff4ed;
+ border-radius:9px;font-weight:800;font-size:13px;color:#0a726c;
+}
+#tab-skill-gap .skill-gap-example{
+ margin:13px 0 0;font-size:11px;line-height:1.6;color:#4b6b77;
+}
+#tab-skill-gap .skill-gap-selection-tip{
+ margin:13px 0 8px;padding:11px 13px;border-left:3px solid #188581;
+ background:#f1f9f8;color:#315967;font-size:12px;line-height:1.55;border-radius:0 9px 9px 0;
+}
+#tab-skill-gap #skillGapPracticalSearch{
+ display:block;width:100%;max-width:450px;box-sizing:border-box;
+ background:#fff;border:1px solid #bad0d9;color:#1e4655;
+ border-radius:11px;padding:10px 13px;font-size:13px;min-height:44px;
+}
+#tab-skill-gap #skillGapPracticalSearch:focus-visible{
+ outline:3px solid #a7ded4;outline-offset:2px;
+}
+#tab-skill-gap .skill-gap-selected-count{
+ margin:10px 0 3px;font-weight:750;font-size:12px;line-height:1.5;color:#115c66;
+}
+#tab-skill-gap #skillGapPracticalChooser label[hidden]{display:none!important}
+#tab-skill-gap .skill-gap-goal-summary{
+ border-left:3px solid #17847e;padding:8px 11px;border-radius:0 8px 8px 0;
+ margin:11px 0;background:#f5fafa;color:#17495a;font-weight:700;font-size:12px;
+ overflow-wrap:anywhere;
+}
+#tab-skill-gap .skill-gap-summary{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#tab-skill-gap .skill-gap-summary strong{
+ font-size:12px;line-height:1.5;border:1px solid #dce6eb;
+ background:#f5fafc;border-radius:10px;padding:10px 12px;color:#1d4e60;
+}
+#tab-skill-gap .skill-gap-score-note{
+ color:#5b717d;font-size:11px;line-height:1.6;
+ margin:10px 0;
+}
+@media(max-width:780px){
+ #tab-skill-gap .skill-gap-howto{padding:14px}
+ #tab-skill-gap .skill-gap-step-list{grid-template-columns:minmax(0,1fr);gap:8px}
+ #tab-skill-gap .skill-gap-step-list li{padding:10px 12px}
+ #tab-skill-gap .skill-gap-step-list li:before{display:inline-grid;margin:0 10px 0 0;vertical-align:middle}
+ #tab-skill-gap .skill-gap-summary strong{flex:1 1 130px}
+}
