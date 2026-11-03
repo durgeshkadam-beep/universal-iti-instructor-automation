@@ -89,10 +89,10 @@ V.renderStudentSkillGap=async function(){
   help.append(node('h3','How it works / कसे वापरायचे?'));
   const steps=node('ol',null,'skill-gap-step-list');
   for(const step of [
-    '1. My Skills: mark your own level for each practical. Instructor verification is separate.',
-    '2. Choose: enter an optional study goal, select the practicals you want to work on and Save.',
-    '3. Improve: see which selected practicals are not yet Instructor-verified, practise them and request assessment.'
-  ])steps.append(node('li',step.replace(/^\\d+\\. /,'')));
+    'My Skills: mark your own level for each practical. Instructor verification is separate.',
+    'Choose: enter an optional study goal, select the practicals you want to work on and Save.',
+    'Improve: see which selected practicals are not yet Instructor-verified, practise them and request assessment.'
+  ])steps.append(node('li',step));
   help.append(steps);
   const openSkills=node('button','Open My Skills / माझी कौशल्ये','btn secondary');openSkills.type='button';
   openSkills.addEventListener('click',()=>{if(active())V.finalOpenTab?.('skills')?.catch?.(console.error);});
@@ -113,19 +113,33 @@ V.renderStudentSkillGap=async function(){
   const goal=node('input');goal.id='v15CareerRole';goal.maxLength=80;goal.placeholder='Example: DTP Operator — layout and print skills';
   goal.value=typeof stored?.roleName==='string'?stored.roleName:'';
   form.append(goal);
-  const chooser=node('div');chooser.style.cssText='max-height:310px;overflow-y:auto;margin:12px 0;border-top:1px solid #e2e8f0';
-  const boxes=[];
+  form.append(node('p',stored?.requiredIds?'Your saved practical selection is loaded below.':'All Trade practicals are selected by default. For a smaller goal, click Clear selection and choose 3–5 practicals.','skill-gap-selection-tip'));
+  const searchLabel=node('label','Find a practical / प्रात्यक्षिक शोधा');searchLabel.htmlFor='skillGapPracticalSearch';form.append(searchLabel);
+  const search=node('input');search.id='skillGapPracticalSearch';search.type='search';search.placeholder='Search by practical number or topic…';form.append(search);
+  const selectedCount=node('p','', 'skill-gap-selected-count');selectedCount.id='skillGapSelectedCount';selectedCount.setAttribute('role','status');form.append(selectedCount);
+  const chooser=node('div');chooser.id='skillGapPracticalChooser';chooser.style.cssText='max-height:310px;overflow-y:auto;margin:12px 0;border-top:1px solid #e2e8f0';
+  const boxes=[],rows=[];
   topics.forEach(t=>{
     const line=node('label');line.style.cssText='display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #e2e8f0;font-weight:normal;cursor:pointer';
     const check=node('input');check.type='checkbox';check.value=t.id;check.checked=selected.includes(t.id);
     check.style.width='auto';check.setAttribute('aria-label','Include '+t.name);
-    line.append(check,node('span',t.name));chooser.append(line);boxes.push(check);
+    line.append(check,node('span',t.name));chooser.append(line);boxes.push(check);rows.push({line,text:t.name.toLowerCase()});
   });
   form.append(chooser);
+  const refreshSelection=()=>{
+    const chosen=boxes.filter(b=>b.checked).length;
+    selectedCount.textContent=chosen+' of '+boxes.length+' practicals selected · This is your study list, not job requirements.';
+  };
+  search.addEventListener('input',()=>{
+    const term=search.value.trim().toLowerCase();
+    for(const item of rows)item.line.hidden=!item.text.includes(term);
+  });
+  refreshSelection();
   const buttons=node('div');buttons.style.cssText='display:flex;flex-wrap:wrap;gap:8px';
   const save=node('button','Save personal learning plan','btn primary');save.type='button';
+  const clear=node('button','Clear selection','btn secondary');clear.type='button';
   const reset=node('button','Select full Trade syllabus','btn');reset.type='button';
-  buttons.append(save,reset);form.append(buttons);
+  buttons.append(save,clear,reset);form.append(buttons);
   const message=node('p','','muted');message.setAttribute('role','status');form.append(message);
   const resultHost=node('section',null,'card');resultHost.style.marginTop='16px';
   resultHost.append(node('p','Loading secure verified skills…','muted'));host.append(resultHost);
@@ -153,13 +167,14 @@ V.renderStudentSkillGap=async function(){
     try{
       localStorage.setItem(id.key,JSON.stringify({roleName:goal.value.trim().slice(0,80),requiredIds,updatedAt:new Date().toISOString()}));
       message.textContent='Learning plan saved on this browser. Syncing private cloud copy…';
-      V.persistStudentPlan?.().then(()=>{message.textContent='Private learning plan synced. Verified status remains controlled by the instructor.';}).catch(()=>{message.textContent='Saved on this browser; cloud sync pending. Reconnect and reopen Skill Gap.';});
+      V.persistStudentPlan?.().then(()=>{if(active())message.textContent='Private learning plan synced. Verified status remains controlled by the instructor.';}).catch(()=>{if(active())message.textContent='Saved on this browser; cloud sync pending. Reconnect and reopen Skill Gap.';});
       redraw();
     }catch(e){message.textContent='This browser could not save your plan. Check storage permissions.';}
   });
-  reset.addEventListener('click',()=>{if(!active())return;boxes.forEach(b=>{b.checked=true;});message.textContent='Full Trade syllabus selected. Click Save to keep this selection.';redraw();});
-  boxes.forEach(b=>b.addEventListener('change',redraw));
-  goal.addEventListener('input',redraw);
+  clear.addEventListener('click',()=>{if(!active())return;boxes.forEach(b=>{b.checked=false;});message.textContent='Selection cleared. Choose a few practicals, then Save your personal learning plan.';refreshSelection();redraw();});
+  reset.addEventListener('click',()=>{if(!active())return;boxes.forEach(b=>{b.checked=true;});message.textContent='Full Trade syllabus selected. Click Save to keep this selection.';refreshSelection();redraw();});
+  boxes.forEach(b=>b.addEventListener('change',()=>{if(!active())return;refreshSelection();message.textContent='Selection changed. Click Save to keep your new learning plan.';redraw();}));
+  goal.addEventListener('input',()=>{if(!active())return;message.textContent='Goal changed. Click Save to keep it.';redraw();});
   redraw();
 };
 })(window.V15Sync);
