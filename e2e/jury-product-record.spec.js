@@ -9,7 +9,7 @@
  */
 const {test,expect}=require('@playwright/test');
 const testPassword=process.env.ITI_EMULATOR_TEST_PASSWORD;
-test.use({video:'on',viewport:{width:1440,height:900}});
+test.use({video:{mode:'on',size:{width:1440,height:900}},viewport:{width:1440,height:900}});
 
 async function enterRole(page,role){
  if(!testPassword)throw Error('Recording requires the Auth/Firestore emulator runner.');
