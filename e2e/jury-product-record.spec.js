@@ -53,7 +53,7 @@ async function scene(page,title,detail,ai=false,milliseconds=3600){
 }
 
 test('Jury product recording — actual Instructor → Student skill journey',async({page})=>{
- test.setTimeout(180000); // intentional multi-scene video, not a 45s functional test
+ test.setTimeout(300000); // full real-app jury walkthrough, including workbook, year plan, instructor and student
  test.skip(!process.env.ITI_RECORD_JURY_DEMO||test.info().project.name!=='desktop','Opt-in isolated Jury recording only.');
  await page.route(/https:\/\/.*/,route=>route.abort());
  await page.goto('/v15/index.html');
@@ -64,58 +64,108 @@ test('Jury product recording — actual Instructor → Student skill journey',as
  await page.evaluate(()=>V15Sync.finalOpenTab('dashboard'));
  await scene(page,'1  INSTRUCTOR DASHBOARD','Trade planning, teaching records and practical progress',false,5200);
 
+ // Import the EXISTING repository XLSX fixture through the actual Excel uploader.
+ // The managed year plan is saved only to emulator workspace "planning-demo".
+ await page.evaluate(async()=>{await V15Sync.switchWorkspace('planning-demo');await V15Sync.finalOpenTab('syllabus-ai');});
+ await expect(page.locator('#uFile')).toBeVisible();
+ await scene(page,'2  EXCEL YEAR PLANNING','Instructor imports DTP Theory & Practical topics from an XLSX workbook',false,6200);
+ await page.locator('#uFile').setInputFiles('tests/fixtures/syllabus-upload.xlsx');
+ await page.getByRole('button',{name:'Read / Import Syllabus',exact:true}).click();
+ await expect(page.locator('#uStatus')).toContainText('Loaded 3 topics');
+ await expect(page.getByLabel('Row 1 hours',{exact:true})).toHaveValue('7.5');
+ await scene(page,'3  REVIEW IMPORTED TOPICS','Exercise numbers, names and hours are checked before saving',false,7300);
+
+ await page.locator('#uStart').fill('2026-10-30');
+ await page.locator('#uEnd').fill('2026-11-06');
+ await page.locator('#uHours').fill('5');
+ await page.locator('#uTheoryHours').fill('3');
+ await page.locator('#uAltSat').uncheck();
+ await page.locator('#uUseExistingHolidays').uncheck();
+ await page.locator('#uHolidays').fill('2026-10-31 | Synthetic training holiday');
+ await page.getByRole('button',{name:'Generate Working Calendar',exact:false}).click();
+ await expect(page.locator('#uCapacitySummary')).toContainText('7.5 hours required');
+ await scene(page,'4  YEAR PLAN PREVIEW','5 practical + 3 theory hours/day, holidays and available capacity',false,7100);
+ page.on('dialog',dialog=>dialog.accept());
+ await page.getByRole('button',{name:'Save / Revise Year Plan',exact:true}).click();
+ await expect(page.locator('#uStatus')).toContainText('revision');
+ await scene(page,'5  SAVED YEAR PLAN','Reviewed schedule saved as a revision in the isolated demo workspace',false,5400);
+
+ await page.evaluate(()=>V15Sync.finalOpenTab('splitup'));
+ await expect(page.getByLabel('Year plan view',{exact:true})).toBeVisible();
+ await expect(page.locator('#splitupTableBody')).toContainText('Synthetic Excel layout');
+ await scene(page,'6  DAY-WISE TRAINING','Actual software calendar: daily practicals, theory and session dates',false,5800);
+ await page.getByLabel('Year plan view',{exact:true}).selectOption('week');
+ await expect(page.locator('#yearPlanRevision')).toContainText('week-wise');
+ await scene(page,'7  WEEK-WISE TRAINING','Group the saved schedule week by week for instructor planning',false,6800);
+ await page.getByLabel('Year plan view',{exact:true}).selectOption('month');
+ await expect(page.locator('#yearPlanRevision')).toContainText('month-wise');
+ await scene(page,'8  MONTH-WISE TRAINING','Monthly overview for inspection, teaching progress and records',false,6400);
+ await page.getByRole('button',{name:'Full session',exact:true}).click();
+ await expect(page.locator('#yearPlanRevision')).toContainText('Full session');
+ await scene(page,'9  FULL SESSION / YEAR PLAN','Entire saved training period — no invented year-wise feature',false,5600);
+
+ // Demonstration plan on the imported and saved Excel practical.
  await page.evaluate(()=>{
-  window.confirm=()=>true;
   const original=V15Sync.backendRequest.bind(V15Sync);
   V15Sync.backendRequest=async payload=>{
    if(payload.action==='capabilities')return {aiConfigured:true};
    if(payload.action==='ai')return {mode:'ai-draft',text:JSON.stringify({
-    objective:['Create a clear page layout using margins and readable typography'],
-    tools:['DTP application','Computer and projector','Sample brochure artwork'],
-    steps:[{procedure:'Set A4 page size and margins, align headings and export a PDF proof.',
-      keyPoint:'Consistent spacing and legible type hierarchy.',
-      spotHint:'Check print preview and the exported PDF.'}],
-    questions:['Which margin settings were used?','How do you check the final PDF proof?'],
+    objective:['Use margins, alignment and typography in a two-page DTP layout'],
+    tools:['Desktop publishing software','Computer and projector','Synthetic brochure artwork'],
+    steps:[{procedure:'Create a two-page brochure, align text and images, set consistent margins, and export a print-ready PDF.',
+      keyPoint:'Consistent spacing, correct font hierarchy and safe PDF export.',
+      spotHint:'Open the final PDF proof and inspect the headings and margins.'}],
+    questions:['How did you check the margins?','What makes the final PDF print ready?'],
     nextDemo:'Typography and text alignment'
    })};
    return original(payload);
   };
  });
  await page.evaluate(()=>V15Sync.finalOpenTab('ai-assistant'));
- await expect(page.locator('#aiTopicTypeFilter')).toBeVisible();
  await page.locator('#aiTopicTypeFilter').selectOption('practical');
  await expect.poll(()=>page.locator('#aiTopicSelect option').count()).toBeGreaterThan(1);
- await page.locator('#aiTopicSelect').selectOption({index:1});
- await scene(page,'2  INSTRUCTOR AI PLAN','Choose practical → request draft → review before official approval',true,3500);
+ await page.locator('#aiTopicSelect').selectOption(JSON.stringify(['practical','excel-001']));
+ await scene(page,'10  AI DEMONSTRATION PLAN','Select the actual imported DTP topic and request a reviewed example',true,5100);
  await page.getByRole('button',{name:'Generate AI Plan',exact:true}).click();
  await expect(page.locator('#aiModal')).toBeVisible();
- await expect(page.locator('#aiResultText')).toHaveValue(/Create a clear page layout/);
- await scene(page,'3  DEMONSTRATION PLAN','Example objectives, tools, procedure and assessment generated in test mode',true,7600);
- await page.locator('#aiModal').getByRole('button',{name:/Close/}).click();
+ await expect(page.locator('#aiResultText')).toHaveValue(/Use margins, alignment and typography/);
+ await expect(page.locator('#aiPreviewBox')).toBeVisible();
+ await scene(page,'11  PLAN PREVIEW','Objectives, tools, teaching procedure, questions and next demonstration',true,9800);
+ await page.getByRole('button',{name:'Approve & Keep'}).click();
+ await expect(page.locator('#aiModal')).toBeHidden();
+ await expect(page.locator('#planModal .plan-document-wrap')).toContainText('Create a two-page brochure');
+ await scene(page,'12  INSTRUCTOR-APPROVED PLAN','Approved example is stored and opened in the real plan viewer',true,8200);
+ await page.locator('#planModal').getByRole('button',{name:/Close/}).click();
 
+ // Return to the same Instructor's original DTP learner workspace for skill checks.
+ await enterRole(page,'instructor');
  page.on('dialog',dialog=>dialog.accept());
  await page.evaluate(()=>V15Sync.finalOpenTab('skill-review'));
  await expect(page.locator('#v15SkillReviewStudent')).toBeVisible();
  await page.locator('#v15SkillReviewStudent').selectOption('student');
- await scene(page,'4  INSTRUCTOR SKILL VERIFICATION','Select synthetic trainee and assess practical evidence',false,4400);
+ await scene(page,'13  INSTRUCTOR SKILL VERIFICATION','Select synthetic trainee and assess practical evidence',false,4400);
  await page.getByLabel('Evidence for practical 1').fill('Synthetic supervised layout assessment for demonstration only');
  await page.getByLabel('Evidence for practical 1').locator('..').getByRole('button').click();
  await expect(page.locator('#tab-skill-review')).toContainText('Saved to Firebase');
- await scene(page,'5  VERIFIED SKILL SAVED','Real app data flow persisted in isolated Firebase emulator',false,3900);
+ await scene(page,'14  VERIFIED SKILL SAVED','Real app data flow persisted in isolated Firebase emulator',false,3900);
 
  await enterRole(page,'student');
  await page.evaluate(()=>V15Sync.finalOpenTab('skills'));
  await expect(page.locator('#v15VerifiedSkills')).toContainText('Synthetic supervised layout assessment');
- await scene(page,'6  STUDENT SKILL PASSPORT','The same instructor verification appears in the trainee account',false,6200);
+ await scene(page,'15  STUDENT SKILL PASSPORT','The same instructor verification appears in the trainee account',false,6200);
 
  await page.evaluate(()=>V15Sync.finalOpenTab('skill-gap'));
  await expect(page.locator('.skill-gap-howto')).toBeVisible();
  await page.getByRole('button',{name:'Select full Trade syllabus',exact:true}).click();
- await scene(page,'7  SKILL GAP','Compare selected trade practicals against instructor-verified work',false,5400);
+ await scene(page,'16  SKILL GAP','Compare selected trade practicals against instructor-verified work',false,5400);
  await page.locator('#v15CareerRole').fill('Junior Graphic Designer — example learning goal');
  await page.getByRole('button',{name:'Save personal learning plan'}).click();
  await expect(page.locator('#tab-skill-gap')).toContainText('Private learning plan synced');
- await scene(page,'8  PERSONAL LEARNING PLAN','Student chooses a goal and saves a private improvement plan',false,5500);
+ await scene(page,'17  PERSONAL LEARNING PLAN','Student chooses a goal and saves a private improvement plan',false,5500);
+
+ await page.evaluate(()=>V15Sync.finalOpenTab('career-lens'));
+ await expect(page.locator('#tab-career-lens')).toHaveClass(/active/);
+ await scene(page,'18  SKILL TO CAREER','Connect verified practical learning with source-linked career exploration',false,7000);
 
  await page.evaluate(async()=>{
   const original=V15Sync.backendRequest.bind(V15Sync);
@@ -128,13 +178,18 @@ test('Jury product recording — actual Instructor → Student skill journey',as
   await V15Sync.finalOpenTab('career-coach');
  });
  await expect(page.getByRole('heading',{name:'Career Mentor — AI Chat'})).toBeVisible();
- await scene(page,'9  STUDENT CAREER MENTOR','The application supports conversational career guidance when AI is configured',true,3500);
+ await scene(page,'19  STUDENT CAREER MENTOR','The application supports conversational career guidance when AI is configured',true,3500);
  await page.locator('#coach-chat-input').fill('I study DTP. Which skills should I practise for graphic design?');
  await page.locator('#coach-chat-card input[type=checkbox]').check();
  await page.getByRole('button',{name:'Send to AI Career Mentor',exact:true}).click();
  await expect(page.locator('#coach-chat-messages .career-chat-line')).toHaveCount(2);
- await scene(page,'10  CAREER CHAT EXAMPLE','Sample AI-provider response in test mode; live provider is not verified',true,7000);
+ await scene(page,'20  CAREER CHAT EXAMPLE','Sample AI-provider response in test mode; live provider is not verified',true,7000);
+
+ await page.locator('#coach-chat-input').fill('How can I turn my verified DTP skills into a portfolio and interview preparation?');
+ await page.getByRole('button',{name:'Send to AI Career Mentor',exact:true}).click();
+ await expect(page.locator('#coach-chat-messages .career-chat-line')).toHaveCount(4);
+ await scene(page,'21  FOLLOW-UP CAREER GUIDANCE','Student asks a second question in the same conversation; sample response',true,7700);
 
  await page.evaluate(()=>V15Sync.finalOpenTab('dashboard'));
- await scene(page,'FROM TRAINING TO EMPLOYMENT','Instructor verification → Skill Passport → Skill Gap → Learning Plan',false,5000);
+ await scene(page,'UNIVERSAL EDUSKILL 360','Excel → Year Plan → AI Plan → Verified Skills → Career Guidance',false,6600);
 });
