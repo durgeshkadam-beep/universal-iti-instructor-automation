@@ -53,6 +53,7 @@ async function scene(page,title,detail,ai=false,milliseconds=3600){
 }
 
 test('Jury product recording — actual Instructor → Student skill journey',async({page})=>{
+ test.setTimeout(180000); // intentional multi-scene video, not a 45s functional test
  test.skip(!process.env.ITI_RECORD_JURY_DEMO||test.info().project.name!=='desktop','Opt-in isolated Jury recording only.');
  await page.route(/https:\/\/.*/,route=>route.abort());
  await page.goto('/v15/index.html');
