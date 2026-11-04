@@ -1,3 +1,23 @@
+# Universal EduSkill 360 — Working Innovation Prototype (2026)
+
+**Instructor-verified skills → Skill Gap → Personal Learning Plan → Career preparation.** Built for vocational trainees and instructors at Government ITI Mumbai-01, with role-scoped institute workflows.
+
+**For Seva First Innovation Challenge reviewers:** [Read the concise, evidence-based six-part jury screening brief](docs/JURY-SCREENING-BRIEF-2026.md). It covers the observed problem, distinct approach, working prototype evidence, limitations, intended impact, costs and potential scale without claiming unmeasured outcomes.
+
+| Explore | Independent verification |
+| --- | --- |
+| [Staging project tour](https://universal-iti-dk-staging.web.app/v15/) | [Development milestones and commit history — PR #16](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/pull/16) |
+| [Features and pilot limitations](docs/JURY-SCREENING-BRIEF-2026.md) | [Full CI validation](https://github.com/durgeshkadam-beep/universal-iti-instructor-automation/actions/workflows/v15-production-tests.yml) |
+| [Production readiness checklist](docs/PRODUCTION-READINESS.md) | [Technical validation record](docs/WORK-VALIDATION-20261022.md) |
+
+**Honest current status:** This is a working prototype with a staged pilot, **not yet a production-certified, institute-wide system**. Optional generative AI requires a configured secure provider and consent; fallback guided practice is not a language model. Real student outcome numbers, placements, measured hours saved, unrestricted free-tier AI and statewide reach are not established. The deployed staging version may be older than the development branch.
+
+---
+
+## Historical implementation notes
+
+> **Staging changes — Draft PR #16.** See [production readiness, setup and limitations](docs/PRODUCTION-READINESS.md) and [validation report](docs/WORK-VALIDATION-20261022.md). This branch is not production-approved. New trusted Node API protects MCQ grading and optional AI. Core career guidance works without a key. Run `npm test`, `npm run test:rules`, and `npm run test:e2e` with Node 22 / Java 21. Historical version notes below may describe replaced behavior; the readiness guide is authoritative for this branch.
+
 # V14 — Modern UI + Free AI + Cloud & Drive Safety
 
 **Concept & Developed by Durgesh Kadam, Craft Instructor — DTP / DTPO**

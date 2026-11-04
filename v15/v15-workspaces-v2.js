@@ -64,7 +64,7 @@ V.assignAccountWorkspaces=async function(uid,workspaceIds,{replace=true}={}){
 V.switchWorkspace=async function(wid){
   if(!wid||wid===this.workspaceId)return;const elevated=['admin','principal'].includes(role()),ids=elevated?null:(this.member?.workspaceIds||[]);if(ids&&!ids.includes(wid))throw new Error('This account is not assigned to that Trade workspace.');
   this.unsubscribers?.forEach?.(f=>{try{f();}catch(e){}});this.unsubscribers=[];this.workspaceId=wid;localStorage.setItem(PREF+this.fb.user.uid,wid);
-  if(window.DATA&&typeof DATA==='object')for(const k of Object.keys(DATA)){if(['meta','gallery','users'].includes(k))continue;if(Array.isArray(DATA[k]))DATA[k]=[];else if(DATA[k]&&typeof DATA[k]==='object')DATA[k]={};}
+  if(typeof DATA==='object'&&DATA)for(const k of Object.keys(DATA)){if(['meta','gallery','users'].includes(k))continue;if(Array.isArray(DATA[k]))DATA[k]=[];else if(DATA[k]&&typeof DATA[k]==='object')DATA[k]={};}
   await this.load(role()==='admin'?'instructor':role());this.shadow=this.clone(DATA);this.realtime(role()==='admin'?'instructor':role());this.refresh?.();await this.applyRolePortal?.();
 };
 

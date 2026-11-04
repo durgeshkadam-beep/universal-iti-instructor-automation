@@ -1,0 +1,27 @@
+# Staging only. Add the private secret file in Render before manual deployment.
+# See docs/RENDER-STAGING.md. This file creates no resources by itself.
+services:
+  - type: web
+    name: universal-iti-staging-api
+    runtime: docker
+    plan: free
+    region: singapore
+    repo: https://github.com/durgeshkadam-beep/universal-iti-instructor-automation
+    branch: phase1/security-student-career-20261021
+    autoDeployTrigger: 'off'
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: ITI_STAGING_ONLY
+        value: 'true'
+      - key: GCLOUD_PROJECT
+        value: universal-iti-dk-staging
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: /etc/secrets/iti-staging-service-account.json
+      - key: ALLOWED_ORIGINS
+        value: https://universal-iti-dk-staging.web.app,https://universal-iti-dk-staging.firebaseapp.com
+      - key: AI_PROVIDER
+        value: none
+      - key: AI_DAILY_LIMIT
+        value: '20'

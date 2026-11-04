@@ -1,0 +1,30 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {JSDOM}=require('jsdom');
+const source=fs.readFileSync(process.env.SKILL_SOURCE||'v15/v15-skill-verification.js','utf8');
+async function main(){
+ const dom=new JSDOM('<section id="tab-skill-review"></section>',{url:'https://example.test',runScripts:'outside-only'});
+ const w=dom.window; w.alert=()=>{}; w.DATA={practicals:[{no:1,title:'Practical'}]};
+ let transactionCalls=0, finishMembers;
+ const members=new Promise(resolve=>finishMembers=resolve);
+ let usePending=true;
+ const M={collection:()=>({}),getDocs:()=>usePending?members:Promise.resolve({forEach:f=>f({id:'student-a',data:()=>({role:'student',active:true,workspaceIds:['batch'],traineeId:'T1',displayName:'Student'})})}),doc:(_db,...p)=>p.join('/'),getDoc:async()=>({exists:()=>false}),runTransaction:async(_db,fn)=>{transactionCalls++;return fn({get:async()=>({exists:()=>false}),set:()=>{}})},serverTimestamp:()=>new Date()};
+ const V={ready:true,workspaceId:'batch',INSTITUTE_ID:'iti-a',fb:{user:{uid:'instructor-a'},M,db:{}},currentRole:()=> 'instructor'};
+ w.V15Sync=V; w.eval(source);
+ const first=V.renderInstructorSkillVerification(); V.fb.user={uid:'instructor-b'};
+ finishMembers({forEach:f=>f({id:'student-old',data:()=>({role:'student',active:true,workspaceIds:['batch'],traineeId:'OLD',displayName:'Former student'})})});
+ await first; assert.doesNotMatch(w.document.body.textContent,/Former student/,'old membership response must not render after account switch');
+ usePending=false; await V.renderInstructorSkillVerification();
+ const select=w.document.querySelector('#v15SkillReviewStudent'); select.value='student-a'; select.dispatchEvent(new w.Event('change')); await new Promise(r=>setTimeout(r,0));
+ const input=w.document.querySelector('input'); input.value='Observed practical'; const button=w.document.querySelector('button');
+ V.INSTITUTE_ID='iti-b'; button.click(); await new Promise(r=>setTimeout(r,0));
+ assert.equal(transactionCalls,0,'old instructor controls must not start a transaction after institute switch');
+ V.INSTITUTE_ID='iti-a'; await V.renderInstructorSkillVerification();
+ const fresh=w.document.querySelector('#v15SkillReviewStudent'); fresh.value='student-a'; fresh.dispatchEvent(new w.Event('change')); await new Promise(r=>setTimeout(r,0));
+ w.document.querySelector('input').value='Observed practical'; w.document.querySelector('button').click(); await new Promise(r=>setTimeout(r,0));
+ assert.equal(transactionCalls,1,'active instructor can still verify');
+ assert.match(w.document.body.textContent,/Saved to Firebase/);
+ dom.window.close(); console.log('PASS instructor skill controls reject stale account and institute context.');
+}
+main().catch(e=>{console.error(e);process.exitCode=1;});

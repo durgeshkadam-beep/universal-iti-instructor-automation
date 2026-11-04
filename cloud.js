@@ -137,7 +137,7 @@ const CloudCenter = {
       }
       await M.setDoc(M.doc(col,'galleryIndex'),{key:'galleryIndex',value:this.galleryIndex(),schemaVersion:this.VERSION,updatedAt:now},{merge:false});
       await M.setDoc(M.doc(col,'_manifest'),{schemaVersion:this.VERSION,updatedAt:now,workspaceId:this.workspaceId(),instructor:SESSION?.name||DATA.meta?.instructor||'',trade:DATA.meta?.trade||'',session:DATA.meta?.session||''},{merge:false});
-      DATA.meta.lastCloudSync=now; localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));
+      DATA.meta.lastCloudSync=now; if(!window.__ITI_V15)localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));
       this.cfg.autoSync=true; const a=document.getElementById('cloudAutoSync');if(a)a.checked=true; localStorage.setItem(this.configKey,JSON.stringify(this.cfg));
       if(!silent)this.setMessage('Cloud sync complete. Future changes will auto-sync from this device.','ok');
       this.renderStatus(); return true;
@@ -159,13 +159,13 @@ const CloudCenter = {
       const localUsers=Array.isArray(DATA.users)?DATA.users:[]; const localMeta=DATA.meta||{};
       DATA={...DATA,...incoming,gallery:localGallery,users:localUsers,meta:{...localMeta,...(incoming.meta||{}),instructorPin:localMeta.instructorPin,principalPin:localMeta.principalPin}};
       DATA.meta.schemaVersion=this.VERSION; DATA.meta.lastCloudRestore=new Date().toISOString();
-      localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));
+      if(!window.__ITI_V15)localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));
       this.cfg.autoSync=true; localStorage.setItem(this.configKey,JSON.stringify(this.cfg));
       alert('Cloud data restored. The app will reload now.'); location.reload();
     }catch(e){console.error(e);this.setMessage('Cloud restore failed: '+(e.message||e),'error');}
   },
 
-  scheduleSync(){
+  scheduleSync(){if(window.__ITI_V15)return;
     if(!this.fb.connected||!this.cfg.autoSync||this.syncing)return;
     clearTimeout(this.syncTimer); this.syncTimer=setTimeout(()=>this.pushNow(true),2500);
   },
@@ -182,7 +182,7 @@ const CloudCenter = {
     const payload={backupFormat:'Universal ITI Instructor Automation',appVersion:'V14',schemaVersion:this.VERSION,exportedAt:new Date().toISOString(),data:DATA};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
     this.downloadBlob(blob,`Universal-ITI-backup-${todayISO()}.json`);
-    DATA.lastBackup=todayISO(); localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));
+    DATA.lastBackup=todayISO(); if(!window.__ITI_V15)localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));
   },
   downloadBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);},
 
@@ -231,7 +231,7 @@ const CloudCenter = {
     try{
       const blob=new Blob([JSON.stringify({backupFormat:'Universal ITI Instructor Automation',appVersion:'V14',schemaVersion:this.VERSION,exportedAt:new Date().toISOString(),data:DATA},null,2)],{type:'application/json'});
       const obj=await this.uploadDriveBlob(blob,`Universal-ITI-Backup-${todayISO()}.json`,'application/json');
-      DATA.lastBackup=todayISO(); localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));
+      DATA.lastBackup=todayISO(); if(!window.__ITI_V15)localStorage.setItem(STORAGE_KEY,JSON.stringify(DATA));
       this.setMessage(`Backup saved to Drive: ${obj.name}`,'ok');
     }catch(e){console.error(e);this.setMessage('Drive backup failed: '+(e.message||e),'error');}
   },

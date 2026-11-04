@@ -71,6 +71,10 @@ h1,h2,h3{font-family:"Poppins","Georgia",serif;margin:0 0 .3em;color:var(--navy-
 .field{margin-bottom:16px}
 .field label{display:block;font-size:.82em;color:var(--muted);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
 .field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-size:1em}
+#tab-skill-applications .field textarea{display:block;width:100%;max-width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border);border-radius:8px;line-height:1.5;resize:vertical;font:inherit}
+#tab-skill-applications details summary{font-weight:600;cursor:pointer;padding:10px 0;line-height:1.5}
+#tab-skill-applications .field{min-width:0}
+#v15AppDraftPreview{overflow-wrap:anywhere}
 
 /* ---------- buttons ---------- */
 .btn{border:none;padding:10px 18px;border-radius:8px;font-size:.92em;font-weight:600;cursor:pointer;transition:all .15s}
@@ -369,6 +373,22 @@ body.role-principal .tabs{justify-content:flex-start}
 .plan-preview-toolbar{display:flex;gap:8px;justify-content:flex-end;position:sticky;top:-18px;z-index:3;background:#fff;padding:10px 0;border-bottom:1px solid var(--border);margin-bottom:12px}
 .plan-document-wrap{background:#e9edf2;padding:18px;border-radius:10px;overflow:auto}
 .plan-document-wrap .print-doc{background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.12);padding:10mm;min-height:277mm}
+/* Teaching prompts and JSON editors must use the available modal width. */
+#aiModal .field{min-width:0;width:100%}
+#aiModal textarea{display:block;box-sizing:border-box;width:100%;max-width:100%;padding:12px;border:1px solid var(--border);border-radius:8px;font-family:monospace;line-height:1.5;resize:vertical}
+#aiPreviewBox{min-width:0;max-width:100%}
+#aiModal .field-row{flex-wrap:wrap}
+#aiModal .ai-plan-preview{max-width:100%;margin-top:12px;color:#111}
+#aiModal .ai-plan-preview .print-doc{font-size:12px}
+#aiModal .ai-plan-preview table{font-size:inherit;line-height:1.4}
+@media(max-width:700px){
+  #aiModal .ai-plan-preview .print-doc{min-width:0;padding:12px}
+  #aiModal .ai-plan-preview .doc-meta tr{display:grid;grid-template-columns:1fr 1fr}
+  #aiModal .ai-plan-preview .doc-meta th,#aiModal .ai-plan-preview .doc-meta td{width:auto;overflow-wrap:anywhere}
+  #aiModal .ai-plan-preview .doc-table{table-layout:fixed}
+  #aiModal .ai-plan-preview .doc-table th,#aiModal .ai-plan-preview .doc-table td{overflow-wrap:anywhere}
+  #aiModal .ai-plan-preview .doc-signatures{gap:6px;font-size:9px}
+}
 .plan-materials{margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
 #planModal textarea{width:100%;padding:9px;border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:.9em}
 @media(max-width:700px){.plan-modal-card{max-width:calc(100vw - 10px)!important;max-height:96vh;padding:10px!important}.plan-document-wrap{padding:4px}.plan-document-wrap .print-doc{padding:5mm;min-width:720px}.plan-preview-toolbar{top:-10px;justify-content:flex-start;flex-wrap:wrap}}
@@ -598,3 +618,785 @@ body.role-principal .tabs{justify-content:flex-start}
 .cloud-status-cards .card{min-height:150px}.cloud-setup-card textarea{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.78rem;line-height:1.45}.cloud-check{display:flex;gap:9px;align-items:center;margin:4px 0 14px;color:#475569;font-size:.84rem}.cloud-check input{width:auto}.soft-rule{border:0;border-top:1px solid #e2e8f0;margin:18px 0}.small-note{font-size:.76rem!important;margin-top:12px!important}.cloud-error{border-color:#fecaca!important;background:#fef2f2!important;color:#991b1b!important}.cloud-ok{border-color:#bbf7d0!important;background:#f0fdf4!important;color:#166534!important}.version-chip{padding:7px 10px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:.72rem;font-weight:800}.creator-feature-card{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#071b2c,#0b334b)!important;color:#fff!important;border:0!important;overflow:hidden}.creator-feature-card span{display:block;font-size:.62rem;letter-spacing:.14em;color:#94a3b8;font-weight:800}.creator-feature-card strong{display:block;font:800 1.2rem Poppins,sans-serif;letter-spacing:.05em;margin:3px 0}.creator-feature-card small{color:#cbd5e1}.creator-mark{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,#14b8a6,#22c55e);font:800 1.1rem Poppins,sans-serif;box-shadow:0 10px 25px rgba(20,184,166,.25)}
 .drive-pdf-stage{position:fixed;left:-20000px;top:0;width:794px;background:#fff;color:#111;padding:28px;font-family:Arial,sans-serif;z-index:-1}.drive-pdf-stage .print-header{text-align:center;border-bottom:3px double #0b2740;padding-bottom:10px;margin-bottom:14px}.drive-pdf-stage .print-meta{display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:12px}.drive-pdf-stage .print-table{width:100%;border-collapse:collapse;font-size:.72rem}.drive-pdf-stage .print-table th,.drive-pdf-stage .print-table td{border:1px solid #333;padding:5px;text-align:center}.drive-pdf-stage .print-table th{background:#eee}.drive-pdf-stage .sign-block{display:flex;justify-content:space-between;margin-top:50px;font-size:.8rem}.drive-pdf-stage .sign-block div{text-align:center;width:30%;border-top:1px solid #333;padding-top:6px}
 @media(max-width:820px){.cloud-status-cards{grid-template-columns:1fr!important}#tab-cloud>.cards{grid-template-columns:1fr!important}.developer-mini{display:none}.creator-feature-card{align-items:flex-start}.creator-mark{flex:0 0 52px}}
+
+/* Accessible layout for the student services and reviewed-opportunity forms. */
+#tab-local-market label,#tab-market-editor label,#tab-career-coach>label,#tab-skill-gap .card>label{display:block;margin:12px 0 5px}
+#tab-local-market input,#tab-market-editor input,#tab-market-editor select,#tab-career-coach>select,#tab-career-coach>textarea,#tab-exams textarea,#v15CareerRole{display:block;width:100%;max-width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #bccbd5;border-radius:10px;min-height:44px;font:inherit;margin-bottom:10px}
+#tab-career-coach>button,#tab-exams button{margin:8px 8px 8px 0}
+#main .panel{overflow-wrap:anywhere}
+#main h2,#main h3,#main h4{font-family:Inter,system-ui,-apple-system,'Nirmala UI','Noto Sans Devanagari',sans-serif}
+
+/* Instructor training register: readable status text, compact actions and mobile cards. */
+.training-progress-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:12px 0 20px}
+.training-progress-card{border:1px solid #dbe2e8;border-inline-start:5px solid #697586;border-radius:12px;padding:14px;background:#fff;min-width:0;overflow-wrap:anywhere}
+.training-progress-card h4{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px}.training-progress-card p{margin:6px 0}
+.training-progress-card.training-overdue{border-inline-start-color:#b42318}.training-progress-card.training-complete{border-inline-start-color:#137547}
+.training-status{display:inline-block;border-radius:8px;padding:5px 9px;font-size:.8rem;font-weight:700;white-space:nowrap;line-height:1.4}
+.training-status.training-overdue{background:#fff0ef;color:#a11914}.training-status.training-complete{background:#e9f7ee;color:#12643c}.training-status.training-pending{background:#fff5d9;color:#825300}.training-status.training-unplanned{background:#edf0f3;color:#4c5968}
+.instructor-syllabus td{vertical-align:middle;padding:15px 12px!important}.instructor-syllabus .syllabus-topic{display:block;font-weight:600;line-height:1.5}.syllabus-hours{display:block;color:#617082;font-size:.8rem;margin-top:5px}
+.instructor-syllabus input[type=date]{width:145px;max-width:100%;padding:7px;border:1px solid #c6d0da;border-radius:7px;font:inherit;font-size:.85rem}
+.instructor-syllabus .training-overdue td:first-child{border-inline-start:4px solid #b42318}.instructor-syllabus .training-complete td:first-child{border-inline-start:4px solid #137547}
+.syllabus-primary-actions,.syllabus-secondary-actions{display:flex;flex-wrap:wrap;gap:6px}.syllabus-primary-actions .btn{white-space:nowrap}.syllabus-more{margin-top:9px}.syllabus-more summary{cursor:pointer;color:#345672;font-size:.85rem;padding:5px 0}.syllabus-secondary-actions{margin-top:6px}.instructor-syllabus td:last-child{min-width:205px}
+@media(max-width:700px){.training-progress-grid{grid-template-columns:1fr}html[data-v15-final-role=instructor] .instructor-syllabus{display:block;width:100%;min-width:0!important}html[data-v15-final-role=instructor] .instructor-syllabus thead{display:none}html[data-v15-final-role=instructor] .instructor-syllabus tbody{display:grid;gap:12px}html[data-v15-final-role=instructor] .instructor-syllabus tr{display:block;border:1px solid #dbe2e8;border-radius:12px;padding:10px;background:#fff}html[data-v15-final-role=instructor] .instructor-syllabus td{display:grid;grid-template-columns:105px minmax(0,1fr);gap:8px;border:0!important;padding:7px!important;overflow-wrap:anywhere;min-width:0}html[data-v15-final-role=instructor] .instructor-syllabus td::before{content:attr(data-label);font-size:.78rem;color:#617082}html[data-v15-final-role=instructor] .instructor-syllabus td .syllabus-hours{grid-column:2}html[data-v15-final-role=instructor] .instructor-syllabus tr.training-overdue{border-inline-start:4px solid #b42318}html[data-v15-final-role=instructor] .instructor-syllabus tr.training-complete{border-inline-start:4px solid #137547}html[data-v15-final-role=instructor] .instructor-syllabus td:last-child{display:block}html[data-v15-final-role=instructor] .instructor-syllabus td:last-child::before{display:none}}
+
+/* Existing Instructor forms share grouped menus; secondary pages retain their original IDs. */
+.instructor-section-nav{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.instructor-section-nav .btn{white-space:normal;max-width:100%}.instructor-subsection{min-width:0;max-width:100%}.instructor-group-header{margin-bottom:18px}
+@media(max-width:700px){.instructor-section-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.instructor-section-nav .btn{font-size:.8rem;padding:10px!important}.instructor-subsection>.cards{grid-template-columns:1fr!important}}
+
+/* Reviewed syllabus import and year-plan controls. */
+#uPreviewBody input,#uPreviewBody select,#uPreviewBody textarea{box-sizing:border-box;max-width:100%;min-width:90px;width:100%;padding:8px;border:1px solid #c6d0da;border-radius:6px;font:inherit}#uPreviewBody textarea{min-width:220px}#uCapacitySummary{padding:10px 0}#uCapacitySummary p{margin:7px 0}#yearPlanViews{display:flex;gap:10px;align-items:center;flex-wrap:wrap}#yearPlanViews p{flex-basis:100%;margin:0 0 4px}#yearPlanViews select,#yearPlanViews input{max-width:100%;box-sizing:border-box;padding:9px;border:1px solid #c6d0da;border-radius:7px}.planning-saving-dialog{max-width:calc(100vw - 60px);border:1px solid #dbe2e8;border-radius:12px;padding:24px;color:#173b5a}.planning-saving-dialog::backdrop{background:#102a4366}
+
+/* Instructor Teaching Assistant: responsive, free-first and clearly labelled. */
+#tab-ai-assistant .instructor-ai-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:14px}
+#tab-ai-assistant .instructor-ai-workflow{min-width:0;overflow-wrap:anywhere}
+#tab-ai-assistant .instructor-ai-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
+#tab-ai-assistant .instructor-ai-actions button{min-height:44px;white-space:normal}
+#tab-ai-assistant .instructor-ai-steps{padding-left:22px;line-height:1.65;display:grid;gap:8px}
+#tab-ai-assistant #aiTopicSelect{min-width:0;box-sizing:border-box}
+@media(max-width:600px){
+ #tab-ai-assistant .instructor-ai-grid{grid-template-columns:minmax(0,1fr)}
+ #tab-ai-assistant .instructor-ai-actions{display:grid;grid-template-columns:minmax(0,1fr)}
+ #tab-ai-assistant .instructor-ai-actions button{width:100%}
+}
+
+/* Student Career Mentor: compact accessible chat, never mixed with official records. */
+.career-chat{margin-top:16px;min-width:0}
+.career-chat-messages{display:flex;flex-direction:column;gap:10px;max-height:440px;overflow-y:auto;padding:12px 2px;min-height:50px}
+.career-chat-line{max-width:min(92%,650px);padding:11px 14px;border:1px solid #d8e4ec;border-radius:14px;background:#f5f8fb;color:#1c3445;overflow-wrap:anywhere}
+.career-chat-user{align-self:flex-end;background:#e5f4ef;border-color:#b9dfd1}
+.career-chat-mentor{align-self:flex-start}
+.career-chat-name{display:block;font-size:.82rem;margin-bottom:5px}
+.career-chat-line p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.55}
+.career-chat #coach-chat-input{box-sizing:border-box;width:100%;max-width:100%;min-width:0;margin:6px 0 10px}
+.career-chat-consent{display:flex;align-items:flex-start;gap:9px;margin-bottom:12px;line-height:1.4}
+.career-chat-consent input{flex-shrink:0;margin-top:3px}
+.career-chat #coach-chat-status{overflow-wrap:anywhere}
+@media(max-width:620px){.career-chat-messages{max-height:380px}.career-chat-line{max-width:96%}.career-chat .field-row{display:grid;grid-template-columns:1fr;gap:8px}.career-chat .field-row button{width:100%;min-height:44px;white-space:normal}}
+
+/* Conversational Student Career Mentor — chat first, responsive, accessible. */
+#tab-career-coach .career-chat{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:min(680px,75vh);padding:16px 20px;border:1px solid #dce5eb;border-radius:18px;background:#fff}
+#tab-career-coach .career-chat>h3{margin:0;font-size:1.06rem;font-weight:750}
+#tab-career-coach .career-chat>.muted{margin:0 0 4px;font-size:.86rem;line-height:1.5}
+#tab-career-coach .career-chat-messages{flex:1 1 auto;min-height:205px;max-height:min(55vh,470px);overflow-y:auto;overscroll-behavior:contain;padding:12px 10px;gap:14px}
+#tab-career-coach .career-chat-messages:empty::before{content:"Hello! 👋 Tell me which ITI trade you study, what you enjoy, and what you want to do next. We can explore your options together.";display:block;max-width:580px;margin:auto;align-self:center;padding:18px 22px;text-align:center;color:#64748b;line-height:1.7}
+#tab-career-coach .career-chat-line{max-width:min(87%,660px);border-radius:16px;padding:12px 16px;box-shadow:none;line-height:1.55}
+#tab-career-coach .career-chat-user{background:#e1f4f1;border-color:#bddfd9;border-bottom-right-radius:5px}
+#tab-career-coach .career-chat-mentor{background:#f2f5f9;border-color:#e2e8f0;border-bottom-left-radius:5px}
+#tab-career-coach .career-chat-composer{display:flex;flex-direction:column;gap:8px;border-top:1px solid #e6ecf2;padding-top:13px}
+#tab-career-coach .career-chat-composer>label:not(.career-chat-consent){font-size:.83rem;font-weight:650;margin:0}
+#tab-career-coach .career-chat #coach-chat-input{min-height:64px;max-height:170px;width:100%;margin:0;resize:vertical;border:1px solid #cbd6e2;border-radius:15px;padding:12px 15px;font:inherit;line-height:1.5;background:#fff;box-sizing:border-box}
+#tab-career-coach .career-chat #coach-chat-input:focus{outline:2px solid #008b86;outline-offset:1px}
+#tab-career-coach .career-chat-composer .field-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:2px 0}
+#tab-career-coach .career-chat-composer .field-row button{min-height:42px}
+#tab-career-coach .career-chat-composer #coach-chat-status{margin:2px 0;color:#52657a;font-size:.85rem;line-height:1.5}
+#tab-career-coach .career-chat-composer #coach-ai-retry{align-self:flex-start;min-height:40px}
+#tab-career-coach .career-chat-consent{margin:4px 0;line-height:1.5;font-size:.86rem}
+#tab-career-coach .career-guided-tools{margin-top:16px;padding:12px 18px;border:1px solid #d9e3ee;border-radius:12px;background:#fafcff;min-width:0}
+#tab-career-coach .career-guided-tools>summary{cursor:pointer;font-weight:700;padding:7px 0}
+#tab-career-coach .career-guided-tools>label{display:block;margin-top:13px}
+#tab-career-coach .career-guided-tools textarea,#tab-career-coach .career-guided-tools select{max-width:100%;box-sizing:border-box}
+@media(max-width:620px){
+ #tab-career-coach .career-chat{min-height:70vh;padding:12px 13px;border-radius:14px}
+ #tab-career-coach .career-chat-messages{max-height:50vh;min-height:175px;padding:8px 3px}
+ #tab-career-coach .career-chat-line{max-width:94%;padding:10px 12px}
+ #tab-career-coach .career-chat-composer .field-row{display:grid;grid-template-columns:minmax(0,1fr)}
+ #tab-career-coach .career-chat-composer .field-row button{width:100%}
+}
+
+/* Instructor AI: full topic names, readable plan types, and usable mobile modal. */
+#tab-ai-assistant .instructor-ai-picker-grid{display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,2fr);gap:12px}
+#tab-ai-assistant .instructor-ai-picker-grid .field{min-width:0;margin:0}
+#tab-ai-assistant .instructor-topic-card select,#tab-ai-assistant .instructor-topic-card input{display:block;box-sizing:border-box;width:100%;max-width:100%;min-width:0;min-height:44px;font-size:.92rem}
+#tab-ai-assistant .instructor-ai-topic-preview{white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;line-height:1.6;font-size:.92rem;color:#183b56;background:#f2f8fb;border:1px solid #d4e5ee;border-radius:10px;padding:13px 15px;margin:12px 0 15px;min-height:48px}
+#tab-ai-assistant #aiToday .callout{overflow-wrap:anywhere;min-width:0}
+#tab-ai-assistant #aiToday .callout b{white-space:normal;overflow-wrap:anywhere;display:block;line-height:1.55}
+#tab-ai-assistant #aiToday .field-row{flex-wrap:wrap;gap:8px}
+#tab-ai-assistant #aiToday button{white-space:normal;min-height:40px}
+#aiModal .modal,#aiModal .modal-content{max-width:calc(100vw - 28px);box-sizing:border-box;min-width:0;overflow-x:auto}
+#aiModal #aiModalTitle{white-space:normal;overflow-wrap:anywhere;max-width:100%}
+#aiModal #aiModalStatus{white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+@media(max-width:700px){#tab-ai-assistant .instructor-ai-picker-grid{grid-template-columns:minmax(0,1fr)}#tab-ai-assistant .instructor-topic-card{padding:14px}#aiModal .modal,#aiModal .modal-content{max-width:calc(100vw - 16px)}}
+
+
+/* Universal EduSkill 360 — evaluation-facing login presentation (prototype only). */
+.eduskill-mark{display:inline-grid;place-items:center;flex:none;width:48px;height:48px;border-radius:13px;background:linear-gradient(135deg,#1e8e91,#12476e);color:white;font:800 14px/1 Inter,Arial,sans-serif;letter-spacing:-.03em;box-shadow:0 4px 16px #071b2c22}
+.eduskill-showcase .showcase-brand{gap:13px;color:white}
+.eduskill-showcase .showcase-brand strong{color:#98e6d9}
+.eduskill-showcase .showcase-copy{max-width:100%;margin-block:30px}
+.eduskill-showcase .showcase-copy h2{font-size:clamp(29px,2.8vw,44px);line-height:1.16;margin:11px 0 14px;color:white}
+.eduskill-showcase .showcase-copy p{line-height:1.65;font-size:14px;color:#e4edf2}
+.eduskill-showcase .showcase-copy .eduskill-lead{font-size:17px;font-weight:700;color:#b9f2e6}
+.eduskill-showcase .eduskill-points{display:grid;gap:10px;margin:19px 0}
+.eduskill-showcase .eduskill-points span{display:block;border:1px solid #ffffff26;border-radius:11px;padding:10px 12px;background:#ffffff0b;font-size:13px;line-height:1.5}
+.eduskill-showcase .eduskill-points b{display:inline-grid;place-items:center;width:25px;height:25px;border-radius:7px;background:#137a88;color:white;font-size:11px;margin-right:6px}
+.eduskill-showcase .eduskill-points strong{color:white}
+.eduskill-showcase .eduskill-scope{font-size:12px!important;color:#c0d5df!important}
+.eduskill-showcase .showcase-footer{font-size:11px;color:#c6d8e1;line-height:1.55}
+.eduskill-login-identity{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:13px;font-size:10px;font-weight:800;letter-spacing:.09em;color:#587287}
+.eduskill-login-identity .eduskill-mark{width:40px;height:40px;font-size:12px}
+#loginScreen .login-title{font-size:clamp(23px,2.1vw,30px);line-height:1.2}
+#loginScreen .login-sub{line-height:1.55}
+.eduskill-login-explainer{font-size:12px;line-height:1.65;color:#53687b;background:#f2f7f9;border-left:3px solid #14828b;border-radius:7px;padding:11px 12px;margin:14px 0 17px}
+#loginScreen .developer-credit-login small{line-height:1.45}
+@media(min-width:961px){.eduskill-showcase{min-height:650px;justify-content:space-between}.login-wrap:has(.eduskill-showcase){align-items:center}}
+@media(max-width:960px){.eduskill-login-explainer{font-size:12px}}
+/* Dropdown options are native and may be clipped by the OS: searchable list and complete topic preview remain authoritative. */
+#tab-ai-assistant .instructor-ai-topic-preview{overflow-wrap:anywhere;white-space:pre-wrap}
+
+
+/* Public evaluator guide — pre-login, accessible and scrollable. */
+.eduskill-explore-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;min-height:48px;background:#e8f6f4;color:#0a5d64;border:1.5px solid #7ac9c1;border-radius:10px;font:700 13px/1.4 Inter,Arial,sans-serif;cursor:pointer;margin:7px 0 16px;padding:10px}
+.eduskill-explore-btn:hover,.eduskill-explore-btn:focus-visible{background:#d9f1ec;outline:2px solid #0d797b;outline-offset:2px}
+.eduskill-guide{border:0;border-radius:18px;padding:0;width:min(900px,calc(100% - 24px));max-width:900px;max-height:min(90vh,900px);color:#173149;background:#fff;box-shadow:0 24px 90px #081b3055;overflow:auto}
+.eduskill-guide::backdrop{background:rgba(3,18,32,.7)}
+.eduskill-guide-head{position:relative;background:linear-gradient(135deg,#123a5e,#087d80);color:#fff;padding:26px 58px 22px 28px}
+.eduskill-guide-head h2{font-size:clamp(24px,3.5vw,35px);color:#fff;margin:6px 0}
+.eduskill-guide-head p{margin:0;line-height:1.5;color:#e4f4f4}
+.eduskill-guide-eyebrow{font-size:11px;letter-spacing:.08em;font-weight:800;color:#b9ece5}
+.eduskill-guide-close{position:absolute;right:18px;top:17px;border:1px solid #ffffff55;background:#ffffff1b;color:#fff;border-radius:8px;min-width:35px;min-height:35px;cursor:pointer}
+.eduskill-guide-content{padding:24px 28px;display:grid;gap:14px}
+.eduskill-guide-content section{border:1px solid #dce7ed;border-radius:12px;padding:16px 18px;background:#fff;min-width:0}
+.eduskill-guide-content h3{font-size:16px;color:#103e5a;margin:0 0 10px}
+.eduskill-guide-content p,.eduskill-guide-content li{font-size:13px;line-height:1.65}
+.eduskill-guide-content p{margin:0}
+.eduskill-guide-content ul{margin:0 0 10px;padding-left:20px}
+.eduskill-guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.eduskill-guide-grid section{background:#f6fafc}
+.eduskill-guide-content .eduskill-guide-benefit{font-weight:650;color:#08716e;border-top:1px solid #d7e8e7;padding-top:9px}
+.eduskill-guide-content .eduskill-guide-creator{background:#f1f8f6}
+.eduskill-guide-creator small{display:block;margin-top:9px;color:#62717e;line-height:1.5}
+.eduskill-guide-actions{position:sticky;bottom:0;padding:12px 28px;background:#fff;border-top:1px solid #e1e8ec;display:flex;justify-content:flex-end}
+@media(max-width:650px){.eduskill-guide{max-height:92vh}.eduskill-guide-content{padding:14px;gap:10px}.eduskill-guide-grid{grid-template-columns:minmax(0,1fr);gap:10px}.eduskill-guide-content section{padding:14px}.eduskill-guide-head{padding:22px 50px 20px 18px}.eduskill-guide-actions{padding:10px 14px}.eduskill-guide-actions .btn{white-space:normal}}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EduSkill 360 · Innovation jury experience · 2026
+   Scope: public landing + evaluator tour only. No authenticated behaviour.
+   ═══════════════════════════════════════════════════════════════════════════ */
+#loginScreen.login-wrap{
+  --es-ink:#102b43;--es-teal:#0b7f80;--es-border:#dae5e9;
+  gap:clamp(20px,3.1vw,52px);
+  padding:clamp(20px,3vw,44px);
+  background:
+    radial-gradient(ellipse at 14% 10%,rgba(109,193,189,.20),transparent 36%),
+    radial-gradient(ellipse at 92% 85%,rgba(136,179,216,.17),transparent 30%),
+    linear-gradient(140deg,#f4f8fa,#e9f2f5 60%,#f4f7fa);
+  min-height:100vh;
+}
+#loginScreen .eduskill-showcase{
+  width:min(680px,54vw);min-height:680px;max-width:680px;isolation:isolate;
+  padding:clamp(30px,3.3vw,52px);border:0;border-radius:28px;
+  background:linear-gradient(136deg,#0a3044 0%,#103d52 52%,#0a565a 100%);
+  box-shadow:0 28px 80px rgba(15,48,66,.18);position:relative;gap:36px;
+}
+#loginScreen .eduskill-showcase:before{
+  content:"";pointer-events:none;position:absolute;inset:0;z-index:-1;opacity:.24;
+  background-image:linear-gradient(rgba(255,255,255,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.10) 1px,transparent 1px);
+  background-size:42px 42px;mask-image:linear-gradient(90deg,transparent 3%,black 100%);
+}
+#loginScreen .eduskill-showcase:after{
+  content:"";pointer-events:none;position:absolute;width:490px;height:490px;top:-200px;right:-175px;z-index:-1;
+  background:radial-gradient(circle,rgba(65,202,182,.42),rgba(65,202,182,0) 68%);
+}
+#loginScreen .eduskill-mark{
+  border-radius:13px;width:49px;height:49px;display:flex;align-items:baseline;justify-content:center;
+  gap:1px;background:#ffffff;color:#0c656b;box-shadow:0 7px 20px rgba(0,27,45,.10);
+  font:800 20px/49px Inter,Arial,sans-serif;letter-spacing:-.08em;
+}
+#loginScreen .eduskill-mark span{font-size:11px;letter-spacing:-.05em;font-weight:800;margin-left:1px}
+#loginScreen .eduskill-showcase .showcase-brand{align-items:center;gap:13px}
+#loginScreen .eduskill-wordmark{font-size:12px;letter-spacing:.07em;line-height:1.1}
+#loginScreen .eduskill-wordmark strong{font-size:17px;color:#d1fff4;letter-spacing:-.02em;display:block;margin-top:2px}
+#loginScreen .eduskill-wordmark small{font:650 9px/1.5 Inter,Arial,sans-serif;letter-spacing:.17em;color:#b7d9db;display:block;margin-top:5px}
+#loginScreen .eduskill-brand-dot{margin-left:auto;height:8px;width:8px;background:#77d4c2;border-radius:50%;box-shadow:0 0 0 7px rgba(119,212,194,.11)}
+#loginScreen .eduskill-showcase .showcase-copy{max-width:100%;margin:0}
+#loginScreen .showcase-kicker{display:inline-flex;gap:9px;align-items:center;letter-spacing:.10em;font-size:10px;font-weight:750;color:#b6e4df}
+#loginScreen .eduskill-kicker-dot{width:7px;height:7px;border-radius:50%;background:#8ce5c7;box-shadow:0 0 0 4px rgba(137,233,199,.13)}
+#loginScreen .eduskill-showcase h2{font:750 clamp(37px,3.9vw,57px)/1.08 Inter,Arial,sans-serif;letter-spacing:-.056em;color:#fff;margin:21px 0 18px}
+#loginScreen .eduskill-showcase h2 span{color:#a3eed7}
+#loginScreen .eduskill-showcase .eduskill-lead{max-width:490px;font-size:clamp(15px,1.3vw,18px);line-height:1.55;font-weight:450;color:#deedf1;margin:0 0 22px}
+#loginScreen .eduskill-journey{display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-width:100%;margin:0 0 27px}
+#loginScreen .eduskill-journey span{padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14);color:#e6f6f5;font-size:11px;font-weight:700}
+#loginScreen .eduskill-journey i{font-style:normal;color:#80d6c6;font-size:15px}
+#loginScreen .eduskill-points{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:0}
+#loginScreen .eduskill-benefit{display:flex;gap:13px;align-items:center;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.07);border-radius:13px;padding:13px 15px;min-width:0;backdrop-filter:blur(4px)}
+#loginScreen .eduskill-benefit-number{width:37px;min-width:37px;height:37px;border-radius:10px;display:grid!important;place-items:center;padding:0!important;margin:0!important;flex:none;border:1px solid rgba(142,236,216,.26)!important;background:rgba(142,236,216,.13)!important;color:#aaf2e0!important;font-size:11px!important;font-weight:850}
+#loginScreen .eduskill-benefit div{min-width:0}
+#loginScreen .eduskill-benefit strong{display:block;font-size:13px;color:#fff}
+#loginScreen .eduskill-benefit small{display:block;font-size:11px;color:#bed9e1;line-height:1.55;margin-top:2px}
+#loginScreen .eduskill-showcase .showcase-footer{display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-size:11px;color:#a6cbd3}
+#loginScreen .eduskill-prototype-tag{background:rgba(160,235,212,.13);color:#c4f6e3;border:1px solid rgba(160,235,212,.23);padding:6px 9px;border-radius:6px;font:800 9px/1.2 Inter,Arial,sans-serif;letter-spacing:.10em}
+#loginScreen .eduskill-login-card{
+  max-width:460px;width:100%;min-width:0;display:flex;flex-direction:column;
+  border-radius:25px;padding:clamp(25px,2.6vw,39px)!important;
+  background:#fff;border:1px solid #e7edf0;box-shadow:0 18px 70px rgba(25,62,79,.12);
+  color:var(--es-ink)
+}
+/* V15 injects the password field after creator credit: visual order is corrected
+   without moving, replacing or re-binding any authentication DOM nodes. */
+#loginScreen .eduskill-login-card > *{min-width:0;order:30}
+#loginScreen .eduskill-login-identity{order:1;display:flex;align-items:center;justify-content:flex-start;gap:12px;margin-bottom:23px;letter-spacing:0}
+#loginScreen .eduskill-login-identity .eduskill-mark{background:#e7f6f2;color:#117b78;box-shadow:none;height:45px;width:45px;line-height:45px}
+#loginScreen .eduskill-login-eyebrow{color:#365c69;font-size:10px;font-weight:800;letter-spacing:.09em;line-height:1.4}
+#loginScreen .eduskill-login-eyebrow small{display:block;color:#7a909b;font-size:9px;letter-spacing:.11em;margin-top:4px}
+#loginScreen .eduskill-login-card>.login-title{order:2;text-align:left;margin:0!important;font:800 clamp(24px,2.35vw,32px)/1.2 Inter,Arial,sans-serif;letter-spacing:-.055em;color:#12374d}
+#loginScreen .eduskill-login-card>.login-sub{order:3;text-align:left;margin:7px 0 11px;font-size:12px;font-weight:620;color:#3e7880;line-height:1.55}
+#loginScreen .eduskill-login-explainer{order:4;border:0;background:none;padding:0;font-size:12px;color:#657b89;line-height:1.6;margin:0 0 16px}
+#loginScreen .eduskill-explore-btn{
+  order:5;width:100%;min-height:76px;border:1px solid #cce9e2;border-radius:15px;
+  background:linear-gradient(110deg,#effbf7,#f7fdfb);
+  display:flex;align-items:center;justify-content:flex-start;gap:12px;
+  padding:14px 15px;text-align:left;color:#104e55;cursor:pointer;margin:0 0 24px;box-shadow:none;
+  transition:transform .15s,background .15s,border-color .15s
+}
+#loginScreen .eduskill-explore-btn:hover{background:#e1f7ed;border-color:#9fdbce;transform:translateY(-1px)}
+#loginScreen .eduskill-explore-btn:focus-visible{outline:3px solid #7bbfc2;outline-offset:3px}
+#loginScreen .eduskill-explore-icon{display:grid;place-items:center;flex:none;width:38px;height:38px;border-radius:11px;background:#0d817c;color:white;font-size:19px;font-weight:700}
+#loginScreen .eduskill-explore-btn>span:nth-child(2){flex:1;min-width:0}
+#loginScreen .eduskill-explore-btn strong{display:block;font:780 13px/1.4 Inter,Arial,sans-serif;color:#114f54}
+#loginScreen .eduskill-explore-btn small{display:block;font:500 10px/1.5 Inter,Arial,sans-serif;color:#608b86;margin-top:2px}
+#loginScreen .eduskill-explore-arrow{font-size:21px;color:#0b7975}
+#loginScreen .eduskill-access-heading{order:6;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #e4edef;color:#54707a;font:800 10px/1.3 Inter,Arial,sans-serif;letter-spacing:.085em}
+#loginScreen .eduskill-access-heading span:last-child{font-size:9px;color:#0e8880;letter-spacing:.03em}
+#loginScreen .eduskill-login-card>.field{order:10;margin-bottom:13px}
+#loginScreen .eduskill-login-card>#v15ExpectedEmailField{order:11}
+#loginScreen .eduskill-login-card>.field:has(#stagingPassword){order:12}
+#loginScreen .eduskill-login-card>#v15InstitutePasswordForm{order:13}
+#loginScreen .eduskill-login-card>.btn.full{order:14}
+#loginScreen .eduskill-login-card>#v15AuthHelp{order:15}
+#loginScreen .eduskill-login-card>.login-note{order:16}
+#loginScreen .eduskill-login-card>.developer-credit-login{order:20}
+#loginScreen .eduskill-login-card .field label{text-transform:none;font:750 11px/1.4 Inter,Arial,sans-serif;letter-spacing:.025em;color:#425f70;margin-bottom:7px}
+#loginScreen .eduskill-login-card .field input,
+#loginScreen .eduskill-login-card .field select{min-height:47px;border:1px solid #d6e3e8;border-radius:11px;background:#fbfdfe;color:#183b4b;font:500 13px/1.5 Inter,Arial,sans-serif;padding:11px 13px}
+#loginScreen .eduskill-login-card .field input:focus,
+#loginScreen .eduskill-login-card .field select:focus{border-color:#1a9991;box-shadow:0 0 0 3px rgba(11,132,124,.11);outline:none}
+#loginScreen .eduskill-login-card .field small{display:block;margin-top:6px;font-size:10px;line-height:1.5}
+#loginScreen .eduskill-login-card #stagingSignIn,
+#loginScreen .eduskill-login-card .btn.primary.full{width:100%;min-height:46px;border-radius:11px;background:#0e7776;color:#fff;font-size:12px;font-weight:750;box-shadow:none!important;margin-top:7px}
+#loginScreen .eduskill-login-card #stagingSignIn:hover,
+#loginScreen .eduskill-login-card .btn.primary.full:hover{background:#0b6567;transform:none}
+#loginScreen .eduskill-login-card>.btn.full:not(.primary){background:#edf3f6;color:#1d5663;border:1px solid #dae6eb;border-radius:11px;min-height:44px;font-size:11px;font-weight:700;margin-top:9px}
+#loginScreen .eduskill-login-card #v15AuthHelp{padding:12px 13px;border:1px solid #e3edf1;background:#f6f9fb;border-radius:11px;color:#617781;line-height:1.55;font-size:11px;margin-top:11px!important}
+#loginScreen .eduskill-login-card .login-note{font-size:10px;line-height:1.55;color:#7d9098;margin:11px 0 0;text-align:left}
+#loginScreen .eduskill-login-card .developer-credit-login{margin-top:21px;border:0;border-top:1px solid #e7edef;padding:18px 0 0;background:transparent;box-shadow:none;text-align:left}
+#loginScreen .eduskill-login-card .developer-credit-login span{font-size:9px;letter-spacing:.10em;color:#8496a1}
+#loginScreen .eduskill-login-card .developer-credit-login strong{font:780 13px/1.5 Inter,Arial,sans-serif;color:#174f5c;letter-spacing:.005em;margin-top:3px}
+#loginScreen .eduskill-login-card .developer-credit-login small{font-size:10px;color:#70858f;margin-top:2px}
+
+/* Presentation-style project overview */
+.eduskill-guide{width:min(1050px,calc(100vw - 28px));max-width:1050px;max-height:min(92vh,950px);border-radius:24px;border:1px solid #e3eaf0;background:#f8fbfc;box-shadow:0 28px 100px rgba(8,36,57,.27);scroll-behavior:smooth;scroll-padding-top:80px}
+.eduskill-guide::backdrop{background:rgba(7,32,48,.72);backdrop-filter:blur(3px)}
+.eduskill-guide .eduskill-guide-head{background:linear-gradient(118deg,#0c3347,#0b6a68);color:#fff;padding:32px 37px 31px}
+.eduskill-guide-topline{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;padding-right:36px}
+.eduskill-guide .eduskill-guide-eyebrow{font:800 10px/1.5 Inter,Arial,sans-serif;letter-spacing:.12em;color:#b4e5dd}
+.eduskill-guide-demo{font:750 9px/1.4 Inter,Arial,sans-serif;letter-spacing:.07em;color:#e8f7f3;border:1px solid rgba(255,255,255,.28);border-radius:30px;padding:5px 9px}
+.eduskill-guide .eduskill-guide-head h2{max-width:750px;font:800 clamp(26px,3.2vw,44px)/1.12 Inter,Arial,sans-serif;letter-spacing:-.052em;color:#fff;margin:0 0 12px}
+.eduskill-guide .eduskill-guide-head h2 span{color:#a3f3dd}
+.eduskill-guide .eduskill-guide-head p{font:500 13px/1.6 Inter,Arial,sans-serif;color:#d8f2f2}
+.eduskill-guide .eduskill-guide-close{top:21px;right:21px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.28);border-radius:10px;color:#fff;font-size:15px}
+.eduskill-guide-journey{display:flex;flex-wrap:wrap;gap:11px;align-items:center;margin-top:24px}
+.eduskill-guide-journey span{padding:8px 11px;border-radius:9px;background:#ffffff1b;border:1px solid #ffffff26;font:700 11px/1.4 Inter,Arial,sans-serif;color:#fff}
+.eduskill-guide-journey b{color:#98d9cf;font-size:13px}
+.eduskill-guide-nav{position:sticky;top:0;z-index:3;display:flex;gap:7px;overflow-x:auto;padding:11px 28px;background:#fff;border-bottom:1px solid #e6eef0;box-shadow:0 3px 12px rgba(15,50,65,.04);scrollbar-width:thin}
+.eduskill-guide-nav a{flex:none;padding:9px 14px;border-radius:9px;font:760 11px/1.4 Inter,Arial,sans-serif;color:#456575;text-decoration:none}
+.eduskill-guide-nav a:hover,.eduskill-guide-nav a:focus-visible{background:#e8f5f2;color:#066763;outline:0}
+.eduskill-guide .eduskill-guide-content{padding:27px 32px 32px;display:grid;gap:18px}
+.eduskill-guide .eduskill-guide-content>section{scroll-margin-top:80px;border:1px solid #e0ebef;border-radius:17px;background:#fff;padding:25px 27px;box-shadow:0 4px 15px rgba(22,62,79,.025)}
+.eduskill-guide .eduskill-section-label{font:850 10px/1.5 Inter,Arial,sans-serif;letter-spacing:.095em;color:#0e8980}
+.eduskill-guide .eduskill-guide-content h3{font:780 clamp(18px,2vw,23px)/1.3 Inter,Arial,sans-serif;letter-spacing:-.025em;color:#123c52;margin:8px 0 18px}
+.eduskill-guide .eduskill-guide-content p,.eduskill-guide .eduskill-guide-content li{font-size:12px;line-height:1.7;color:#4b6473}
+.eduskill-compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.eduskill-compare>div{padding:20px;border-radius:13px;background:#f3f7f9;border:1px solid #e4ecee}
+.eduskill-compare>div:last-child{background:#e9f7f3;border-color:#d0ebe3}
+.eduskill-compare small,.eduskill-roadmap-grid small{display:block;font:850 10px/1.4 Inter,Arial,sans-serif;letter-spacing:.075em;color:#0d7980;margin-bottom:10px}
+.eduskill-guide .eduskill-guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.eduskill-guide .eduskill-role-card{border:1px solid #e2ebee;border-radius:15px;background:#f8fbfc;padding:21px;min-width:0}
+.eduskill-guide .eduskill-role-icon{display:grid;place-items:center;width:37px;height:37px;border-radius:11px;color:#0c7773;background:#dff3ec;font:850 12px Inter,Arial,sans-serif;margin-bottom:14px}
+.eduskill-guide .eduskill-role-card h4{font:800 15px/1.3 Inter,Arial,sans-serif;letter-spacing:-.015em;color:#123b52;margin:0 0 5px}
+.eduskill-guide .eduskill-role-card>p{font-size:12px;color:#66808c;margin:0 0 11px}
+.eduskill-guide .eduskill-role-card ul{padding-left:17px;margin:0 0 16px}
+.eduskill-guide .eduskill-role-result{border-top:1px solid #e1edef;padding-top:11px;font-size:11px;font-weight:750;color:#087a74}
+.eduskill-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px}
+.eduskill-steps>div{padding:14px 12px;background:#f3f8fa;border:1px solid #e1ecef;border-radius:12px;min-width:0}
+.eduskill-steps b{display:block;color:#0d9284;font:850 11px Inter,Arial,sans-serif;margin-bottom:8px}
+.eduskill-steps span{font-size:11px;line-height:1.5;font-weight:700;color:#274c5d}
+.eduskill-roadmap-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.eduskill-roadmap-grid>div{background:#f5f9fb;border-radius:12px;border:1px solid #e0eaee;padding:17px}
+.eduskill-guide .eduskill-guide-disclaimer{font-size:10px;line-height:1.6;color:#7d919b;margin-top:16px}
+.eduskill-guide .eduskill-guide-content>.eduskill-guide-creator{background:#eef8f5;display:flex;flex-direction:column;gap:3px}
+.eduskill-guide .eduskill-guide-creator h3{margin:4px 0 3px}
+.eduskill-guide .eduskill-guide-creator p strong{font-size:14px;color:#14515e}
+.eduskill-guide .eduskill-guide-creator small{font-size:10px;color:#63807f;margin-top:5px}
+.eduskill-guide .eduskill-guide-actions{position:sticky;bottom:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px 30px;background:#fff;border-top:1px solid #e2eaf0}
+.eduskill-guide .eduskill-guide-actions>span{font-size:11px;line-height:1.5;color:#67808b}
+.eduskill-guide .eduskill-guide-actions .btn.primary{background:#0b7876;border-radius:10px;min-height:40px;white-space:nowrap;font-size:11px;font-weight:800}
+@media(max-width:1200px) and (min-width:961px){
+ #loginScreen .eduskill-showcase{width:min(600px,51vw);padding:30px}
+ #loginScreen .eduskill-showcase h2{font-size:clamp(34px,3.9vw,46px)}
+ #loginScreen .eduskill-journey{margin-bottom:18px;gap:6px}
+ #loginScreen .eduskill-journey span{font-size:10px}
+}
+@media(max-width:960px){
+ #loginScreen.login-wrap{padding:20px;background:linear-gradient(155deg,#e9f5f5,#f3f7fa);align-items:center}
+ #loginScreen .eduskill-showcase{display:none}
+ #loginScreen .eduskill-login-card{max-width:500px}
+}
+@media(max-width:640px){
+ #loginScreen.login-wrap{padding:10px!important;min-height:100vh}
+ #loginScreen .eduskill-login-card{border-radius:17px!important;padding:22px 19px!important;box-shadow:0 8px 25px rgba(22,56,74,.09)}
+ #loginScreen .eduskill-login-card>.login-title{font-size:25px!important}
+ #loginScreen .eduskill-login-explainer{font-size:12px}
+ #loginScreen .eduskill-explore-btn{min-height:72px;padding:12px}
+ .eduskill-guide{width:calc(100vw - 12px);max-height:95vh;border-radius:16px}
+ .eduskill-guide .eduskill-guide-head{padding:24px 19px}
+ .eduskill-guide .eduskill-guide-head h2{font-size:28px}
+ .eduskill-guide-demo{display:none}
+ .eduskill-guide-nav{padding:9px 12px}
+ .eduskill-guide .eduskill-guide-content{padding:12px;gap:12px}
+ .eduskill-guide .eduskill-guide-content>section{padding:17px}
+ .eduskill-compare,.eduskill-guide .eduskill-guide-grid,.eduskill-roadmap-grid{grid-template-columns:minmax(0,1fr)}
+ .eduskill-steps{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .eduskill-guide .eduskill-guide-actions{padding:11px 13px}
+ .eduskill-guide .eduskill-guide-actions>span{display:none}
+ .eduskill-guide .eduskill-guide-actions .btn.primary{white-space:normal}
+}
+@media(prefers-reduced-motion:reduce){
+ #loginScreen .eduskill-explore-btn,.eduskill-guide{transition:none!important;scroll-behavior:auto}
+}
+
+/* Keep the staging warning visible without an oversized yellow banner. */
+#stagingNotice{background:#edf6f6!important;color:#3d6870!important;border-bottom:1px solid #d6e8e7!important;font:650 11px/1.5 Inter,Arial,sans-serif!important;padding:8px 12px!important;text-align:center!important}
+
+
+/* EduSkill evaluator navigation: real buttons scroll inside <dialog> (no URL hash jumps). */
+.eduskill-guide .eduskill-guide-nav button{
+ flex:none;appearance:none;border:0;background:transparent;cursor:pointer;
+ padding:10px 15px;border-radius:9px;font:760 11px/1.4 Inter,Arial,sans-serif;
+ color:#496676;white-space:nowrap;transition:background .16s,color .16s;
+}
+.eduskill-guide .eduskill-guide-nav button:hover,
+.eduskill-guide .eduskill-guide-nav button[aria-current="location"]{
+ background:#e3f5ef;color:#086d66;
+}
+.eduskill-guide .eduskill-guide-nav button:focus-visible{
+ outline:2px solid #16897d;outline-offset:2px;
+}
+.eduskill-guide [id^="eduskill-"]{scroll-margin-top:76px}
+.eduskill-guide .eduskill-vector{
+ display:block;width:100%;height:auto;max-height:127px;object-fit:contain;
+ margin:7px auto 17px;overflow:visible;
+}
+.eduskill-guide .eduskill-line-icon{display:block;flex:none}
+.eduskill-guide .eduskill-role-icon{
+ width:46px;height:46px;border-radius:13px;background:linear-gradient(145deg,#d8f5e9,#d9edf6);
+ color:#0a7775;display:grid;place-items:center;
+}
+.eduskill-guide .eduskill-role-card:nth-child(2) .eduskill-role-icon{background:#e5efff;color:#315d98}
+.eduskill-guide .eduskill-role-card:nth-child(3) .eduskill-role-icon{background:#e2f5ed;color:#26795e}
+.eduskill-guide .eduskill-role-card:nth-child(4) .eduskill-role-icon{background:#f5eddd;color:#956d2c}
+.eduskill-guide .eduskill-steps>div{position:relative;display:flex;flex-direction:column;gap:12px}
+.eduskill-guide .eduskill-step-top{display:flex;align-items:center;justify-content:space-between;gap:7px}
+.eduskill-guide .eduskill-step-icon{
+ display:grid;place-items:center;height:44px;width:44px;border-radius:12px;
+ background:#def1eb;color:#0b7672;
+}
+.eduskill-guide .eduskill-steps>div:nth-child(even) .eduskill-step-icon{background:#e2eefb;color:#365f91}
+.eduskill-guide .eduskill-step-top b{font-size:11px;letter-spacing:.03em;color:#15837c}
+.eduskill-guide .eduskill-steps>div>span{font-weight:750;line-height:1.55;font-size:12px;color:#274c5d}
+.eduskill-guide .eduskill-roadmap-icon{
+ display:grid;place-items:center;width:42px;height:42px;margin-bottom:14px;
+ background:#e1f3ed;color:#0d7975;border-radius:12px;
+}
+.eduskill-guide .eduskill-roadmap-grid>div:nth-child(2) .eduskill-roadmap-icon{background:#e2eefc;color:#355e94}
+.eduskill-guide .eduskill-roadmap-grid>div:nth-child(3) .eduskill-roadmap-icon{background:#f7eedd;color:#92702b}
+.eduskill-guide .eduskill-compare>div{min-width:0}
+@media(max-width:640px){
+ .eduskill-guide .eduskill-guide-nav button{padding:9px 11px;font-size:11px}
+ .eduskill-guide .eduskill-vector{margin:8px auto 12px;max-height:106px}
+ .eduskill-guide .eduskill-role-icon{width:43px;height:43px}
+ .eduskill-guide .eduskill-steps{gap:10px}
+ .eduskill-guide .eduskill-step-icon{height:39px;width:39px}
+ .eduskill-guide .eduskill-steps>div{padding:12px}
+}
+
+
+/* Featured no-sign-in project tour action: distinct from authenticated sign-in.
+   No animation loop, fixed heights or changes to login / role behavior. */
+#loginScreen .eduskill-login-card .eduskill-explore-btn{
+ position:relative;isolation:isolate;overflow:hidden;
+ display:flex;gap:14px;align-items:center;width:100%;min-height:98px;
+ border:1px solid #0a656b;border-radius:16px;
+ background:linear-gradient(110deg,#103b54 0%,#096e73 72%,#0d8d82 100%);
+ box-shadow:0 10px 24px rgba(8,83,94,.18),inset 0 1px rgba(255,255,255,.14);
+ padding:16px 17px;text-align:left;color:#ffffff;
+ transition:background .16s,border-color .16s,box-shadow .16s,transform .16s;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn::after{
+ content:"";position:absolute;z-index:-1;right:-35px;top:-57px;width:158px;height:158px;
+ border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 65%);
+ pointer-events:none;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-icon{
+ flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:14px;
+ color:#103e51;background:#c0f4dd;box-shadow:0 3px 10px rgba(0,0,0,.10);
+ font-size:24px;line-height:1;font-weight:800;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-label{
+ display:block;width:fit-content;margin-bottom:5px;padding:3px 7px;border-radius:6px;
+ font:800 9px/1.3 Inter,Arial,sans-serif;letter-spacing:.07em;
+ color:#d4ffee;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.17);
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn strong{
+ display:block;color:#fff;font:800 16px/1.35 Inter,Arial,sans-serif;letter-spacing:-.025em;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn small{
+ display:block;margin-top:3px;color:#e0f5f3;font:550 11px/1.5 Inter,Arial,sans-serif;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-arrow{
+ flex:none;color:#fff;font-size:23px;font-weight:700;transition:transform .16s;
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn:hover{
+ border-color:#07746c;background:linear-gradient(115deg,#0b354c,#087b7a 72%,#138a78);
+ box-shadow:0 14px 29px rgba(8,83,94,.23);transform:translateY(-2px);
+}
+#loginScreen .eduskill-login-card .eduskill-explore-btn:hover .eduskill-explore-arrow{transform:translateX(3px)}
+#loginScreen .eduskill-login-card .eduskill-explore-btn:focus-visible{
+ outline:3px solid #2fabb4;outline-offset:3px;
+}
+@media(max-width:640px){
+ #loginScreen .eduskill-login-card .eduskill-explore-btn{min-height:94px;padding:14px 13px;gap:11px}
+ #loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-icon{width:44px;height:44px}
+ #loginScreen .eduskill-login-card .eduskill-explore-btn strong{font-size:15px}
+ #loginScreen .eduskill-login-card .eduskill-explore-btn small{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+ #loginScreen .eduskill-login-card .eduskill-explore-btn,
+ #loginScreen .eduskill-login-card .eduskill-explore-btn .eduskill-explore-arrow{transition:none!important}
+}
+
+
+/* Universal EduSkill 360 — authenticated workspace task shortcuts.
+   Pure presentation: routes, stored records and permissions stay unchanged. */
+html[data-v15-final-role] #v15QuickStart{
+ background:linear-gradient(135deg,#f8fbfd 0%,#f0f8f7 100%);
+ border:1px solid #dce8ec;border-radius:21px;
+ box-shadow:0 8px 28px rgba(13,61,78,.055);padding:23px;
+}
+#v15QuickStart .v15-start-heading{
+ display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:19px;
+}
+#v15QuickStart .v15-start-eyebrow{
+ display:block;margin:0 0 6px;color:#0d7977;font:800 10px/1.5 Inter,Arial,sans-serif;
+ letter-spacing:.10em;
+}
+#v15QuickStart .v15-start-heading h2{
+ margin:0 0 6px;font:800 clamp(19px,2.1vw,24px)/1.25 Inter,Arial,sans-serif;
+ color:#123b52;letter-spacing:-.035em;
+}
+#v15QuickStart .v15-start-heading p{
+ margin:0;color:#526e7c;font-size:13px;line-height:1.55;
+}
+#v15QuickStart .v15-start-help{
+ font:700 11px/1.4 Inter,Arial,sans-serif;color:#53727a;
+ background:#fff;border:1px solid #dbe8e7;border-radius:999px;padding:8px 11px;
+}
+#v15QuickStart .v15-start-grid{gap:14px}
+#v15QuickStart .v15-start-grid .v15-start-action{
+ appearance:none;display:flex;align-items:flex-start;flex-direction:column;
+ gap:9px;justify-content:flex-start;
+ min-width:0;min-height:160px!important;height:auto;padding:18px!important;
+ background:#fff;color:#133b53;border:1px solid #dce7eb;border-radius:16px;
+ text-align:left;box-shadow:0 3px 13px rgba(25,70,85,.045);
+ cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;
+}
+#v15QuickStart .v15-start-grid .v15-start-action:hover{
+ border-color:#7cbbb6;box-shadow:0 10px 22px rgba(23,86,99,.11);
+ transform:translateY(-2px);
+}
+#v15QuickStart .v15-start-grid .v15-start-action:focus-visible{
+ outline:3px solid #118982;outline-offset:3px;
+}
+#v15QuickStart .v15-start-grid .v15-start-action .v15-start-glyph{
+ width:42px;height:42px;display:grid;place-items:center;flex:none;
+ background:#e4f5f0;color:#117d75;border-radius:12px;
+ font:850 23px/1 Inter,Arial,sans-serif;
+}
+#v15QuickStart .v15-start-grid .v15-start-action:nth-child(2) .v15-start-glyph{
+ background:#e4eef9;color:#295b91;
+}
+#v15QuickStart .v15-start-grid .v15-start-action:nth-child(3) .v15-start-glyph{
+ background:#fff1de;color:#9a6724;
+}
+#v15QuickStart .v15-start-grid .v15-start-action strong{
+ font:800 15px/1.35 Inter,Arial,sans-serif;color:#153b52;
+}
+#v15QuickStart .v15-start-grid .v15-start-action>span:not(.v15-start-glyph):not(.v15-start-cta){
+ font:500 12px/1.55 Inter,Arial,sans-serif;color:#5e7481;
+}
+#v15QuickStart .v15-start-grid .v15-start-action .v15-start-cta{
+ margin-top:auto;font:800 10px/1.4 Inter,Arial,sans-serif;color:#0b7573;
+ letter-spacing:.018em;
+}
+@media(max-width:900px){
+ html[data-v15-final-role] #v15QuickStart{padding:16px;border-radius:17px}
+ #v15QuickStart .v15-start-help{display:none}
+ #v15QuickStart .v15-start-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:11px}
+ #v15QuickStart .v15-start-grid .v15-start-action{min-height:146px!important}
+}
+@media(max-width:650px){
+ #v15QuickStart .v15-start-grid{grid-template-columns:minmax(0,1fr)}
+ #v15QuickStart .v15-start-grid .v15-start-action{min-height:132px!important;padding:15px!important}
+}
+@media(prefers-reduced-motion:reduce){
+ #v15QuickStart .v15-start-grid .v15-start-action{transition:none!important}
+}
+
+
+/* Role-based menu wayfinding. Group labels are desktop-only and never interactive. */
+#tabs .v15-nav-group-title{display:none}
+@media screen and (min-width:961px){
+ #tabs[data-v15-final-owned="1"] .v15-nav-group-title{
+  display:block;padding:14px 12px 5px;margin:8px 0 2px;
+  color:#94b5c5;font:800 10px/1.4 Inter,Arial,sans-serif;
+  letter-spacing:.085em;text-transform:uppercase;
+  border-top:1px solid rgba(174,216,221,.10);
+ }
+ #tabs[data-v15-final-owned="1"] .v15-nav-group-title:first-of-type{
+  border-top:0;margin-top:0;
+ }
+ #tabs[data-v15-final-owned="1"] .tab{min-height:42px}
+}
+
+
+/* Jury-friendly open-source development proof on public login, no secret or live API fetch. */
+#loginScreen .eduskill-login-card .eduskill-github-proof{
+ order:6;display:flex;align-items:flex-start;gap:11px;min-width:0;
+ margin:-7px 0 19px;padding:12px 13px;
+ border:1px solid #d7e4e8;border-left:3px solid #1c8a83;border-radius:12px;
+ background:#f7fafb;color:#233e4f;
+}
+#loginScreen .eduskill-github-symbol{
+ width:33px;height:33px;flex:none;display:grid;place-items:center;
+ color:#24536a;background:#e6f0f4;border-radius:9px;
+}
+#loginScreen .eduskill-github-copy{flex:1;min-width:0}
+#loginScreen .eduskill-github-copy>strong{
+ display:block;color:#244558;font:780 12px/1.45 Inter,Arial,sans-serif;
+}
+#loginScreen .eduskill-github-copy>span{
+ display:block;margin-top:3px;color:#617987;font:500 10px/1.45 Inter,Arial,sans-serif;
+}
+#loginScreen .eduskill-github-links{
+ display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:8px;
+}
+#loginScreen .eduskill-github-links>a,
+.eduskill-guide-github>a{
+ color:#0b696b;font:750 10px/1.5 Inter,Arial,sans-serif;text-decoration:underline;
+ text-underline-offset:3px;overflow-wrap:anywhere;
+}
+#loginScreen .eduskill-github-links>a:hover,
+.eduskill-guide-github>a:hover{color:#05494f}
+#loginScreen .eduskill-github-links>a:focus-visible,
+.eduskill-guide-github>a:focus-visible{outline:2px solid #0c8983;outline-offset:3px;border-radius:2px}
+.eduskill-guide-github{
+ display:flex;gap:7px 17px;flex-wrap:wrap;margin:16px 0 0;
+ padding:13px 15px;border:1px solid #d7e6ea;border-radius:12px;
+ background:#f5fafb;align-items:center;
+}
+.eduskill-guide-github strong{width:100%;color:#163e55;font-size:12px}
+.eduskill-guide-github p{width:100%;margin:0 0 2px;color:#52717e;font-size:11px;line-height:1.55}
+@media(max-width:640px){
+ #loginScreen .eduskill-login-card .eduskill-github-proof{
+  margin-top:-8px;padding:10px;gap:9px
+ }
+ #loginScreen .eduskill-github-links{gap:7px 12px}
+}
+
+
+/* EduSkill 360 Instructor teaching chat — accessible, scoped, privacy-first. */
+#tab-ai-assistant .instructor-conversation{
+ padding:23px;border:1px solid #d6e5ec;border-radius:19px;
+ background:linear-gradient(150deg,#fbfefd,#f2f9f8);
+ box-shadow:0 7px 20px rgba(21,66,78,.055);
+ margin-bottom:16px;min-width:0;
+}
+.instructor-chat-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.instructor-chat-head h3{margin:4px 0 8px;color:#163e55;font-size:22px;line-height:1.25}
+.instructor-chat-head p{color:#57717e;font-size:12px;line-height:1.55;max-width:690px;margin:0}
+.instructor-chat-eyebrow{font:800 10px/1.5 Inter,Arial,sans-serif;letter-spacing:.1em;color:#117d78}
+.instructor-chat-mode{font:750 10px/1.45 Inter,Arial,sans-serif;color:#115e69;background:#e2f3f1;border:1px solid #b9dfd9;border-radius:999px;padding:7px 11px;max-width:100%}
+.instructor-chat-suggestions{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 13px}
+.instructor-chat-suggestions button{border:1px solid #c7e0e2;border-radius:999px;background:#fff;color:#236478;font:700 11px/1.4 Inter,Arial,sans-serif;cursor:pointer;padding:8px 12px}
+.instructor-chat-suggestions button:hover{background:#e7f5f4}
+.instructor-chat-suggestions button:focus-visible,.instructor-chat-actions button:focus-visible{outline:3px solid #0a8784;outline-offset:2px}
+#instructorChatMessages{
+ display:flex;flex-direction:column;align-items:stretch;gap:12px;
+ min-height:185px;max-height:390px;overflow-y:auto;overflow-x:hidden;
+ background:#fff;border:1px solid #dde8ee;border-radius:15px;
+ padding:16px;margin-bottom:13px;
+}
+.instructor-chat-empty{margin:auto;text-align:center;font-size:12px;line-height:1.6;color:#647d89;max-width:410px}
+.instructor-chat-bubble{display:flex;flex-direction:column;gap:4px;padding:11px 14px;border:1px solid #e0e8ef;border-radius:15px;max-width:min(90%,720px);min-width:0}
+.instructor-chat-bubble.from-instructor{background:#0b5a67;color:#fff;border-color:#0b5a67;align-self:flex-end;border-bottom-right-radius:4px}
+.instructor-chat-bubble.from-assistant{background:#f0f7f7;color:#25495d;align-self:flex-start;border-bottom-left-radius:4px}
+.instructor-chat-bubble strong{font-size:10px;letter-spacing:.025em}
+.instructor-chat-bubble p{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;font-size:13px;line-height:1.65;color:inherit}
+#tab-ai-assistant .instructor-conversation>label:not(.instructor-chat-consent){display:block;font-size:11px;font-weight:750;color:#3c5c6d;margin:9px 0 6px}
+#instructorChatLanguage{display:block;width:min(200px,100%);max-width:100%;border-radius:9px;padding:8px;font-size:13px}
+#instructorChatQuestion{display:block;width:100%;min-height:92px;max-width:100%;resize:vertical;border:1px solid #b7cfd7;background:#fff;border-radius:11px;padding:12px;font-size:13px;line-height:1.55;box-sizing:border-box}
+#instructorChatQuestion:focus-visible{outline:3px solid #90d0c9;outline-offset:2px}
+#tab-ai-assistant .instructor-chat-consent{display:flex;align-items:flex-start;gap:8px;color:#425e6b;font-size:11px;line-height:1.55;margin:10px 0}
+#tab-ai-assistant .instructor-chat-consent[hidden]{display:none!important}
+#tab-ai-assistant .instructor-chat-consent input{flex:none;accent-color:#0d7874;width:16px;height:16px;margin-top:1px}
+.instructor-chat-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:11px}
+#tab-ai-assistant .instructor-chat-actions .btn{height:auto;min-height:42px;white-space:normal;padding:10px 14px}
+.instructor-chat-status{margin:11px 0 0;color:#3a6070;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.instructor-chat-disclaimer{margin:10px 0 0;color:#657d87;font-size:11px;line-height:1.5}
+@media(max-width:760px){
+ #tab-ai-assistant .instructor-conversation{padding:15px;border-radius:15px}
+ .instructor-chat-head h3{font-size:18px}
+ #instructorChatMessages{padding:10px;max-height:310px}
+ .instructor-chat-bubble{max-width:97%}
+ .instructor-chat-actions .btn{flex:1 1 100%}
+}
+
+
+/* Staging login: clearly separate the primary demo account from optional Google. */
+#loginScreen .eduskill-login-card>#stagingGoogleOption{
+ order:14;display:block;margin:10px 0 13px;border:1px solid #d6e4e9;
+ background:#f8fbfc;border-radius:12px;min-width:0;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary{
+ display:flex;flex-direction:column;gap:3px;position:relative;cursor:pointer;
+ list-style:none;padding:12px 35px 12px 14px;
+ font:750 12px/1.4 Inter,Arial,sans-serif;color:#1e5966;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary::-webkit-details-marker{display:none}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary::after{
+ content:"+";position:absolute;right:14px;top:15px;font:750 19px/1 sans-serif;color:#247c80;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption[open] summary::after{content:"−"}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary span{
+ font:500 10px/1.5 Inter,Arial,sans-serif;color:#617d89;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption summary:focus-visible{
+ outline:3px solid #1d8a86;outline-offset:3px;border-radius:11px;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields{
+ display:flex;flex-direction:column;padding:0 14px 10px;gap:5px;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields label{
+ font:750 11px/1.5 Inter,Arial,sans-serif;color:#3d5e6e;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields input{
+ width:100%;box-sizing:border-box;min-height:44px;
+ padding:10px 12px;border:1px solid #cadce4;border-radius:10px;
+ background:white;color:#173b4c;font:500 13px/1.5 Inter,Arial,sans-serif;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields input:focus-visible{
+ border-color:#15847e;outline:3px solid #b6e7df;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields small{
+ color:#637a86;font-size:10px;line-height:1.55;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .btn.full{
+ display:block;width:calc(100% - 28px);min-height:42px;margin:0 14px 14px;
+ border:1px solid #bad7dc;background:#e5f1f3;color:#205967;
+ border-radius:10px;font:750 11px/1.5 Inter,Arial,sans-serif;white-space:normal;
+}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .btn.full:hover{background:#d7e9ec}
+#loginScreen .eduskill-login-card>#stagingGoogleOption .btn.full:focus-visible{
+ outline:3px solid #15847e;outline-offset:3px;
+}
+#loginScreen .eduskill-login-card #stagingTestPasswordField .staging-test-help{
+ margin-top:10px;color:#5d7681;font:500 10px/1.5 Inter,Arial,sans-serif;
+ background:#f3f8f9;border-radius:8px;padding:9px 10px;
+}
+#loginScreen .eduskill-login-card #stagingSignIn{
+ background:#0c7775!important;color:#fff!important;
+ font-size:13px!important;min-height:48px!important;
+}
+#loginScreen .eduskill-login-card #stagingSignIn:hover{background:#08625f!important}
+@media(max-width:650px){
+ #loginScreen .eduskill-login-card>#stagingGoogleOption summary{padding:12px 33px 12px 12px}
+ #loginScreen .eduskill-login-card>#stagingGoogleOption .staging-google-fields{padding:0 12px 10px}
+ #loginScreen .eduskill-login-card>#stagingGoogleOption .btn.full{width:calc(100% - 24px);margin:0 12px 12px}
+}
+
+
+/* Student Skill Gap: three-step guidance and focused personal practicals selection. */
+#tab-skill-gap .skill-gap-howto{
+ border:1px solid #d5e5e8;background:linear-gradient(135deg,#f8fcfd,#eff8f6);
+ border-radius:17px;padding:19px 21px;margin:14px 0 17px;
+}
+#tab-skill-gap .skill-gap-howto h3{color:#17465b;margin:0 0 13px;font-size:17px}
+#tab-skill-gap .skill-gap-step-list{
+ list-style:none;counter-reset:student-step;padding:0;margin:0 0 14px;
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+}
+#tab-skill-gap .skill-gap-step-list li{
+ counter-increment:student-step;min-width:0;
+ border:1px solid #dbe9eb;border-radius:12px;padding:13px;
+ background:#fff;color:#3a606e;font-size:12px;line-height:1.6;
+}
+#tab-skill-gap .skill-gap-step-list li:before{
+ content:counter(student-step);display:grid;place-items:center;
+ width:27px;height:27px;margin-bottom:8px;background:#dff4ed;
+ border-radius:9px;font-weight:800;font-size:13px;color:#0a726c;
+}
+#tab-skill-gap .skill-gap-example{
+ margin:13px 0 0;font-size:11px;line-height:1.6;color:#4b6b77;
+}
+#tab-skill-gap .skill-gap-selection-tip{
+ margin:13px 0 8px;padding:11px 13px;border-left:3px solid #188581;
+ background:#f1f9f8;color:#315967;font-size:12px;line-height:1.55;border-radius:0 9px 9px 0;
+}
+#tab-skill-gap #skillGapPracticalSearch{
+ display:block;width:100%;max-width:450px;box-sizing:border-box;
+ background:#fff;border:1px solid #bad0d9;color:#1e4655;
+ border-radius:11px;padding:10px 13px;font-size:13px;min-height:44px;
+}
+#tab-skill-gap #skillGapPracticalSearch:focus-visible{
+ outline:3px solid #a7ded4;outline-offset:2px;
+}
+#tab-skill-gap .skill-gap-selected-count{
+ margin:10px 0 3px;font-weight:750;font-size:12px;line-height:1.5;color:#115c66;
+}
+#tab-skill-gap #skillGapPracticalChooser label[hidden]{display:none!important}
+#tab-skill-gap .skill-gap-goal-summary{
+ border-left:3px solid #17847e;padding:8px 11px;border-radius:0 8px 8px 0;
+ margin:11px 0;background:#f5fafa;color:#17495a;font-weight:700;font-size:12px;
+ overflow-wrap:anywhere;
+}
+#tab-skill-gap .skill-gap-summary{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#tab-skill-gap .skill-gap-summary strong{
+ font-size:12px;line-height:1.5;border:1px solid #dce6eb;
+ background:#f5fafc;border-radius:10px;padding:10px 12px;color:#1d4e60;
+}
+#tab-skill-gap .skill-gap-score-note{
+ color:#5b717d;font-size:11px;line-height:1.6;
+ margin:10px 0;
+}
+@media(max-width:780px){
+ #tab-skill-gap .skill-gap-howto{padding:14px}
+ #tab-skill-gap .skill-gap-step-list{grid-template-columns:minmax(0,1fr);gap:8px}
+ #tab-skill-gap .skill-gap-step-list li{padding:10px 12px}
+ #tab-skill-gap .skill-gap-step-list li:before{display:inline-grid;margin:0 10px 0 0;vertical-align:middle}
+ #tab-skill-gap .skill-gap-summary strong{flex:1 1 130px}
+}
+
+
+#tab-skill-gap .skill-gap-practical-title{flex:1 1 240px;min-width:0;overflow-wrap:anywhere}
+#tab-skill-gap .skill-gap-topic-verification{
+ flex:none;display:inline-flex;align-items:center;justify-content:center;
+ border:1px solid #d9e2e8;border-radius:999px;padding:5px 9px;
+ font:700 10px/1.4 Inter,Arial,sans-serif;background:#f4f7f9;color:#526e7c;
+ max-width:100%;text-align:center;
+}
+#tab-skill-gap .skill-gap-topic-verification.is-verified{
+ color:#0d6860;background:#e6f5ed;border-color:#b9ddce;
+}
+@media(max-width:600px){
+ #tab-skill-gap .skill-gap-topic-verification{flex:0 1 auto}
+}

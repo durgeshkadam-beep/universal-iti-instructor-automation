@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*-debug.log
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+playwright-report/
+test-results/
+.tmp/
+coverage/
+config/runtime.local.js
+dist/
+
+.firebase/

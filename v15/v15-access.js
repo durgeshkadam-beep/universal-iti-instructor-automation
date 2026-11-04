@@ -33,6 +33,15 @@ Object.assign(V,{
    const a={email,role,traineeId:traineeId||null,displayName:name||'',workspaceIds:[this.workspaceId],active:true,createdBy:this.fb.user.uid,createdAt:this.now()};
    await M.setDoc(this.access(email),a);
    await M.setDoc(this.secret(email),{email,role,codeHash:h,active:true,createdBy:this.fb.user.uid,createdAt:this.now()});
+   // Never report a successful invitation from an offline/pending local write.
+   const [approval,secret]=await Promise.all([
+     M.getDocFromServer(this.access(email)),M.getDocFromServer(this.secret(email))
+   ]);
+   const saved=approval.exists()?approval.data():null,proof=secret.exists()?secret.data():null;
+   if(!saved||saved.email!==email||saved.active!==true||saved.role!==role||saved.traineeId!==(traineeId||null)
+     ||JSON.stringify(saved.workspaceIds)!==JSON.stringify(a.workspaceIds)
+     ||!proof||proof.active!==true||proof.codeHash!==h||proof.role!==role)
+     throw new Error('Cloud approval could not be verified. Keep this page open and retry approval.');
    return c;
  },
  async inviteStudent(t){return t?.email?this.invite(t.email,'student',t.id,t.name||'Student'):null;},
@@ -47,7 +56,7 @@ Object.assign(V,{
    t.email=e;saveData();
    try{
      const c=await this.inviteStudent(t);
-     alert(`Student Google account approved.\n\n${t.name}\n${e}\nActivation code: ${c}\n\nGive this code only to this trainee. It is required once on first Google login.`);
+     alert(`Student Google account approved.\n\n${t.name}\n${e}\nActivation code: ${c}\nStudent login website: ${new URL('./',location.href).href}\n\nGive this code only to this trainee. It is required once on first Google login.`);
    }catch(x){alert('Email saved, but cloud approval failed: '+(x.message||x));}
    Trainees.render();
  },

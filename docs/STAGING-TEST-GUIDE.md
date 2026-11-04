@@ -1,0 +1,186 @@
+# Isolated staging test site
+
+> **Current status — 27 October 2026:** see [FINAL-ACCEPTANCE-STATUS.md](FINAL-ACCEPTANCE-STATUS.md) and [DEMO-WALKTHROUGH.md](DEMO-WALKTHROUGH.md). Application source `0f01524c246e4b1c1676c29567c6fd15cf374c5f` passed CI with **194 native tests and 54 desktop/mobile browser cases**, Emulator suites, build/container checks and both audits. Optional Gemini teaching generation is configured on the staging backend; fixed synthetic theory/practical probes passed. Keyless assistance remains available. Older dated test counts below describe historical releases, not additional current-release acceptance. Current hosted role/device and production limitations are in the acceptance report.
+
+URL: https://universal-iti-dk-staging.web.app/v15/
+
+Created with owner authorization on 22 October 2026. Project: `universal-iti-dk-staging`. Its Standard Firestore database is in `asia-south1` (Mumbai), reports `freeTier: true`, and billing is disabled. The original project `universal-iti-auto-dk` and main were not modified.
+
+The site has a visible STAGING banner. Select a role, enter that role's synthetic email and privately supplied password, then press **Sign in with test account**. These are Firebase Auth credentials; the selected role does not grant permission. Existing Firestore memberships/rules still control access.
+
+| Role | Synthetic email |
+|---|---|
+| System Admin | admin@iti-staging.example.test |
+| Principal | principal@iti-staging.example.test |
+| Instructor | instructor@iti-staging.example.test |
+| Staff | staff@iti-staging.example.test |
+| Student | student@iti-staging.example.test |
+
+Passwords are generated randomly and never included in source, web assets, documentation or public PR text. Google sign-in is enabled, but real Google accounts require explicit staging membership; entering a real Gmail alone will not activate a role. Sign out before changing test accounts.
+
+Synthetic fixtures include one DTP workspace, one trainee, two practicals, a welcome notice and an instructor-verified practical. No jobs, market statistics or real personal records are seeded. Test My Skills, Skill Gap, private learning plans, guided assistance, navigation and role-specific record workflows. Changes made here affect staging data only; never enter real student information on this test site.
+
+## Backend limitations
+
+`config/staging.public.json` now selects the deployed Render HTTPS API. Hosted MCQ publishing/grading passed authenticated API acceptance with synthetic data. Answer keys remain private and there is no client grading fallback. Marathi/Hindi/English structured guidance, resume outlines and interview practice remain available without an AI key. Optional Gemini generation is now configured on the secure staging backend. Fixed synthetic teaching probes passed; this is not a guarantee of provider availability or Student-task quality. No paid compute or API billing upgrade was enabled.
+
+## Reproduce deployment
+
+Use a Firebase CLI account authorized for this staging project:
+
+```sh
+npx -y firebase-tools@latest deploy --only auth,firestore --project universal-iti-dk-staging --config firebase.staging.json --non-interactive
+npx -y firebase-tools@latest deploy --only hosting --project universal-iti-dk-staging --config firebase.staging.json --non-interactive
+```
+
+The staging-specific config keeps provider/domain/location settings out of the general release configuration. Its Hosting predeploy command builds only public assets from the explicit public staging configuration. The release guard allows no-backend mode only with `staging: true` and an explicit project ID ending in `-staging`; ordinary releases continue to require an HTTPS API URL. A public staging flag changes UI only and grants no permissions.
+
+Operator fixture creation uses `scripts/seed-staging-demo.js` with `GCLOUD_PROJECT=universal-iti-dk-staging`, `ALLOW_STAGING_BOOTSTRAP=true` and `ITI_STAGING_CREDENTIALS_FILE` pointing outside the repository. It reads the operator's existing Firebase CLI login in memory and refuses an existing institute. If private test passwords need recovery, `--rotate-test-passwords` only resets the five known synthetic Auth identities after checking the existing synthetic owner; it does not rewrite Firestore records. Keep both CLI configuration and generated credentials in a private operator directory outside the checkout. Never commit them or publish that directory.
+
+## Verification status
+
+### Faster everyday workflow
+
+Open **Dashboard → Start here**. Instructor shortcuts open Attendance, Verify Student Skills and Plan Training. Student shortcuts open My Attendance, My Skills and Career & Resume Practice. Principal and Staff dashboards similarly expose three main tasks; the full role menu remains available. The Admin portal keeps its existing technical administration screen. Shortcut cards keep enough height for their titles and descriptions on mobile.
+
+The current staging frontend connects to the Free Render HTTPS backend. Career Coach offers keyless Marathi/Hindi/English structured practice immediately. It checks authenticated backend configuration without sending the typed goal or answer. With AI_PROVIDER=none it hides the optional AI request/consent controls and explains that generated drafts are not enabled. If status lookup fails, guided practice remains usable. Online tests now use server-side publishing, attempts and grading. An installation without apiUrl retains the unavailable message and dashboard return; it never grades in the browser.
+
+Earlier simplification validation: **17 regression scripts, 42 native tests and 22 desktop/mobile browser scenarios passed**. The browser checks click all three shortcuts for each applicable role and verify their destinations, exercise keyless Marathi/Hindi/English practice with the browser offline after login, and return from unavailable exams. A discovered late Staff & Access activation was fixed by removing its duplicate renderer/navigation handler; both the delayed-render DOM regression and actual Principal shortcut navigation pass.
+
+Staging is deployed and available for manual testing. The previously deployed baseline passed 17 regression scripts, 36 unit/HTTP/build/transport tests and **20 desktop/mobile browser scenarios**; the newer totals are above. Module scenarios create a module through the actual form, confirm its Firestore write, sign in again and verify that the module survives reload. The async navigation regression also verifies that a slow page or shell refresh cannot replace a newer selected route.
+
+Actual hosted browser checks passed for all five synthetic roles against the deployed app and real staging Auth/Firestore: Admin (1 route), Principal (6), Instructor (22), Staff (4), Student (15). Instructor skill verification was saved through the UI and its evidence was read by the linked Student. The Student saved a private learning plan, ran Marathi/Hindi/English guided practice, and was denied access to protected exam keys and another student's plan. Mobile containment passed and no request to the production project was observed. This is runtime testing, not a static-source-only check.
+
+The owner’s verified Google account has been approved as a staging Instructor assigned to the synthetic DTP workspace. For that account, choose **Instructor**, enter its Gmail and press **Use a separately approved Google account**. The password form is for synthetic accounts. Refresh the site to load the new deployment. The final interactive Google popup on the user's own device remains a manual acceptance step.
+
+The first live browser attempt exposed a slow-connection startup failure. Membership/institute bootstrap reads now use `getDocFromServer`, with at most five attempts and bounded backoff (1, 2, 4, 8 seconds). Permission denial and a known offline browser fail without retry; cached membership cannot authorize a new login. These server-only reads resolved the live connection failure. A subsequent Instructor run exposed an async route-restoration race: selection is now saved before rendering and the duplicate delayed login navigation was removed. The full hosted five-role retest then passed.
+
+The operator renewed authentication and restored the five private synthetic passwords. No owner transfer, production membership change or real-student update occurred. Backend code and package metadata return HTTP 404. Billing remains disabled. GitHub CI run 206 (39797131007) passed for the deployed startup/navigation baseline, including tests, container smoke, permission tests, browser tests and the production audit. Later backend deployment-guard validation is recorded separately in the work report.
+
+The [Render staging backend](RENDER-STAGING.md) is connected and deployed on the Free plan with automatic deploys off. Optional Gemini generation was subsequently configured; see the current acceptance report. The owner authorized its private staging identity. The startup guard refuses wrong-project credentials/origins and emulator overrides. The frontend now targets https://universal-iti-staging-api.onrender.com/api. Free instances can sleep and take time to wake; this is a synthetic demonstration, not dependable scheduled production-exam hosting.
+
+This is staging acceptance coverage, not a production-readiness certification. Hosted MCQs now use the deployed trusted HTTPS backend. Optional generative AI now has a server-side provider/model and secret; see the current acceptance report for live evidence and limits. Real Google popup/device acceptance, external document imports/printing/Drive, migration/backup and all institute-specific legacy forms retain the release limitations described in the production-readiness guide.
+
+
+## Test the hosted MCQ flow
+
+1. Refresh https://universal-iti-dk-staging.web.app/v15/ so the public runtime points
+   at the Render API. Use only synthetic fixtures here; original student data has
+   not been migrated.
+2. Sign in as Instructor and open Class Test / Secure MCQ Examinations. Enter
+   the title, duration, opening/closing date and time, question text and four
+   options. Select the correct answer explicitly. Use Add question / Remove
+   question as needed, review the test, tick the review confirmation and publish.
+   Times use the device's local time zone; the test ID is generated automatically.
+   Advanced reviewed JSON remains available for question sets with 2–6 options.
+3. In a separate browser profile, sign in with the synthetic Student account and
+   open Secure Class Tests. Start the published exam and submit before its deadline.
+4. Reload and reopen the attempt: the saved result must remain the same. A failed
+   network request must display an error; retry online rather than relying on a
+   browser-calculated score. Free-service wake-up may need a retry.
+5. Continue keyless skills/career practice without a personal AI key. Optional
+   generated drafts use the configured backend and require consent and quota.
+   Live teaching probes do not certify every Student-task response.
+
+
+23 October hosted MCQ/mobile acceptance passed through the real publisher and
+Student forms, including offline failure/online retry, 2/2 grading and unchanged
+result after reload. All five roles/48 routes were re-tested after the API was
+connected, with no production-project requests. Full CI39908590684 also passed
+all test/build/emulator/browser/container/audit steps for the backend source.
+
+
+## Simplified question authoring — 23 October
+
+The default Instructor publisher is now a labelled form; technical JSON and epoch
+values are no longer required. Empty questions/options, unselected correct
+answers and missing review confirmation prevent submission. A closing time must
+be later than opening and still in the future. The form supports up to 100
+four-option questions. Successful publication freezes the form because published
+tests are immutable. On failure, current-page form contents remain available for
+retry; there is no persistent answer-key draft on shared-device storage. If the
+server published but its response was lost, check the test list before creating
+a replacement. Reviewed JSON remains a collapsed advanced option.
+
+Local verification: 17 regression scripts + 44 native tests + 24 desktop/mobile
+E2E scenarios passed. The new scenario exercises add/remove questions, mandatory
+answers/review, invalid schedule, actual network failure/retained input, retry
+through the real HTTP backend and Student grading with Auth/Firestore emulators.
+
+
+Later live testing exposed duplicate exam cards after overlapping reload queries.
+The current renderer discards stale responses and binds each load to its user and
+workspace. 47 native tests now include reverse-order/identity-change regressions;
+the 24 browser scenarios also force concurrent queries and verify the saved result
+after a fresh login. Mobile fields are stacked and full-width with 44px controls.
+
+
+The module persistence follow-up now saves new section-discovery metadata even
+when no other workspace metadata changes. A module must finish synchronizing
+both its record and section registration before a fresh-login acceptance check.
+Current local coverage is 48 native tests, 17 regression scripts and 24 desktop/
+mobile scenarios; final CI/hosted follow-up is linked from PR16.
+
+
+AI status follow-up: the capability response contains only `aiConfigured`, requires
+active workspace authorization, and does not probe/call the model provider. Keys,
+model names and private URLs stay on the backend. Provider configuration is not a
+health/quality/quota guarantee. Marathi/Hindi/English guided practice is available
+while the lookup runs and after a lookup failure. The earlier disabled-provider checks remain valid for no-key deployments.
+The current staging backend has optional Gemini configured; the key remains on
+the server and no paid API billing upgrade was enabled.
+
+### Leave requests and locked attendance (prototype rules)
+
+Use only synthetic staging trainees. Student → Leave: submit 1–90 calendar days,
+a reason and an optional absolute HTTPS certificate URL. The request must appear
+as Pending after cloud sync and after a fresh login. Student identity comes from
+activated membership. Offline Student requests are queued on the device; online
+connection is required for Instructor review.
+
+Instructor → Leave → Approve: approval and the entire requested attendance span
+are committed together. A submitted/approved attendance month blocks the whole
+approval, including dates in an otherwise open month. Principal → Attendance:
+reopen the affected month with a reason, then let the Instructor retry. Student
+reload should show Approved and the attendance records should contain L. Reject
+must leave attendance unchanged. Longer leave requires separate requests of at
+most 90 days. Invalid/reversed dates and forged approved Student creates fail.
+
+Deploy these prototype rules only to the isolated staging project alongside the
+frontend: `firebase deploy --only firestore:rules,hosting --project universal-iti-dk-staging --config firebase.staging.json`.
+Review legacy leave fields and permissions before any broader release; old
+records with missing/extra fields are not automatically migrated. No additional
+AI key, paid API or backend deployment is required for this flow.
+
+## Training backup and restore (V15)
+
+Use **Instructor → Reports → Backup**. “Export training backup” downloads server-read modules, practicals, theory, notices and holidays for the current institute/workspace. It waits for pending training writes to sync. This is a training-resource archive, not a full institution/disaster-recovery backup: student records, attendance, marks, exams, private skills/plans, accounts and uploaded files are excluded. Export requires an authorised online Instructor, Principal or System Admin session; restoring requires Instructor or System Admin. Principal export availability depends on its report view.
+
+1. Save the downloaded JSON on your device and verify that the file exists. Download initiation alone does not prove the operating system saved it.
+2. Choose **Preview training backup** in the same workspace. Check the file name, export time, workspace, per-section missing/existing/different counts and the expandable missing-resource titles.
+3. Select the sections to restore and click **Restore missing training resources**. Preview itself does not write records. A Firestore transaction adds missing resources and section discovery together. It rechecks targets and leaves records created since preview unchanged. Existing records, including different versions, are never overwritten or deleted.
+4. Reload the workspace after success. Existing records are preserved; this feature cannot undo an edit or reconcile two different versions.
+
+Limits: 10 MB, 500 training records per archive, nesting depth 12, and at most 50 missing resources per atomic restore. Select fewer sections or prepare smaller same-workspace files for larger restores. Legacy whole-data imports and the old full-cloud restore handler are disabled in V15. Cross-workspace/production-student migration requires a separate reviewed procedure; no automatic conversion or migration is performed.
+
+Drive uses the same training-only archive, requires a connected Google Drive account and upload permission, and is initiated only by its save button. No AI key or paid backend is required. Actual Drive upload, OS download handling, Google popup login and physical printing still require acceptance on the intended device/account. Tests use the browser's real download/upload flow and Auth/Firestore Emulators; they do not create files in a real Google Drive account.
+
+V15's alternate **Download Safety Backup** also produces the training-only archive. Full local-snapshot creation is disabled; existing device snapshots are not automatically removed. Reports describes cloud records and pending device changes rather than claiming a complete local database or a 5 MB cloud quota. Long report selectors and preview text stay within the mobile viewport.
+
+For diagnosis only, the emulator runner accepts `ITI_E2E_GREP='reviewed plan text' ITI_E2E_REPEAT=5 npm run test:e2e` (with the documented Java/Playwright environment). Repetitions are bounded to 1–10. Do not set these variables for release validation: default `npm run test:e2e` and CI execute every desktop/mobile case. Failure attachments contain synthetic emulator plan state, never real student records or auth tokens. Saved-session resume stops if a foreground login already finished or the selected role/email changed; real Google popup acceptance remains a device/account check.
+
+## Common Reports / Print (V15)
+
+In **Instructor → Reports**, explicitly select a month, practical or trainee before generating its report. Cloud refresh preserves existing valid choices; a changed workspace/role or removed/ambiguous record requires a fresh selection. Attendance uses the selected UTC calendar month (including leap February). H means a saved holiday, - missing and ? an unknown status. Its percentage is recorded P divided by the selected month's non-holiday days, including missing days; it is not an examination-eligibility decision. Progress instead labels the known recorded-day denominator and recorded practical totals explicitly.
+
+The common Attendance Register, Evaluation Sheet, Trainee Progress Card, Actual Dates Taught and Syllabus Completion reports render saved fields as text. Missing/invalid marks are displayed rather than guessed; planned dates never replace missing completion dates; an empty syllabus has no percentage. Other legacy templates using Reports.doPrint share an allowlisted print-DOM boundary that blocks active HTML and foreign resources. Legacy layouts beyond these common reports still need acceptance.
+
+Choose **Print / Save as PDF** in your supported browser. Paper printing and Android/in-app browser support must be checked on the intended device; browser automation generates a real Chromium PDF and validates print media, not a physical printer. Print CSS hides app/navigation layout and uses A4 landscape for attendance. Review scaling/paper size for your institute's actual batch size.
+
+A generated preview may create an online pending register entry. It is not proof that paper was printed or physically signed. Instructor/Principal/System Admin can explicitly confirm a physical signature in the register; this is a user-recorded status, not a digital signature/cryptographic certification. Register creation, section discovery and signature updates use dedicated Firestore transactions, without calling the whole-workspace save/sanitizer or changing trainee/attendance/mark records. Signing rechecks the current server record and fails if it changed; refresh the register before retrying. Register writes require connectivity and pending legacy register changes must sync first. Offline loaded-data previews still work, but the app says the register log was not saved and requires regeneration after reconnection. No cold offline login is promised.
+
+Wait for the workspace to finish loading before creating a report. After a load error, reload successfully first. Pending trainee/training/holiday/attendance/mark/metadata changes in the active workspace must sync before generating or confirming a report. This prevents registers based on partially loaded or uncommitted source data; it does not add cold offline login.
+
+## Server-only leave review (25 October)
+
+Instructor approval/rejection now needs the configured secure backend. Direct Firestore status edits and reviewed creates are denied for every client role; requests cannot be deleted and recreated to bypass review. Student pending requests still queue offline, with real calendar and 90-day rules checks on sync. After a connection failure, reload the original workspace to check whether a review completed before retrying. Test locked cross-month leave, Principal reopen, approval/rejection, fresh Student reload and forged SDK denial using synthetic records only. See LEAVE-REVIEW-SECURITY.md for rollout order, authority checks and prototype/legacy limits.
