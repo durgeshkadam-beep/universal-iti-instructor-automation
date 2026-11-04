@@ -137,10 +137,10 @@ test('Jury product recording — actual Instructor → Student skill journey',as
  await scene(page,'12  INSTRUCTOR-APPROVED PLAN','Approved example is stored and opened in the real plan viewer',true,8200);
  await page.locator('#planModal').getByRole('button',{name:/Close/}).click();
 
- // Return to the same Instructor's original DTP learner workspace for skill checks.
+ // Return explicitly to the DTP trainee workspace (year planning uses its own fixture).
  await enterRole(page,'instructor');
  page.on('dialog',dialog=>dialog.accept());
- await page.evaluate(()=>V15Sync.finalOpenTab('skill-review'));
+ await page.evaluate(async()=>{await V15Sync.switchWorkspace('w1');V15Sync.finalOpenTab('skill-review');});
  await expect(page.locator('#v15SkillReviewStudent')).toBeVisible();
  await page.locator('#v15SkillReviewStudent').selectOption('student');
  await scene(page,'13  INSTRUCTOR SKILL VERIFICATION','Select synthetic trainee and assess practical evidence',false,4400);
