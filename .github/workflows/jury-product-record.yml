@@ -27,6 +27,9 @@ jobs:
       - name: Record the actual app using isolated synthetic accounts
         run: |
           ITI_RECORD_JURY_DEMO=1 ITI_E2E_GREP="Jury product recording" npm run test:e2e
+      - name: Install FFmpeg for conversion
+        if: success()
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: Convert actual-browser WebM recording to MP4
         if: success()
         run: |
