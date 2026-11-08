@@ -1423,6 +1423,10 @@ html[data-v15-final-role] #v15QuickStart{
 /* Inspection print rules activate ONLY on the selected Principal inspection tab.
    Unrelated Instructor Attendance/Year Plan PDFs retain their original print CSS. */
 @media print{
+ /* Reports inject body>:not(#printArea){display:none!important}. Restore only
+    the Principal workspace shell while the inspection tab is active. */
+ body:has(#tab-inspection.active)>#appShell{display:block!important;visibility:visible!important}
+ body:has(#tab-inspection.active)>#printArea{display:none!important}
  body:has(#tab-inspection.active) *{visibility:hidden!important}
  body:has(#tab-inspection.active) #tab-inspection,
  body:has(#tab-inspection.active) #tab-inspection *{visibility:visible!important}
