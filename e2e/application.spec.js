@@ -133,6 +133,13 @@ test('Principal can inspect the actual assigned Trade records without editing th
  await expect(page.locator('#piStatus')).toContainText(/Actual saved records|No records returned|Record read failed/);
  await expect(page.locator('#piNotes')).toHaveAttribute('maxlength','1600');
  await expect(page.locator('#tab-inspection')).toContainText('Draft printout only');
+ // Print CSS must reveal ONLY Principal inspection while this tab is active.
+ // Existing Instructor PDFs have separate tests ensuring their #printArea is not hidden.
+ await page.emulateMedia({media:'print'});
+ await expect(page.locator('#tab-inspection h2')).toBeVisible();
+ await expect(page.locator('#printArea')).toBeHidden();
+ await page.emulateMedia({media:'screen'});
+ await expect(page.locator('#piWorkspace')).toBeVisible();
  expect(failures).toEqual([]);
 });
 
