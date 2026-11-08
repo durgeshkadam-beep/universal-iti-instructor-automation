@@ -1420,7 +1420,19 @@ html[data-v15-final-role] #v15QuickStart{
 #tab-inspection .pi-notes{display:block;width:100%;min-height:100px;box-sizing:border-box;padding:12px;border:1px solid #c2d7df;border-radius:10px;margin:8px 0 12px;resize:vertical}
 #tab-inspection .pi-print{margin-bottom:10px}
 @media(max-width:700px){#tab-inspection .pi-controls{grid-template-columns:minmax(0,1fr)}#tab-inspection .pi-record dl{grid-template-columns:minmax(0,1fr);gap:4px}}
-@media print{body *{visibility:hidden!important}#tab-inspection,#tab-inspection *{visibility:visible!important}#tab-inspection{display:block!important;position:absolute!important;top:0!important;left:0!important;width:100%!important;overflow:visible!important}
-#tab-inspection .pi-controls,#tab-inspection .pi-print,#tab-inspection .pi-more{display:none!important}
-#tab-inspection .pi-record{break-inside:avoid}
-#tab-inspection .pi-record dl{display:grid!important}}
+/* Inspection print rules activate ONLY on the selected Principal inspection tab.
+   Unrelated Instructor Attendance/Year Plan PDFs retain their original print CSS. */
+@media print{
+ body:has(#tab-inspection.active) *{visibility:hidden!important}
+ body:has(#tab-inspection.active) #tab-inspection,
+ body:has(#tab-inspection.active) #tab-inspection *{visibility:visible!important}
+ body:has(#tab-inspection.active) #tab-inspection{
+  display:block!important;position:absolute!important;top:0!important;left:0!important;
+  width:100%!important;overflow:visible!important
+ }
+ body:has(#tab-inspection.active) #tab-inspection .pi-controls,
+ body:has(#tab-inspection.active) #tab-inspection .pi-print,
+ body:has(#tab-inspection.active) #tab-inspection .pi-more{display:none!important}
+ body:has(#tab-inspection.active) #tab-inspection .pi-record{break-inside:avoid}
+ body:has(#tab-inspection.active) #tab-inspection .pi-record dl{display:grid!important}
+}
