@@ -117,6 +117,25 @@ async function login(page,role){
  await expect.poll(()=>page.evaluate(()=>({ready:V15Sync.ready,role:V15Sync.currentRole(),message:document.querySelector('#v15LoginStatus')?.textContent})),{timeout:30000}).toMatchObject({ready:true,role});
  await expect(page.locator('#appShell')).toBeVisible();
 }
+test('Principal can inspect the actual assigned Trade records without editing the Instructor dataset',async({page})=>{
+ const failures=[];page.on('pageerror',e=>failures.push(e.message));
+ await login(page,'principal');
+ await page.evaluate(()=>V15Sync.finalOpenTab('inspection'));
+ await expect(page.locator('#tab-inspection')).toHaveClass(/active/);
+ await expect(page.locator('#piWorkspace')).toBeVisible();
+ await expect(page.locator('#piStatus')).toContainText('Choose a Trade');
+ const ids=await page.locator('#piWorkspace option').evaluateAll(nodes=>nodes.map(n=>n.value).filter(Boolean));
+ expect(ids.length).toBeGreaterThan(0);
+ await page.locator('#piWorkspace').selectOption(ids[0]);
+ await expect(page.locator('#piStatus')).toContainText(/Year Plan|saved Year Plan|Record read failed/);
+ await expect(page.locator('#piRecords')).not.toContainText('Page could not load');
+ await page.locator('#piType').selectOption('practicals');
+ await expect(page.locator('#piStatus')).toContainText(/Actual saved records|No records returned|Record read failed/);
+ await expect(page.locator('#piNotes')).toHaveAttribute('maxlength','1600');
+ await expect(page.locator('#tab-inspection')).toContainText('Draft printout only');
+ expect(failures).toEqual([]);
+});
+
 for(const role of ['admin','principal','instructor','staff','student'])test(role+' actual login, every route and mobile containment',async({page})=>{
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await login(page,role);
