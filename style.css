@@ -1400,3 +1400,27 @@ html[data-v15-final-role] #v15QuickStart{
 @media(max-width:600px){
  #tab-skill-gap .skill-gap-topic-verification{flex:0 1 auto}
 }
+
+
+/* Principal Internal Inspection: verified read-only register browser. */
+#tab-inspection .pi-notice{border-left:4px solid #19867f;background:#eef9f6;color:#205d5b;border-radius:0 9px 9px 0;padding:11px 14px;margin:13px 0 18px;line-height:1.6}
+#tab-inspection .pi-controls{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:16px;margin:4px 0 12px}
+#tab-inspection .pi-controls label{display:block;font-weight:750;font-size:12px;color:#315b6f;margin-bottom:6px}
+#tab-inspection .pi-controls select{display:block;width:100%;box-sizing:border-box;min-height:44px;padding:10px 12px;border:1px solid #c6dae2;border-radius:9px;background:#fff;color:#204559}
+#tab-inspection .pi-controls select:focus-visible,#tab-inspection button:focus-visible{outline:3px solid #94d8d0;outline-offset:2px}
+#tab-inspection .pi-status{color:#57717c;font-size:12px;line-height:1.6}
+#tab-inspection .pi-summary{font-weight:750;color:#204d60;margin:12px 0}
+#tab-inspection .pi-record{border:1px solid #dbe5e8;border-radius:11px;margin:9px 0;background:#fff;overflow-wrap:anywhere}
+#tab-inspection .pi-record summary{cursor:pointer;padding:13px 15px;font-weight:750;line-height:1.5}
+#tab-inspection .pi-record[open] summary{border-bottom:1px solid #e2edf0;background:#f3faf8}
+#tab-inspection .pi-record dl{display:grid;grid-template-columns:minmax(115px,220px) minmax(0,1fr);gap:8px;padding:14px;margin:0}
+#tab-inspection .pi-record dt{font-weight:750;color:#2e6174;overflow-wrap:anywhere}
+#tab-inspection .pi-record dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:#304d60}
+#tab-inspection .pi-more{margin:12px 0 20px}
+#tab-inspection .pi-notes{display:block;width:100%;min-height:100px;box-sizing:border-box;padding:12px;border:1px solid #c2d7df;border-radius:10px;margin:8px 0 12px;resize:vertical}
+#tab-inspection .pi-print{margin-bottom:10px}
+@media(max-width:700px){#tab-inspection .pi-controls{grid-template-columns:minmax(0,1fr)}#tab-inspection .pi-record dl{grid-template-columns:minmax(0,1fr);gap:4px}}
+@media print{body *{visibility:hidden!important}#tab-inspection,#tab-inspection *{visibility:visible!important}#tab-inspection{display:block!important;position:absolute!important;top:0!important;left:0!important;width:100%!important;overflow:visible!important}
+#tab-inspection .pi-controls,#tab-inspection .pi-print,#tab-inspection .pi-more{display:none!important}
+#tab-inspection .pi-record{break-inside:avoid}
+#tab-inspection .pi-record dl{display:grid!important}}
