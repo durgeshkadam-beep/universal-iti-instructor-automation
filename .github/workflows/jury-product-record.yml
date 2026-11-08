@@ -1,0 +1,49 @@
+name: Jury product demo video (real app, isolated emulator)
+on:
+  workflow_dispatch:
+  push:
+    branches: ['phase1/security-student-career-20261021']
+    paths:
+      - 'e2e/jury-product-record.spec.js'
+      - '.github/workflows/jury-product-record.yml'
+permissions:
+  contents: read
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - name: Record the actual app using isolated synthetic accounts
+        run: |
+          ITI_RECORD_JURY_DEMO=1 ITI_E2E_GREP="Jury product recording" npm run test:e2e
+      - name: Install FFmpeg for conversion
+        if: success()
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Convert actual-browser WebM recording to MP4
+        if: success()
+        run: |
+          mkdir -p jury-video
+          source_video="$(find test-results -type f -name '*.webm' | head -1)"
+          test -n "$source_video"
+          ffmpeg -nostdin -hide_banner -loglevel error -y -i "$source_video" -c:v libx264 -preset fast -crf 24 -pix_fmt yuv420p -movflags +faststart jury-video/Universal_EduSkill_360_Real_App_Emulator_Demo.mp4
+          printf '%s\n' "Real product UI / synthetic data / simulated AI replies" > jury-video/READ_ME_FIRST.txt
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 jury-video/Universal_EduSkill_360_Real_App_Emulator_Demo.mp4
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: universal-eduskill-real-product-demo
+          path: |
+            jury-video/
+            test-results/
+          retention-days: 7

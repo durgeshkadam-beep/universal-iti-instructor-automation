@@ -1,0 +1,11 @@
+{
+  "name": "@eduskill/minimatch-compat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CommonJS callable adapter for the patched upstream minimatch engine",
+  "main": "index.cjs",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "minimatch-engine": "npm:minimatch@11.0.3"
+  }
+}

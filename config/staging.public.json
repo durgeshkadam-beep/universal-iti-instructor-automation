@@ -1,0 +1,14 @@
+{
+  "staging": true,
+  "instituteLoginDomain": "iti-staging.example.test",
+  "quickPinEnabled": true,
+  "apiUrl": "https://universal-iti-staging-api.onrender.com/api",
+  "firebaseConfig": {
+    "projectId": "universal-iti-dk-staging",
+    "appId": "1:792496459072:web:43d8f2f2c640c8a4b83ea5",
+    "storageBucket": "universal-iti-dk-staging.firebasestorage.app",
+    "apiKey": "AIzaSyC_NQIKS7uIGtsXsrqJXqTNEy9dT-3pYkI",
+    "authDomain": "universal-iti-dk-staging.firebaseapp.com",
+    "messagingSenderId": "792496459072"
+  }
+}

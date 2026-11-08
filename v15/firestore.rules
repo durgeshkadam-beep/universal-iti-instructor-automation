@@ -1,6 +1,16 @@
 rules_version = '2';
+// Leave model: immutable application fields inside data, bounded wrapper actor/time strings.
+// Pending client creates; reviewed status/actor/time and atomic attendance writes come from the authenticated backend.
+// Dates remain ISO strings for compatibility; calendar validity and 1-90 day spans are validated below.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Year planning: backend-authored trainingPlan/revision on the workspace;
+    // planningRevisions/rNNNNNN contains immutable public syllabus/calendar history,
+    // source fingerprints and authenticated actor/time. No student records or keys.
+    function planningFieldsUnchanged(before, after) {
+      return before.get('trainingPlan', null) == after.get('trainingPlan', null)
+        && before.get('trainingPlanRevision', null) == after.get('trainingPlanRevision', null);
+    }
     function signedIn() { return request.auth != null; }
     function institutePath(inst) { return /databases/$(database)/documents/institutes/$(inst); }
     function memberPath(inst, uid) { return /databases/$(database)/documents/institutes/$(inst)/members/$(uid); }
@@ -8,8 +18,34 @@ service cloud.firestore {
     function secretPath(inst, email) { return /databases/$(database)/documents/institutes/$(inst)/inviteSecrets/$(email); }
     function legacyManifestPath(uid, wid) { return /databases/$(database)/documents/itiInstructorUsers/$(uid)/workspaces/$(wid)/sections/_manifest; }
 
-    function isOwner(inst) { return signedIn() && exists(institutePath(inst)) && get(institutePath(inst)).data.ownerUid == request.auth.uid; }
-    function hasMember(inst) { return signedIn() && exists(memberPath(inst, request.auth.uid)) && get(memberPath(inst, request.auth.uid)).data.active == true; }
+    // IAM/operator-managed delegation. Clients cannot create/update/delete grants.
+    // uid/email bind a verified Google token; member.owner alone grants nothing.
+    function validSystemAdmin(g, uid) {
+      return g.keys().hasOnly(['uid','email','active','googleOnly','schemaVersion','createdAt','createdBy','updatedAt','updatedBy'])
+        && g.keys().hasAll(['uid','email','active','googleOnly','schemaVersion','createdAt','createdBy','updatedAt','updatedBy'])
+        && g.uid == uid && g.uid is string && g.uid.size() > 0 && g.uid.size() <= 128
+        && g.email is string && g.email.size() <= 254 && g.email == request.auth.token.get('email', '')
+        && g.active == true && g.googleOnly == true && g.schemaVersion == 1
+        && g.createdAt is string && g.createdAt.size() <= 40 && g.updatedAt is string && g.updatedAt.size() <= 40
+        && g.createdBy is string && g.createdBy.size() > 0 && g.createdBy.size() <= 128
+        && g.updatedBy is string && g.updatedBy.size() > 0 && g.updatedBy.size() <= 128;
+    }
+    function delegatedAdmin(inst) {
+      let p = /databases/$(database)/documents/institutes/$(inst)/systemAdmins/$(request.auth.uid);
+      let m = memberPath(inst, request.auth.uid);
+      return exists(p) && validSystemAdmin(get(p).data, request.auth.uid)
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.get('firebase', {}).get('sign_in_provider', '') == 'google.com'
+        && exists(m) && get(m).data.active == true && get(m).data.owner == true
+        && get(m).data.uid == request.auth.uid && get(m).data.email == request.auth.token.email;
+    }
+
+    function isOwner(inst) {
+      return signedIn() && exists(institutePath(inst)) && (get(institutePath(inst)).data.ownerUid == request.auth.uid || delegatedAdmin(inst));
+    }
+    function hasMember(inst) {
+      return signedIn() && exists(memberPath(inst, request.auth.uid)) && get(memberPath(inst, request.auth.uid)).data.active == true;
+    }
     function member(inst) { return get(memberPath(inst, request.auth.uid)).data; }
     function isPrincipal(inst) { return hasMember(inst) && member(inst).role == 'principal'; }
     function isInstructor(inst) { return hasMember(inst) && member(inst).role == 'instructor'; }
@@ -17,67 +53,425 @@ service cloud.firestore {
     function isStudent(inst) { return hasMember(inst) && member(inst).role == 'student'; }
     function isStaff(inst) { return isOwner(inst) || isPrincipal(inst) || isInstructor(inst); }
     function canReadInstitute(inst) { return isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || isSupportStaff(inst); }
-    function workspaceAllowed(inst, wid) { return isOwner(inst) || isPrincipal(inst) || (hasMember(inst) && wid in member(inst).workspaceIds); }
+    function workspaceAllowed(inst, wid) {
+      return isOwner(inst) || isPrincipal(inst) || (hasMember(inst) && wid in member(inst).workspaceIds);
+    }
     function ownTrainee(inst, traineeId) { return isStudent(inst) && member(inst).traineeId == traineeId; }
-    function publicStudentSection(section) { return section in ['theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams']; }
+    function attendanceUnlocked(inst, wid, record) {
+      let dateKey = record.get('key', '');
+      let valid = dateKey is string && dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+      let month = valid ? dateKey[0:7] : '';
+      let lock = /databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid)/attendanceLocks/$(month);
+      return valid && (!exists(lock) || get(lock).data.status == 'reopened');
+    }
+    // Leave wrapper: immutable application data, bounded strings, pending Student creates.
+    // Review fields are backend-authored; clients may create pending requests or replay identical data only.
+    function leaveTimestamp(value) { return timestamp.date(int(value[0:4]), int(value[5:7]), int(value[8:10])); }
+    function validLeaveDay(value) {
+      let day = leaveTimestamp(value);
+      return day.year() == int(value[0:4]) && day.month() == int(value[5:7]) && day.day() == int(value[8:10]);
+    }
+    function validLeaveCalendar(d) {
+      return validLeaveDay(d.fromDate) && validLeaveDay(d.toDate) && validLeaveDay(d.appliedDate)
+        && leaveTimestamp(d.toDate) - leaveTimestamp(d.fromDate) <= duration.value(89, 'd');
+    }
+    function validLeave(record, docId) {
+      let d = record.data;
+      return record.keys().hasOnly(['data','updatedAt','updatedBy'])
+        && record.updatedBy == request.auth.uid && record.updatedAt is string && record.updatedAt.size() <= 40
+        && d is map && d.keys().hasAll(['id','traineeId','type','fromDate','toDate','reason','certNote','status','appliedDate'])
+        && d.keys().hasOnly(['id','traineeId','type','fromDate','toDate','reason','certNote','status','appliedDate','reviewedAt','reviewedBy'])
+        && d.id == docId && d.id is string && d.id.size() <= 180
+        && d.traineeId is string && d.traineeId.size() > 0 && d.traineeId.size() <= 180
+        && d.type in ['Casual','Medical','Other'] && d.status in ['pending','approved','rejected']
+        && d.fromDate is string && d.fromDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.toDate is string && d.toDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') && d.toDate >= d.fromDate
+        && d.appliedDate is string && d.appliedDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && validLeaveCalendar(d)
+        && d.reason is string && d.reason.size() > 0 && d.reason.size() <= 2000
+        && d.certNote is string && d.certNote.size() <= 2048 && (d.certNote == '' || d.certNote.matches('^https://[^/?#@ ]+([/?#].*)?$'))
+        && (!('reviewedAt' in d) || (d.reviewedAt is string && d.reviewedAt.size() <= 40))
+        && (!('reviewedBy' in d) || (d.reviewedBy is string && d.reviewedBy.size() <= 128));
+    }
+    function pendingStudentLeave(inst, d) {
+      return ownTrainee(inst, d.traineeId) && d.status == 'pending'
+        && !d.keys().hasAny(['reviewedAt','reviewedBy']);
+    }
+    function publicStudentSection(section) {
+      return section in ['theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams'];
+    }
+    function genericSection(section) { return section in ['theory','practicals','notices','holidays','modules','extraTopics','visits','activities','exams','warnings','undertakings'] || section.matches('^map_[A-Za-z0-9_-]+$'); }
+    // Teaching plan history: topic.data.teachingPlanRevision is server-owned.
+    // Legacy unversioned imports are not attested history. Managed topic parents cannot be deleted.
+    function validTeachingTopic(record) {
+      let d = record.data;
+      return d is map && d.no != null
+        && ((d.no is string && d.no.size() > 0 && d.no.size() <= 180) || (d.no is number && d.no >= 0 && d.no <= 1000000000))
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 5000
+        && d.get('teachingPlanRevision', 0) is int
+        && d.get('teachingPlanRevision', 0) >= 0 && d.get('teachingPlanRevision', 0) < 100000;
+    }
+    function teachingFieldsUnchanged(before, after) {
+      return !after.data.diff(before.data).affectedKeys().hasAny(['plan','planMeta','teachingPlanRevision','planReviewRequired']);
+    }
     function validRole(role) { return role in ['principal','instructor','staff','student']; }
     function ownerCanCreateRole(inst, role) { return isOwner(inst) && validRole(role); }
     function principalCanCreateRole(inst, role) { return isPrincipal(inst) && role in ['instructor','staff']; }
     function instructorCanCreateRole(inst, role) { return isInstructor(inst) && role == 'student'; }
 
-    match /itiInstructorUsers/{userId}/{document=**} { allow read, write: if signedIn() && request.auth.uid == userId; }
+    function instructorManagesAccess(inst, email) {
+      let path = accessPath(inst, email);
+      return isInstructor(inst) && exists(path) && get(path).data.role == 'student'
+        && get(path).data.workspaceIds is list && get(path).data.workspaceIds.size() > 0
+        && get(path).data.workspaceIds.hasOnly(member(inst).workspaceIds);
+    }
+
+    // Preserve V14 private cloud for rollback/migration.
+    match /itiInstructorUsers/{userId}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
 
     match /institutes/{inst} {
       allow get: if signedIn();
       allow list: if isOwner(inst) || hasMember(inst);
-      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid && request.resource.data.legacyWorkspaceId is string && exists(legacyManifestPath(request.auth.uid, request.resource.data.legacyWorkspaceId));
-      allow update: if isOwner(inst) || isPrincipal(inst);
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.legacyWorkspaceId is string
+        && exists(legacyManifestPath(request.auth.uid, request.resource.data.legacyWorkspaceId));
+      allow update: if (isOwner(inst) || isPrincipal(inst))
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.schemaVersion == resource.data.schemaVersion;
       allow delete: if false;
 
+      match /systemAdmins/{uid} {
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow list, create, update, delete: if false;
+      }
+
       match /access/{email} {
-        allow get: if signedIn() && (isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || request.auth.token.email == email);
-        allow list: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst);
-        allow create, update: if ownerCanCreateRole(inst, request.resource.data.role) || principalCanCreateRole(inst, request.resource.data.role) || instructorCanCreateRole(inst, request.resource.data.role);
-        allow delete: if isOwner(inst) || (isPrincipal(inst) && resource.data.role in ['instructor','staff']) || (isInstructor(inst) && resource.data.role == 'student');
+        allow get: if signedIn() && (isOwner(inst) || isPrincipal(inst) || instructorManagesAccess(inst, email) || request.auth.token.email == email);
+        allow list: if isOwner(inst) || isPrincipal(inst);
+        allow create: if ownerCanCreateRole(inst, request.resource.data.role)
+          || principalCanCreateRole(inst, request.resource.data.role)
+          || (instructorCanCreateRole(inst, request.resource.data.role) && request.resource.data.workspaceIds.hasOnly(member(inst).workspaceIds));
+        allow update: if (ownerCanCreateRole(inst, resource.data.role) && ownerCanCreateRole(inst, request.resource.data.role))
+          || (principalCanCreateRole(inst, resource.data.role) && principalCanCreateRole(inst, request.resource.data.role))
+          || (instructorCanCreateRole(inst, resource.data.role) && instructorCanCreateRole(inst, request.resource.data.role)
+            && resource.data.workspaceIds.hasOnly(member(inst).workspaceIds) && request.resource.data.workspaceIds.hasOnly(member(inst).workspaceIds));
+        allow delete: if isOwner(inst)
+          || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
+          || (isInstructor(inst) && resource.data.role == 'student' && instructorManagesAccess(inst, email));
       }
+
       match /inviteSecrets/{email} {
-        allow read: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst);
-        allow create: if ownerCanCreateRole(inst, request.resource.data.role) || principalCanCreateRole(inst, request.resource.data.role) || instructorCanCreateRole(inst, request.resource.data.role);
-        allow update: if ownerCanCreateRole(inst, request.resource.data.role) || principalCanCreateRole(inst, request.resource.data.role) || instructorCanCreateRole(inst, request.resource.data.role) || (signedIn() && request.auth.token.email == email && hasMember(inst) && member(inst).email == email && member(inst).activationProof == resource.data.codeHash && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','usedAt','usedBy']) && request.resource.data.active == false && request.resource.data.usedBy == request.auth.uid);
-        allow delete: if isOwner(inst) || (isPrincipal(inst) && resource.data.role in ['instructor','staff']) || (isInstructor(inst) && resource.data.role == 'student');
+        allow read: if isOwner(inst) || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
+          || (isInstructor(inst) && resource.data.role == 'student' && instructorManagesAccess(inst, email));
+        allow create: if ownerCanCreateRole(inst, request.resource.data.role)
+          || principalCanCreateRole(inst, request.resource.data.role)
+          || (instructorCanCreateRole(inst, request.resource.data.role) && instructorManagesAccess(inst, email));
+        allow update: if (ownerCanCreateRole(inst, resource.data.role) && ownerCanCreateRole(inst, request.resource.data.role))
+          || (principalCanCreateRole(inst, resource.data.role) && principalCanCreateRole(inst, request.resource.data.role))
+          || (instructorCanCreateRole(inst, resource.data.role) && instructorCanCreateRole(inst, request.resource.data.role) && instructorManagesAccess(inst, email))
+          || (
+            signedIn()
+            && request.auth.token.email == email
+            && hasMember(inst)
+            && member(inst).email == email
+            && member(inst).activationProof == resource.data.codeHash
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','usedAt','usedBy'])
+            && request.resource.data.active == false
+            && request.resource.data.usedBy == request.auth.uid
+          );
+        allow delete: if isOwner(inst)
+          || (isPrincipal(inst) && resource.data.role in ['instructor','staff'])
+          || (isInstructor(inst) && resource.data.role == 'student' && instructorManagesAccess(inst, email));
       }
+
       match /members/{memberId} {
         allow read: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst) || (signedIn() && memberId == request.auth.uid);
-        allow create: if signedIn() && memberId == request.auth.uid && (isOwner(inst) || (request.auth.token.email != null && exists(accessPath(inst, request.auth.token.email)) && exists(secretPath(inst, request.auth.token.email)) && get(accessPath(inst, request.auth.token.email)).data.active == true && get(secretPath(inst, request.auth.token.email)).data.active == true && request.resource.data.email == request.auth.token.email && validRole(request.resource.data.role) && request.resource.data.role == get(accessPath(inst, request.auth.token.email)).data.role && request.resource.data.workspaceIds == get(accessPath(inst, request.auth.token.email)).data.workspaceIds && request.resource.data.traineeId == get(accessPath(inst, request.auth.token.email)).data.traineeId && request.resource.data.activationProof == get(secretPath(inst, request.auth.token.email)).data.codeHash));
-        allow update: if (isOwner(inst) && resource.data.owner != true && request.resource.data.owner != true && validRole(request.resource.data.role)) || (isPrincipal(inst) && resource.data.owner != true && resource.data.role in ['instructor','staff'] && request.resource.data.role in ['instructor','staff'] && request.resource.data.owner == resource.data.owner);
+        allow create: if signedIn() && memberId == request.auth.uid && (
+          isOwner(inst)
+          || (
+            request.auth.token.email != null
+            && request.auth.token.email_verified == true
+            && request.resource.data.owner == false
+            && request.resource.data.active == true
+            && request.resource.data.uid == request.auth.uid
+            && exists(accessPath(inst, request.auth.token.email))
+            && exists(secretPath(inst, request.auth.token.email))
+            && get(accessPath(inst, request.auth.token.email)).data.active == true
+            && get(secretPath(inst, request.auth.token.email)).data.active == true
+            && request.resource.data.email == request.auth.token.email
+            && validRole(request.resource.data.role)
+            && request.resource.data.role == get(accessPath(inst, request.auth.token.email)).data.role
+            && request.resource.data.workspaceIds == get(accessPath(inst, request.auth.token.email)).data.workspaceIds
+            && request.resource.data.traineeId == get(accessPath(inst, request.auth.token.email)).data.traineeId
+            && request.resource.data.activationProof == get(secretPath(inst, request.auth.token.email)).data.codeHash
+          )
+        );
+        allow update: if
+          (isOwner(inst) && resource.data.owner != true && request.resource.data.owner != true && validRole(request.resource.data.role))
+          || (isPrincipal(inst) && resource.data.owner != true && resource.data.role in ['instructor','staff'] && request.resource.data.role in ['instructor','staff'] && request.resource.data.owner == resource.data.owner);
         allow delete: if isOwner(inst) && resource.data.owner != true;
       }
 
-      match /instituteNotices/{noticeId} { allow read: if isOwner(inst) || hasMember(inst); allow create, update, delete: if isOwner(inst) || isPrincipal(inst); }
-      match /auditLog/{auditId} { allow read: if isOwner(inst) || isPrincipal(inst); allow create: if isStaff(inst) && request.resource.data.actorUid == request.auth.uid; allow update, delete: if false; }
-      match /recycleBin/{recycleId} { allow read: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst); allow create: if isStaff(inst) && request.resource.data.deletedBy == request.auth.uid; allow update: if isOwner(inst) || isPrincipal(inst); allow delete: if false; }
-      match /traineeIndex/{identityId} { allow get: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst); allow list: if isOwner(inst) || isPrincipal(inst); allow create, update: if isStaff(inst) && request.resource.data.updatedBy == request.auth.uid; allow delete: if false; }
+      // Institute-wide notices created by Principal/System Admin and visible to authenticated institute members.
+      match /instituteNotices/{noticeId} {
+        allow read: if isOwner(inst) || hasMember(inst);
+        allow create, update, delete: if isOwner(inst) || isPrincipal(inst);
+      }
+
+      // Immutable audit trail. Clients may append their own actions but cannot alter history.
+      match /auditLog/{auditId} {
+        allow read: if isOwner(inst) || isPrincipal(inst);
+        allow create: if isStaff(inst)
+          && request.resource.data.actorUid == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      // Deleted official records are recoverable. Only Principal/System Admin can mark a recycle item restored.
+      match /recycleBin/{recycleId} {
+        allow read: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst);
+        allow create: if isStaff(inst) && request.resource.data.deletedBy == request.auth.uid;
+        allow update: if isOwner(inst) || isPrincipal(inst);
+        allow delete: if false;
+      }
+
+      // Institute-wide uniqueness index for PRN/Application/Registration identities.
+      match /traineeIndex/{identityId} {
+        allow get: if isOwner(inst) || isPrincipal(inst) || isInstructor(inst);
+        allow list: if isOwner(inst) || isPrincipal(inst);
+        allow create, update: if isStaff(inst) && request.resource.data.updatedBy == request.auth.uid;
+        allow delete: if false;
+      }
 
       match /workspaces/{wid} {
         allow read: if workspaceAllowed(inst, wid);
-        allow create: if isOwner(inst) || isPrincipal(inst);
-        allow update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
+        allow create: if (isOwner(inst) || isPrincipal(inst)) && planningFieldsUnchanged({}, request.resource.data);
+        allow update: if (isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst)))
+          && planningFieldsUnchanged(resource.data, request.resource.data);
+
+        match /planningRevisions/{revision} {
+          allow read: if exists(/databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid)) && workspaceAllowed(inst, wid) && isStaff(inst);
+          allow create, update, delete: if false;
+        }
+        match /{teachingSection}/{topicId}/teachingPlanRevisions/{revision} {
+          allow read: if teachingSection in ['practicals','theory'] && workspaceAllowed(inst, wid) && isStaff(inst)
+            && exists(/databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid))
+            && exists(/databases/$(database)/documents/institutes/$(inst)/workspaces/$(wid)/$(teachingSection)/$(topicId));
+          allow create, update, delete: if false;
+        }
+        // Archive instead of permanent workspace deletion.
         allow delete: if isOwner(inst);
 
-        match /trainees/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || (resource.data.data.id != null && ownTrainee(inst, resource.data.data.id))); allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
-        match /attendance/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId)); allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
-        match /marks/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId)); allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
-        match /submissions/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId)); allow create, update: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.traineeId)); allow delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
-        match /leaves/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId)); allow create: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.data.traineeId)); allow update, delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
-        match /examAttempts/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId)); allow create, update: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.data.traineeId)); allow delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
-        match /projects/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId)); allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
-        match /attendanceLocks/{month} { allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst); allow create, update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst)); allow delete: if false; }
-        match /galleryCloud/{galleryId} { allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst); allow create, update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst)); allow delete: if false; }
-        match /state/{docId} { allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst); allow write: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst)); }
-        match /{section}/{docId} { allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || publicStudentSection(section)); allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst); }
+        match /trainees/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || (resource.data.data.id != null && ownTrainee(inst, resource.data.data.id)));
+          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+        }
+        match /attendance/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId));
+          allow create: if workspaceAllowed(inst, wid) && isStaff(inst) && attendanceUnlocked(inst, wid, request.resource.data);
+          allow update: if workspaceAllowed(inst, wid) && isStaff(inst)
+            && request.resource.data.key == resource.data.key
+            && request.resource.data.traineeId == resource.data.traineeId
+            && request.resource.data.subKey == resource.data.subKey
+            && attendanceUnlocked(inst, wid, resource.data);
+          allow delete: if workspaceAllowed(inst, wid) && isStaff(inst) && attendanceUnlocked(inst, wid, resource.data);
+        }
+        match /marks/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId));
+          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+        }
+        match /submissions/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.traineeId));
+          allow create: if workspaceAllowed(inst, wid) && (isStaff(inst) || ownTrainee(inst, request.resource.data.traineeId));
+          allow update: if workspaceAllowed(inst, wid) && (isStaff(inst) ||
+            (ownTrainee(inst, resource.data.traineeId) && request.resource.data.traineeId == resource.data.traineeId
+             && request.resource.data.key == resource.data.key && request.resource.data.subKey == resource.data.subKey));
+          allow delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+        }
+        match /leaves/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId));
+          allow create: if workspaceAllowed(inst, wid) && validLeave(request.resource.data, docId)
+            && request.resource.data.data.status == 'pending'
+            && !request.resource.data.data.keys().hasAny(['reviewedAt','reviewedBy'])
+            && (isStaff(inst) || pendingStudentLeave(inst, request.resource.data.data));
+          allow update: if workspaceAllowed(inst, wid) && validLeave(request.resource.data, docId)
+            && request.resource.data.data == resource.data.data
+            && (isStaff(inst) || pendingStudentLeave(inst, resource.data.data));
+          // No delete/recreate route around immutable applications and server-only review.
+          allow delete: if false;
+        }
+        match /examAttempts/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId));
+          // Client-calculated exam scores are not trusted until backend grading is implemented.
+          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+        }
+        match /projects/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && (canReadInstitute(inst) || ownTrainee(inst, resource.data.data.traineeId));
+          allow create, update, delete: if workspaceAllowed(inst, wid) && isStaff(inst);
+        }
+
+        match /studentPlans/{studentUid} {
+          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || (isStudent(inst) && request.auth.uid == studentUid));
+          allow create, update: if workspaceAllowed(inst, wid) && isStudent(inst) && request.auth.uid == studentUid
+            && request.resource.data.keys().hasOnly(['selfRatings','plan','updatedAt'])
+            && request.resource.data.selfRatings is map && request.resource.data.selfRatings.size() <= 200
+            && request.resource.data.plan is map && request.resource.data.updatedAt == request.time;
+          allow delete: if false;
+        }
+        match /examKeys/{id} { allow read, write: if false; }
+        match /examSessions/{id} { allow read, write: if false; }
+        match /secureExams/{id} {
+          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || (isStudent(inst) && resource.data.published == true));
+          allow write: if false;
+        }
+        match /secureResults/{id} {
+          allow read: if workspaceAllowed(inst, wid) && (isStaff(inst) || (isStudent(inst) && resource.data.studentUid == request.auth.uid));
+          allow write: if false;
+        }
+
+        // Instructor-verified skills: one private profile per activated student UID.
+        // Students may read ONLY their own verified skill profile, never write it.
+        match /skillVerifications/{studentUid} {
+          allow get: if workspaceAllowed(inst, wid)
+            && (isStaff(inst) || (isStudent(inst) && request.auth.uid == studentUid));
+          allow list: if workspaceAllowed(inst, wid) && isStaff(inst);
+          allow create: if workspaceAllowed(inst, wid) && isStaff(inst)
+            && exists(memberPath(inst, studentUid))
+            && get(memberPath(inst, studentUid)).data.active == true
+            && get(memberPath(inst, studentUid)).data.role == 'student'
+            && wid in get(memberPath(inst, studentUid)).data.workspaceIds
+            && request.resource.data.keys().hasOnly(['studentUid','traineeId','workspaceId','skills','updatedAt','updatedBy'])
+            && request.resource.data.keys().hasAll(['studentUid','traineeId','workspaceId','skills','updatedAt','updatedBy'])
+            && request.resource.data.studentUid == studentUid
+            && request.resource.data.traineeId == get(memberPath(inst, studentUid)).data.traineeId
+            && request.resource.data.workspaceId == wid
+            && request.resource.data.skills is map
+            && request.resource.data.skills.size() <= 200
+            && request.resource.data.updatedBy == request.auth.uid
+            && request.resource.data.updatedAt is timestamp
+            && request.resource.data.updatedAt == request.time;
+          allow update: if workspaceAllowed(inst, wid) && isStaff(inst)
+            && exists(memberPath(inst, studentUid))
+            && get(memberPath(inst, studentUid)).data.active == true
+            && get(memberPath(inst, studentUid)).data.role == 'student'
+            && wid in get(memberPath(inst, studentUid)).data.workspaceIds
+            && resource.data.studentUid == studentUid
+            && request.resource.data.studentUid == resource.data.studentUid
+            && request.resource.data.traineeId == resource.data.traineeId
+            && request.resource.data.workspaceId == resource.data.workspaceId
+            && request.resource.data.traineeId == get(memberPath(inst, studentUid)).data.traineeId
+            && request.resource.data.skills is map
+            && request.resource.data.skills.size() <= 200
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['skills','updatedAt','updatedBy'])
+            && request.resource.data.updatedBy == request.auth.uid
+            && request.resource.data.updatedAt is timestamp
+            && request.resource.data.updatedAt == request.time;
+          allow delete: if false;
+        }
+
+        // Trade syllabus practicals -> instructor-reviewed workplace use cases.
+        // A source-linked use-case is not a job opening or certification.
+        match /skillApplications/{practicalId} {
+          allow get, list: if workspaceAllowed(inst, wid)
+            && (isStaff(inst) || isStudent(inst));
+          allow create, update: if workspaceAllowed(inst, wid) && isInstructor(inst)
+            && practicalId.matches('^practical-[A-Za-z0-9_.-]{1,40}$')
+            && request.resource.data.keys().hasOnly(['practicalId','skillTitle','industry','applicationText','sourceUrl','reviewedBy','reviewedAt'])
+            && request.resource.data.keys().hasAll(['practicalId','skillTitle','industry','applicationText','sourceUrl','reviewedBy','reviewedAt'])
+            && request.resource.data.practicalId == practicalId
+            && request.resource.data.skillTitle is string && request.resource.data.skillTitle.size() > 0 && request.resource.data.skillTitle.size() <= 140
+            && request.resource.data.industry is string && request.resource.data.industry.size() > 0 && request.resource.data.industry.size() <= 100
+            && request.resource.data.applicationText is string && request.resource.data.applicationText.size() >= 10 && request.resource.data.applicationText.size() <= 500
+            && request.resource.data.sourceUrl is string
+            && request.resource.data.sourceUrl.size() > 8 && request.resource.data.sourceUrl.size() <= 500
+            && request.resource.data.sourceUrl.matches('^https://[^ ]+$')
+            && request.resource.data.reviewedBy == request.auth.uid
+            && request.resource.data.reviewedAt == request.time;
+          allow delete: if false;
+        }
+
+        // Instructor-reviewed source postings; not an exhaustive city business census.
+        match /careerOpportunities/{postingId} {
+          allow get, list: if workspaceAllowed(inst, wid)
+            && (isStaff(inst) || (isStudent(inst) && resource.data.status == 'active'));
+          allow create: if workspaceAllowed(inst, wid) && isInstructor(inst)
+            && request.resource.data.keys().hasOnly(['kind','title','employer','city','cityKey','skills','practicalIds','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
+            && request.resource.data.keys().hasAll(['title','employer','city','cityKey','skills','sourceUrl','expiresAt','status','reviewedBy','reviewedAt','updatedBy','updatedAt'])
+            && request.resource.data.get('kind','job') in ['job','apprenticeship']
+            && request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140
+            && request.resource.data.employer is string && request.resource.data.employer.size() > 0 && request.resource.data.employer.size() <= 140
+            && request.resource.data.city is string && request.resource.data.city.size() > 0 && request.resource.data.city.size() <= 80
+            && request.resource.data.cityKey is string && request.resource.data.cityKey.size() > 0 && request.resource.data.cityKey.size() <= 80
+            && request.resource.data.skills is list && request.resource.data.skills.size() > 0 && request.resource.data.skills.size() <= 16
+            && request.resource.data.get('practicalIds', []) is list
+            && request.resource.data.get('practicalIds', []).size() <= 30
+            && request.resource.data.sourceUrl is string && request.resource.data.sourceUrl.matches('^https://[^ ]+$')
+            && request.resource.data.sourceUrl.size() <= 500
+            && request.resource.data.expiresAt is string && request.resource.data.expiresAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && request.resource.data.status == 'active'
+            && request.resource.data.reviewedBy == request.auth.uid
+            && request.resource.data.updatedBy == request.auth.uid
+            && request.resource.data.reviewedAt == request.time
+            && request.resource.data.updatedAt == request.time;
+          allow update: if workspaceAllowed(inst, wid) && isInstructor(inst)
+            && resource.data.status == 'active' && request.resource.data.status == 'withdrawn'
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedBy','updatedAt'])
+            && request.resource.data.updatedBy == request.auth.uid
+            && request.resource.data.updatedAt == request.time;
+          allow delete: if false;
+        }
+
+        // Monthly attendance submit/approve/reopen governance.
+        match /attendanceLocks/{month} {
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow create: if (isOwner(inst) || isPrincipal(inst))
+            || (workspaceAllowed(inst, wid) && isInstructor(inst)
+                && request.resource.data.status == 'submitted'
+                && request.resource.data.submittedBy == request.auth.uid);
+          allow update: if (isOwner(inst) || isPrincipal(inst))
+            || (workspaceAllowed(inst, wid) && isInstructor(inst)
+                && resource.data.status == 'reopened'
+                && request.resource.data.status == 'submitted'
+                && request.resource.data.submittedBy == request.auth.uid
+                && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['status','submittedBy','submittedByEmail','submittedAt','month','updatedAt']));
+          allow delete: if false;
+        }
+
+        // Shared metadata for photos archived to Google Drive.
+        match /galleryCloud/{galleryId} {
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow create, update: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
+          allow delete: if false;
+        }
+
+        match /state/{docId} {
+          allow read: if workspaceAllowed(inst, wid) && canReadInstitute(inst);
+          allow write: if isOwner(inst) || isPrincipal(inst) || (workspaceAllowed(inst, wid) && isInstructor(inst));
+        }
+        match /{section}/{docId} {
+          // Legacy exams contain correctIndex; Firestore cannot hide individual fields.
+          allow read: if genericSection(section) && workspaceAllowed(inst, wid) && (canReadInstitute(inst)
+            || (isStudent(inst) && section != 'exams' && publicStudentSection(section)));
+          allow create: if genericSection(section) && workspaceAllowed(inst, wid) && isStaff(inst)
+            && (!(section in ['practicals','theory']) || (validTeachingTopic(request.resource.data) && request.resource.data.data.get('teachingPlanRevision', 0) == 0))
+            && section != 'skillVerifications' && section != 'careerOpportunities' && section != 'skillApplications';
+          allow update: if genericSection(section) && workspaceAllowed(inst, wid) && isStaff(inst)
+            && (!(section in ['practicals','theory']) || (validTeachingTopic(request.resource.data) && teachingFieldsUnchanged(resource.data, request.resource.data)))
+            && section != 'skillVerifications' && section != 'careerOpportunities' && section != 'skillApplications';
+          allow delete: if genericSection(section) && workspaceAllowed(inst, wid) && isStaff(inst)
+            && (!(section in ['practicals','theory']) || resource.data.data.get('teachingPlanRevision', 0) == 0)
+            && section != 'skillVerifications'
+            && section != 'careerOpportunities'
+            && section != 'skillApplications';
+        }
       }
     }
 
-    match /{document=**} { allow read, write: if false; }
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }

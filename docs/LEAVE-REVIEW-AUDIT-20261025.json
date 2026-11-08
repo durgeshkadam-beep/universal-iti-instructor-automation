@@ -1,0 +1,39 @@
+{
+  "score": 4,
+  "summary": "Scoped leave-review audit: a reproduced client workflow bypass and an API context race are closed by server-only atomic review, strict client rules and context-bound requests. This is prototype-rule validation, not a whole-application security certificate.",
+  "scope": "Leave applications, review decisions and associated attendance-lock checks only.",
+  "findings": [
+    {
+      "check": "Business logic vs rules / update bypass",
+      "severity": "major",
+      "status": "resolved",
+      "issue": "An assigned Instructor SDK could directly change pending leave to approved while its attendance month was submitted, bypassing the application transaction.",
+      "recommendation": "Implemented authenticated backend-only review with transactional membership, trainee and all-month lock checks; client reviewed creates/status edits/deletes are denied."
+    },
+    {
+      "check": "Identity and workspace scoping",
+      "severity": "major",
+      "status": "resolved",
+      "issue": "The previous backendRequest read the workspace after awaiting a token, allowing an old action to target a newly selected workspace. Reproduced with the original function.",
+      "recommendation": "Implemented immutable captured context, pre-send identity checks and late-response rejection."
+    },
+    {
+      "check": "Type/calendar validation and resource bounds",
+      "severity": "minor",
+      "status": "resolved",
+      "issue": "Pending client requests previously used date-format validation without logical calendar or 90-day enforcement.",
+      "recommendation": "Added real calendar validation and 1-90 day checks in rules and shared server policy, preserving bounded schema checks on both creates and updates."
+    },
+    {
+      "check": "Historical state and release acceptance",
+      "severity": "minor",
+      "status": "requires-review",
+      "issue": "Historical client-authored reviews are not retroactively authenticated or migrated by this change. The wider rule set and institution policies remain outside this scoped audit.",
+      "recommendation": "Review legacy records and the prototype rules before broad production sharing. Do not import original student data without a separate reviewed migration."
+    }
+  ],
+  "validation": {
+    "before": "Real Emulator assertFails failed because a locked-month direct SDK approval succeeded.",
+    "after": "See Draft PR #16 for final source CI and staging acceptance results. Attack coverage includes own/foreign/anonymous SDK permissions; direct reviewed creation/update/delete; invalid dates, schema/type/size and span; backend role/tenant denial, actor/time injection, concurrent retry, lock atomicity, missing trainee and in-transaction role revocation."
+  }
+}

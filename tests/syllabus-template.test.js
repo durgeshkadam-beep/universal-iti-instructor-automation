@@ -1,0 +1,8 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto'),X=require('../assets/vendor/xlsx.mini.min.js'),P=require('../shared/syllabus-planning');
+test('download template has blank Theory/Practicals sheets, text identifiers and a separately ignored instruction sheet',()=>{
+ const wb=X.read(fs.readFileSync('assets/templates/syllabus-template.xlsx'),{type:'buffer',cellStyles:true});assert.deepEqual(wb.SheetNames,['Theory','Practicals','Instructions']);const sheets=Object.fromEntries(wb.SheetNames.map(name=>[name,X.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:false,defval:''})]));assert.deepEqual(sheets.Theory[0],['Sr No.','Theory No.','Theory Name','Required Hours','Unit / Module (optional)']);assert(sheets.Practicals.slice(1).every(r=>r.every(x=>x==='')));assert.throws(()=>P.fromSheets(sheets),/No topics/);assert.equal(wb.Sheets.Theory.B2?.z,'@');
+});
+test('actual synthetic Excel fixture preserves zeros/decimal hours and explicit streams with the pinned local parser',()=>{
+ const wb=X.read(fs.readFileSync('tests/fixtures/syllabus-upload.xlsx'),{type:'buffer'}),items=P.fromSheets(Object.fromEntries(wb.SheetNames.map(name=>[name,X.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:false,defval:''})])));assert.deepEqual(items.map(x=>[x.type,x.no,x.hours]),[['practical','excel-001',7.5],['theory','001',1.5],['theory','010',1.25]]);assert.equal(X.version,'0.20.3');assert.equal(crypto.createHash('sha256').update(fs.readFileSync('assets/vendor/xlsx.mini.min.js')).digest('hex'),'0cb353f830d7288385492c83d277b058ddeac664ca51cf1393aa1fd3e2b70939');
+});

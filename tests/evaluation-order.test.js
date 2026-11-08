@@ -1,0 +1,18 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+function setup(){
+ const dom=new JSDOM('<select id="evalPracticalSelect"></select><select id="studentSubmitSelect"></select><table><tbody id="evalTableBody"></tbody></table>',{runScripts:'outside-only'}),w=dom.window;
+ w.DATA={marks:{},submissions:{},practicals:[{no:'10',title:'Ten'},{no:'2',title:'Two'},{no:'1',title:'One'}],trainees:[{id:'t10',roll:'10',name:'Ten'},{id:'t02',roll:'02',name:'Two'},{id:'t1',roll:'1',name:'One'}]};w.SESSION={role:'instructor'};w.V15Sync={workspaceId:'w1',fb:{user:{uid:'instructor'}}};w.alerts=[];w.alert=x=>w.alerts.push(x);w.confirm=()=>false;let saves=0;w.saveData=()=>saves++;w.Trainees=w.Dashboard={render(){}};
+ const s=fs.readFileSync('app.js','utf8'),helpers=s.slice(s.indexOf('function syllabusContext()'),s.indexOf('const MarkComplete ='));
+ const reportSort=s.slice(s.indexOf('  sortedTrainees(){',s.indexOf('const Reports =')),s.indexOf('  populateSelects(){',s.indexOf('const Reports =')));
+ w.eval(helpers+'\nconst Reports={'+reportSort+'};'+s.slice(s.indexOf('const CRITERIA ='),s.indexOf('/* ===================== ACTIVITIES'))+';window.E=Evaluation;');w.E.populateSelects();w.E.loadGrid();return {w,saves:()=>saves};
+}
+test('evaluation preserves exact practical selections and marks stay attached to natural roll order',()=>{
+ const {w,saves}=setup();try{const select=w.document.querySelector('#evalPracticalSelect');assert.deepEqual(Array.from(select.options,o=>o.value),['1','2','10']);select.value='2';w.E.populateSelects();assert.equal(select.value,'2');w.E.loadGrid();assert.deepEqual(Array.from(w.document.querySelectorAll('tr'),r=>r.dataset.trainee),['t1','t02','t10']);assert.deepEqual(Array.from(w.document.querySelector('tr').cells).slice(0,3).map(c=>c.textContent),['1','1','One']);const input=w.document.querySelector('#ev-t02-prep');input.value='4';input.dispatchEvent(new w.Event('input'));w.E.saveGrid();assert.equal(saves(),1);assert.equal(w.DATA.marks['2'].t02.prep,4);assert.equal(w.DATA.marks['2'].t1.prep,0);assert.equal(w.DATA.trainees[0].id,'t10');}finally{w.close();}
+});
+test('unsaved marks survive refresh and cancelled selection changes, stale saves cannot write another workspace',()=>{
+ const {w,saves}=setup();try{const input=w.document.querySelector('#ev-t1-prep');input.value='5';input.dispatchEvent(new w.Event('input'));w.E.populateSelects();w.E.render();assert.equal(input.value,'5');const select=w.document.querySelector('#evalPracticalSelect');select.value='2';w.E.loadGrid();assert.equal(select.value,'1');assert.equal(input.value,'5');w.V15Sync.workspaceId='w2';w.E.saveGrid();assert.equal(saves(),0);assert.match(w.alerts.at(-1),/workspace/);w.E.populateSelects();assert.equal(w.document.querySelectorAll('tr').length,0);}finally{w.close();}
+});
+test('evaluation rejects invalid and concurrent marks and renders hostile records as text',()=>{
+ const {w,saves}=setup();try{let input=w.document.querySelector('#ev-t1-prep');input.value='6';w.E.saveGrid();assert.equal(saves(),0);assert.match(w.alerts.at(-1),/0 to 5/);input.value='2';w.DATA.marks['1']={t1:{prep:3}};w.E.saveGrid();assert.equal(saves(),0);assert.equal(w.DATA.marks['1'].t1.prep,3);w.DATA.trainees[0].name='<img src=x onerror=bad()>';w.DATA.practicals[0].title='<svg onload=bad()>';w.DATA.submissions['1']={t10:{link:'javascript:bad()'}};w.E.populateSelects();w.E.loadGrid();assert.equal(w.document.querySelectorAll('img,svg,[onclick],[onchange],a[href^="javascript"]').length,0);assert.match(w.document.body.textContent,/<img/);w.SESSION.role='student';w.E.saveGrid();assert.equal(saves(),0);}finally{w.close();}
+});
