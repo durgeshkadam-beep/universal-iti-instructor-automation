@@ -10,7 +10,7 @@ async function run(){
  const getDocs=(q)=>{
   reads++;
   if(q.key==='practicals'){
-   const index=q.cursor?source.indexOf(q.cursor.sample)+1:0;
+   const index=q.cursor?source.indexOf(q.cursor.sample.sample)+1:0;
    return {docs:source.slice(index,index+q.n).map(o=>({sample:o,data:()=>o}))};
   }
   return {docs:[]};
